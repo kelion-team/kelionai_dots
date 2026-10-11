@@ -1,0 +1,3 @@
+ChatGPT GitHub connector write probe
+Date: 2026-10-11
+Purpose: verify authenticated connector write and readback without deployment.

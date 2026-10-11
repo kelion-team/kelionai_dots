@@ -11,10 +11,6 @@
     "evidence": "https://github.com/SWE-agent/mini-swe-agent/blob/04d809ceab9df28f9adaed044884180159172930/README.md",
     "reproduced_here": false
   },
-  "required_bindings": [
-    "OPENROUTER_API_KEY",
-    "KELION_MODEL"
-  ],
   "validation": {
     "commit": "04d809ceab9df28f9adaed044884180159172930",
     "command": [
@@ -91,5 +87,15 @@
       "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483119/job/100529617728",
       "observed_run_timestamp": "2026-09-03T05:06:48Z"
     }
-  ]
+  ],
+  "diagnostic_adapter": {
+    "script": "scripts/run_mini.py",
+    "provider": "OpenRouter",
+    "bindings": [
+      "OPENROUTER_API_KEY",
+      "KELION_MODEL"
+    ],
+    "required_for_environment_setup": false,
+    "paid_execution_authorized": false
+  }
 }

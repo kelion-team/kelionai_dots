@@ -29,14 +29,12 @@ Scanarea prin API necesită GitHub CLI și autentificarea injectată în mediu. 
 
 Testele offline folosesc și modele deterministe/mocks ale autorilor. Ele verifică implementarea și execuția instrumentelor, nu reproduc scorurile publicate pentru LLM-uri. Verificările CI eșuate, inclusiv controalele documentației, sunt păstrate în raport și împiedică aprobarea pentru import.
 
-## Execuție AI reală
+## Costuri și execuție AI reală
 
-Configurați în setările securizate ale mediului `OPENROUTER_API_KEY` și modelul `KELION_MODEL`. Nu puneți chei în Git sau în chat. Un abonament ChatGPT nu este o cheie OpenRouter.
+Scanarea GitHub, pregătirea repository-ului și testele locale nu necesită un abonament AI suplimentar. Nu solicitați o cheie OpenRouter pentru configurarea acestui mediu. Utilizatorul nu a autorizat cumpărarea unor servicii sau apeluri AI plătite.
 
-```bash
-../agent-runtime/mini-swe-venv/bin/python scripts/run_mini.py \
-  --task 'Execute printf 5, then submit the answer 5.' \
-  --cwd /tmp/kelion-smoke --output /tmp/kelion-smoke-result.json
-```
+Pentru verificări AI reale, prioritizați agenți care pot rula cu modele locale și înregistrați configurația modelului, rezultatele sarcinilor și măsurătorile efective. Disponibilitatea unui model local nu dovedește că agentul a trecut verificările. Candidații care depind de servicii indisponibile rămân neaprobați, fără a cere utilizatorului un abonament nou.
 
-Până la validarea acestei execuții, agentul nu este declarat pregătit pentru import. Codul din acest repository nu creează automat o intrare în interfața ChatGPT; importul ulterior depinde de funcția și formatul oferite de acea interfață.
+`scripts/run_mini.py` este un adaptor de diagnostic OpenRouter păstrat din verificările anterioare; nu este necesar pentru instalare, scanare sau testele locale și nu trebuie executat fără autorizarea explicită a costurilor. Sursele mini-swe-agent sunt respinse pentru verificări CI eșuate.
+
+Codul din acest repository nu creează automat o intrare în interfața ChatGPT; importul ulterior depinde de funcția și formatul oferite de acea interfață.

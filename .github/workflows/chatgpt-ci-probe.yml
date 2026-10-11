@@ -1,0 +1,23 @@
+name: ChatGPT CI Probe
+
+on:
+  push:
+    branches:
+      - chatgpt-connector-write-probe-20261011
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify connector probe
+        run: |
+          test -f verification/chatgpt-connector-write-probe-2026-10-11.txt
+          grep -F "ChatGPT GitHub connector write probe" verification/chatgpt-connector-write-probe-2026-10-11.txt

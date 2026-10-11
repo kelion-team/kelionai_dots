@@ -17,7 +17,7 @@ class ExportGateTests(unittest.TestCase):
             (root / 'catalog').mkdir()
             shutil.copyfile(ROOT / 'scripts/export_agent.py', root / 'scripts/export_agent.py')
             complete = {'id': 'candidate', 'import_ready': True, 'live_model_verified': True, 'passed': 10, 'failures': 0, 'errors': 0, 'skipped': 0}
-            cases = [[], [complete | {'live_model_verified': False}], [complete | {'import_ready': False}], [complete | {'passed': 0}], [complete | {'failures': 1}], [complete | {'errors': 1}], [complete | {'skipped': 1}]]
+            cases = [[], [complete | {'live_model_verified': False}], [complete | {'import_ready': False}], [complete | {'known_upstream_check_errors': True}], [complete | {'passed': 0}], [complete | {'failures': 1}], [complete | {'errors': 1}], [complete | {'skipped': 1}]]
             for catalog in cases:
                 with self.subTest(catalog=catalog):
                     (root / 'catalog/import-ready.json').write_text(json.dumps(catalog))

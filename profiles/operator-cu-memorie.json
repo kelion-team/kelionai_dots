@@ -41,5 +41,22 @@
   },
   "status": "pending_live_model_and_skipped_checks",
   "import_ready": false,
-  "commit": "af573cf5a7990dd7ed49694ee0cfc6375d2a05d4"
+  "commit": "af573cf5a7990dd7ed49694ee0cfc6375d2a05d4",
+  "known_upstream_check_errors": false,
+  "upstream_checks": [
+    {
+      "name": "test (3.12)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/hue913/agentd/actions/runs/37984461163/job/114002840411",
+      "observed_run_timestamp": "2026-10-09T20:04:54Z"
+    },
+    {
+      "name": "test (3.11)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/hue913/agentd/actions/runs/37984461163/job/114002840232",
+      "observed_run_timestamp": "2026-10-09T20:04:57Z"
+    }
+  ]
 }

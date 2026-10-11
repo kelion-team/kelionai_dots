@@ -10,11 +10,12 @@
   },
   {
     "repository": "huggingface/smolagents",
-    "reason": "3 teste eșuate: dependențe opționale absente",
-    "results": "results/smolagents.xml",
-    "passed_tests": 505,
-    "failed_tests": 3,
-    "skipped_tests": 4
+    "reason": "Modelul local nu poate fi descărcat: proxy HTTP 403; dependențele lipsă au fost instalate fără modificări în cod",
+    "results": "results/smolagents-recheck.xml",
+    "passed_tests": 507,
+    "failed_tests": 1,
+    "skipped_tests": 4,
+    "initial_results": "results/smolagents.xml"
   },
   {
     "repository": "gaia-agent/gaia-agent",
@@ -23,5 +24,980 @@
     "passed_tests": 28,
     "failed_tests": 1,
     "skipped_tests": 0
+  },
+  {
+    "repository": "SWE-agent/mini-swe-agent",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "04d809ceab9df28f9adaed044884180159172930",
+    "checks": [
+      {
+        "name": "markdown-link-check",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/38108807833/job/114379868748",
+        "observed_run_timestamp": "2026-10-11T03:35:04Z"
+      },
+      {
+        "name": "Dependabot",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/37318956409/job/111792809661",
+        "observed_run_timestamp": "2026-10-05T13:43:57Z"
+      },
+      {
+        "name": "copilot-pull-request-reviewer",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/35846669115/job/107134381538",
+        "observed_run_timestamp": "2026-09-23T10:07:18Z"
+      },
+      {
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483123/job/100529618057",
+        "observed_run_timestamp": "2026-09-03T05:08:25Z"
+      },
+      {
+        "name": "deploy",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483118/job/100529617853",
+        "observed_run_timestamp": "2026-09-03T05:06:34Z"
+      },
+      {
+        "name": "pylint",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483119/job/100529617728",
+        "observed_run_timestamp": "2026-09-03T05:06:48Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "hwfengcs/DM-Code-Agent",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "e4530be37e6f972d9735381e524cab4b5f732ddd",
+    "checks": [
+      {
+        "name": "Python 3.10 on windows-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004701",
+        "observed_run_timestamp": "2026-08-27T12:03:12Z"
+      },
+      {
+        "name": "Web console frontend",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004655",
+        "observed_run_timestamp": "2026-08-27T12:00:42Z"
+      },
+      {
+        "name": "Python 3.11 on windows-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004639",
+        "observed_run_timestamp": "2026-08-27T12:02:54Z"
+      },
+      {
+        "name": "Python 3.10 on ubuntu-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004601",
+        "observed_run_timestamp": "2026-08-27T12:02:00Z"
+      },
+      {
+        "name": "Python 3.12 on windows-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004547",
+        "observed_run_timestamp": "2026-08-27T12:02:48Z"
+      },
+      {
+        "name": "Python 3.11 on ubuntu-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004539",
+        "observed_run_timestamp": "2026-08-27T12:01:54Z"
+      },
+      {
+        "name": "Python 3.12 on ubuntu-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/hwfengcs/DM-Code-Agent/actions/runs/33069857114/job/98509004379",
+        "observed_run_timestamp": "2026-08-27T12:01:59Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "ipsissima/esm-agentbench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "287645f80c989e303d21db4aaba471d18c89a6ee",
+    "checks": [
+      {
+        "name": "Integration Tests (Tier 2)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/ipsissima/esm-agentbench/actions/runs/32993776404/job/98258196382",
+        "observed_run_timestamp": "2026-08-26T17:24:29Z"
+      },
+      {
+        "name": "Build Verified Kernel (Docker Coq 8.18.0)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/ipsissima/esm-agentbench/actions/runs/32993776404/job/98257613647",
+        "observed_run_timestamp": "2026-08-26T17:24:29Z"
+      },
+      {
+        "name": "Unit Tests (Tier 1)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/ipsissima/esm-agentbench/actions/runs/32993776404/job/98257613435",
+        "observed_run_timestamp": "2026-08-26T17:24:21Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "DarthCeltic/Determinex",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "7c8b275be6c7bb825fc8ba7289ec1131704c9277",
+    "checks": [
+      {
+        "name": "Oracle Synthesizer Smoke",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764095/job/93640650886",
+        "observed_run_timestamp": "2026-08-11T00:27:55Z"
+      },
+      {
+        "name": "Governance Gates",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764095/job/93640650668",
+        "observed_run_timestamp": "2026-08-11T00:27:55Z"
+      },
+      {
+        "name": "Safety Layer Smoke",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764095/job/93639612550",
+        "observed_run_timestamp": "2026-08-11T00:22:34Z"
+      },
+      {
+        "name": "Unit Tests (fast)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764095/job/93639612546",
+        "observed_run_timestamp": "2026-08-11T00:27:55Z"
+      },
+      {
+        "name": "Architecture gauntlet + intake/repair safety",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525784",
+        "observed_run_timestamp": "2026-08-11T00:26:16Z"
+      },
+      {
+        "name": "Frontend (ESLint + Prettier + Vitest)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525783",
+        "observed_run_timestamp": "2026-08-11T00:22:39Z"
+      },
+      {
+        "name": "Lint (ruff + pre-commit)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525782",
+        "observed_run_timestamp": "2026-08-11T00:22:25Z"
+      },
+      {
+        "name": "Rust (cargo check)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525765",
+        "observed_run_timestamp": "2026-08-11T00:24:33Z"
+      },
+      {
+        "name": "Doc guard (mojibake + PB count)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525758",
+        "observed_run_timestamp": "2026-08-11T00:22:01Z"
+      },
+      {
+        "name": "Lint (ruff)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764095/job/93639525746",
+        "observed_run_timestamp": "2026-08-11T00:22:10Z"
+      },
+      {
+        "name": "Security (pip-audit)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525744",
+        "observed_run_timestamp": "2026-08-11T00:23:45Z"
+      },
+      {
+        "name": "Python — pytest + coverage gate",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525717",
+        "observed_run_timestamp": "2026-08-11T00:33:13Z"
+      },
+      {
+        "name": "Evidence integrity",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/DarthCeltic/Determinex/actions/runs/31445764132/job/93639525698",
+        "observed_run_timestamp": "2026-08-11T00:22:04Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "Harsh-PAHADIA/CodeForge-AI",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "8400fe649ea8743bbf4a02ae6996f83648f371eb",
+    "checks": [
+      {
+        "name": "frontend-test",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Harsh-PAHADIA/CodeForge-AI/actions/runs/29067756993/job/86282861295",
+        "observed_run_timestamp": "2026-07-10T03:52:38Z"
+      },
+      {
+        "name": "backend-test",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Harsh-PAHADIA/CodeForge-AI/actions/runs/29067756993/job/86282861273",
+        "observed_run_timestamp": "2026-07-10T03:53:43Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "eduardpetraeus-lab/ouroboros",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "6635bb25bf4831d1484c4925ea74baf33c525539",
+    "checks": [
+      {
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/eduardpetraeus-lab/ouroboros/actions/runs/22793704961/job/66124894701",
+        "observed_run_timestamp": "2026-03-07T06:19:57Z"
+      },
+      {
+        "name": "security",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/eduardpetraeus-lab/ouroboros/actions/runs/22793704961/job/66124894700",
+        "observed_run_timestamp": "2026-03-07T06:19:53Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "joakimarvidsson/pipelinebench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "bf8107c1583317b9375fda18779a92105e1a8675",
+    "checks": [
+      {
+        "name": "Python 3.14",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/joakimarvidsson/pipelinebench/actions/runs/34723941237/job/103634650324",
+        "observed_run_timestamp": "2026-09-12T22:53:21Z"
+      },
+      {
+        "name": "Python 3.13",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/joakimarvidsson/pipelinebench/actions/runs/34723941237/job/103634650306",
+        "observed_run_timestamp": "2026-09-12T22:53:20Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "HassanHassnain/hindsight-agents",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "1bb3a619de8fabfda639ef590deae3e49f9982d2",
+    "checks": [
+      {
+        "name": "test (3.9)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/HassanHassnain/hindsight-agents/actions/runs/28681690250/job/85066312144",
+        "observed_run_timestamp": "2026-07-03T20:19:20Z"
+      },
+      {
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/HassanHassnain/hindsight-agents/actions/runs/28681690250/job/85066312138",
+        "observed_run_timestamp": "2026-07-03T20:19:13Z"
+      },
+      {
+        "name": "test (3.10)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/HassanHassnain/hindsight-agents/actions/runs/28681690250/job/85066312129",
+        "observed_run_timestamp": "2026-07-03T20:19:14Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "zysilm/midas-agent",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "c892387ac0c50430c4d7750556815ec24e7f529a",
+    "checks": [
+      {
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/zysilm/midas-agent/actions/runs/25749741019/job/75622582155",
+        "observed_run_timestamp": "2026-05-12T17:04:07Z"
+      },
+      {
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/zysilm/midas-agent/actions/runs/25749741019/job/75622582026",
+        "observed_run_timestamp": "2026-05-12T17:04:09Z"
+      },
+      {
+        "name": "test (3.13)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/zysilm/midas-agent/actions/runs/25749741019/job/75622581998",
+        "observed_run_timestamp": "2026-05-12T17:04:10Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "Shikhaar/HarnessBench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "6a836e2cbf55992f173fec28539f8c2cc3a3afee",
+    "checks": [
+      {
+        "name": "Run Benchmark Suite",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Shikhaar/HarnessBench/actions/runs/38114025249/job/114395214045",
+        "observed_run_timestamp": "2026-10-11T05:13:07Z"
+      },
+      {
+        "name": "Run CI Test Suite & Task Validation",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Shikhaar/HarnessBench/actions/runs/34094652916/job/101655414155",
+        "observed_run_timestamp": "2026-09-07T07:17:00Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "kannamma-labs/atomic-forge",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "f57591d741b134c96167f86d7886c072e8e3f99d",
+    "checks": [
+      {
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/kannamma-labs/atomic-forge/actions/runs/33380034567/job/99450068970",
+        "observed_run_timestamp": "2026-08-31T09:56:51Z"
+      },
+      {
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/kannamma-labs/atomic-forge/actions/runs/33380034567/job/99450068940",
+        "observed_run_timestamp": "2026-08-31T09:56:55Z"
+      },
+      {
+        "name": "test (3.10)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/kannamma-labs/atomic-forge/actions/runs/33380034567/job/99450068689",
+        "observed_run_timestamp": "2026-08-31T09:56:45Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "hariji814/GaiaAgent",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "e2e1aff2599efca4dca4be348bda95b50fc531d2",
+    "checks": [
+      {
+        "name": "test (ubuntu-latest, 3.10)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319169",
+        "observed_run_timestamp": "2026-06-27T03:29:19Z"
+      },
+      {
+        "name": "test (windows-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319168",
+        "observed_run_timestamp": "2026-06-27T03:29:48Z"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319165",
+        "observed_run_timestamp": "2026-06-27T03:29:23Z"
+      },
+      {
+        "name": "test (windows-latest, 3.10)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319162",
+        "observed_run_timestamp": "2026-06-27T03:29:34Z"
+      },
+      {
+        "name": "test (windows-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319161",
+        "observed_run_timestamp": "2026-06-27T03:29:43Z"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/hariji814/GaiaAgent/actions/runs/28277269456/job/83786319153",
+        "observed_run_timestamp": "2026-06-27T03:29:18Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "Elmdin/agent",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "e5bcc605a7de8d1bf8c612be1fa3e3d090feed86",
+    "checks": [
+      {
+        "name": "Dependabot",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37310605469/job/111764779227",
+        "observed_run_timestamp": "2026-10-05T12:38:23Z"
+      },
+      {
+        "name": "Dependency review",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37308346461/job/111757368260",
+        "observed_run_timestamp": "2026-10-05T12:16:05Z"
+      },
+      {
+        "name": "Dependency audit",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37308346461/job/111757367243",
+        "observed_run_timestamp": "2026-10-05T12:16:24Z"
+      },
+      {
+        "name": "OSSF Scorecard",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37308346461/job/111757367148",
+        "observed_run_timestamp": "2026-10-05T12:16:19Z"
+      },
+      {
+        "name": "Workflow static analysis",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37308346461/job/111757366986",
+        "observed_run_timestamp": "2026-10-05T12:16:22Z"
+      },
+      {
+        "name": "Analyze Python",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/37304766940/job/111745680566",
+        "observed_run_timestamp": "2026-10-05T11:44:34Z"
+      },
+      {
+        "name": "CI",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937795275",
+        "observed_run_timestamp": "2026-09-25T03:58:48Z"
+      },
+      {
+        "name": "Deploy to Pages",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460840/job/107937650188",
+        "observed_run_timestamp": "2026-09-25T03:58:12Z"
+      },
+      {
+        "name": "Test (py3.11)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567676",
+        "observed_run_timestamp": "2026-09-25T03:58:02Z"
+      },
+      {
+        "name": "Build distribution",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567641",
+        "observed_run_timestamp": "2026-09-25T03:57:47Z"
+      },
+      {
+        "name": "Test (py3.12)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567575",
+        "observed_run_timestamp": "2026-09-25T03:58:43Z"
+      },
+      {
+        "name": "Space entry point imports",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567622",
+        "observed_run_timestamp": "2026-09-25T03:57:54Z"
+      },
+      {
+        "name": "Test (py3.13)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567615",
+        "observed_run_timestamp": "2026-09-25T03:58:05Z"
+      },
+      {
+        "name": "Type check",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567609",
+        "observed_run_timestamp": "2026-09-25T03:58:07Z"
+      },
+      {
+        "name": "Build site",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460840/job/107937567399",
+        "observed_run_timestamp": "2026-09-25T03:57:57Z"
+      },
+      {
+        "name": "Lint and format",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460896/job/107937567367",
+        "observed_run_timestamp": "2026-09-25T03:57:39Z"
+      },
+      {
+        "name": "Push to the Space",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Elmdin/agent/actions/runs/36092460836/job/107937567221",
+        "observed_run_timestamp": "2026-09-25T03:57:39Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "Pandagan-85/React_agent_Gaia",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "b094e0668723961684c49954208f904fbc312eea",
+    "checks": [
+      {
+        "name": "Integration Tests (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Pandagan-85/React_agent_Gaia/actions/runs/18348634295/job/52262069505",
+        "observed_run_timestamp": "2025-10-08T14:47:29Z"
+      },
+      {
+        "name": "Integration Tests (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/Pandagan-85/React_agent_Gaia/actions/runs/18348634295/job/52262069470",
+        "observed_run_timestamp": "2025-10-08T14:47:33Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "kayzn-io/decision-models-as-judges",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "8c9841bd4e00dd65c5b31b22fe7853f0272318c2",
+    "checks": [
+      {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/kayzn-io/decision-models-as-judges/actions/runs/36608868505/job/109544856821",
+        "observed_run_timestamp": "2026-09-29T18:00:47Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "mick-gsk/agentbench-rw",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "26921bf2ed6b7ef22d27e3c7aaf774d6c26087a5",
+    "checks": [
+      {
+        "name": "Build Package",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/mick-gsk/agentbench-rw/actions/runs/28966069001/job/85949423200",
+        "observed_run_timestamp": "2026-07-08T18:26:20Z"
+      },
+      {
+        "name": "Tests (Python ${{ matrix.python-version }})",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/mick-gsk/agentbench-rw/actions/runs/28966069001/job/85949422668",
+        "observed_run_timestamp": "2026-07-08T18:26:20Z"
+      },
+      {
+        "name": "Baseline Verification",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/mick-gsk/agentbench-rw/actions/runs/28966069001/job/85949422614",
+        "observed_run_timestamp": "2026-07-08T18:26:20Z"
+      },
+      {
+        "name": "Lint (ruff)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/mick-gsk/agentbench-rw/actions/runs/28966069001/job/85949410779",
+        "observed_run_timestamp": "2026-07-08T18:26:20Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "ferikognewrtkgh/agentbench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "2a6b626db6192e60c9a259fbb9bc07834ef3c044",
+    "checks": [
+      {
+        "name": "enterprise-evaluation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/ferikognewrtkgh/agentbench/actions/runs/33383727382/job/99461737424",
+        "observed_run_timestamp": "2026-08-31T10:44:39Z"
+      },
+      {
+        "name": "quality-matrix (dev,enterprise)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/ferikognewrtkgh/agentbench/actions/runs/33383727382/job/99461556288",
+        "observed_run_timestamp": "2026-08-31T10:44:25Z"
+      },
+      {
+        "name": "manifests-and-image",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/ferikognewrtkgh/agentbench/actions/runs/33383727382/job/99461556175",
+        "observed_run_timestamp": "2026-08-31T10:43:57Z"
+      },
+      {
+        "name": "quality-matrix (dev)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/ferikognewrtkgh/agentbench/actions/runs/33383727382/job/99461556036",
+        "observed_run_timestamp": "2026-08-31T10:44:38Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "lgoyal6/agentbench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "443f8469e65c349bb92dbb505f45bd59d3e5dadc",
+    "checks": [
+      {
+        "name": "publish to PyPI",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33269568077/job/99145531531",
+        "observed_run_timestamp": "2026-08-29T18:56:47Z"
+      },
+      {
+        "name": "build sdist + wheel",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33269568077/job/99145501570",
+        "observed_run_timestamp": "2026-08-29T18:56:29Z"
+      },
+      {
+        "name": "deploy",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33036218563/job/98399725956",
+        "observed_run_timestamp": "2026-08-27T03:27:55Z"
+      },
+      {
+        "name": "report-build-status",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33036218563/job/98399725878",
+        "observed_run_timestamp": "2026-08-27T03:27:42Z"
+      },
+      {
+        "name": "test py3.12",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33036219244/job/98399364751",
+        "observed_run_timestamp": "2026-08-27T03:27:31Z"
+      },
+      {
+        "name": "build",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33036218563/job/98399364660",
+        "observed_run_timestamp": "2026-08-27T03:25:51Z"
+      },
+      {
+        "name": "test py3.11",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/lgoyal6/agentbench/actions/runs/33036219244/job/98399364574",
+        "observed_run_timestamp": "2026-08-27T03:26:31Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "naveenkothas/agentbench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "e1eee3fe7907f816523ef8be5945e8400a7f944e",
+    "checks": [
+      {
+        "name": "Evaluate Agent Quality",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/naveenkothas/agentbench/actions/runs/38123315580/job/114422359034",
+        "observed_run_timestamp": "2026-10-11T08:00:55Z"
+      },
+      {
+        "name": "Agent Evaluation (example)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/naveenkothas/agentbench/actions/runs/34898838097/job/104159799291",
+        "observed_run_timestamp": "2026-09-14T21:27:25Z"
+      },
+      {
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/naveenkothas/agentbench/actions/runs/34898838097/job/104159566161",
+        "observed_run_timestamp": "2026-09-14T21:27:25Z"
+      },
+      {
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/naveenkothas/agentbench/actions/runs/34898838097/job/104159565991",
+        "observed_run_timestamp": "2026-09-14T21:27:24Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "MukundaKatta/AgentBench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "f0603944ded3e0255572b928276cb8561d0563da",
+    "checks": [
+      {
+        "name": "Dependabot",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/MukundaKatta/AgentBench/actions/runs/33971119274/job/101319696944",
+        "observed_run_timestamp": "2026-09-05T14:12:56Z"
+      },
+      {
+        "name": ".github/dependabot.yml",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/MukundaKatta/AgentBench/runs/81196417393",
+        "observed_run_timestamp": "2026-06-13T14:08:01Z"
+      },
+      {
+        "name": "test (3.11)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/MukundaKatta/AgentBench/actions/runs/27469021402/job/81196416485",
+        "observed_run_timestamp": "2026-06-13T14:32:15Z"
+      },
+      {
+        "name": "test (3.12)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/MukundaKatta/AgentBench/actions/runs/27469021402/job/81196416471",
+        "observed_run_timestamp": "2026-06-13T14:32:15Z"
+      },
+      {
+        "name": "test (3.10)",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "url": "https://github.com/MukundaKatta/AgentBench/actions/runs/27469021402/job/81196416464",
+        "observed_run_timestamp": "2026-06-13T14:32:15Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "Cmishra66/AgentBench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "4972d3c70b8590f451967e88053f343c919bbb68",
+    "checks": [
+      {
+        "name": "sweep",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38126629437/job/114432226981",
+        "observed_run_timestamp": "2026-10-11T08:59:04Z"
+      },
+      {
+        "name": "Playwright UI and API tests",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38056607626/job/114226400644",
+        "observed_run_timestamp": "2026-10-10T13:40:46Z"
+      },
+      {
+        "name": "Docker image builds",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38056607626/job/114226295952",
+        "observed_run_timestamp": "2026-10-10T13:40:48Z"
+      },
+      {
+        "name": "Dashboard type-check and build",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38056607626/job/114226295878",
+        "observed_run_timestamp": "2026-10-10T13:40:24Z"
+      },
+      {
+        "name": "Lint and test (Python 3.11)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38056607626/job/114226295860",
+        "observed_run_timestamp": "2026-10-10T13:40:45Z"
+      },
+      {
+        "name": "Lint and test (Python 3.12)",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/Cmishra66/AgentBench/actions/runs/38056607626/job/114226295742",
+        "observed_run_timestamp": "2026-10-10T13:40:45Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "anupamme/AgentBench",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "61f0ccfef607a1f811caa58b188e5a4802e40a9a",
+    "checks": [
+      {
+        "name": "unit-tests",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/anupamme/AgentBench/actions/runs/23683021226/job/68997989121",
+        "observed_run_timestamp": "2026-03-28T10:13:01Z"
+      },
+      {
+        "name": "lint",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/anupamme/AgentBench/actions/runs/23683021226/job/68997989116",
+        "observed_run_timestamp": "2026-03-28T10:12:53Z"
+      },
+      {
+        "name": "task-validation",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/anupamme/AgentBench/actions/runs/23683021226/job/68997989112",
+        "observed_run_timestamp": "2026-03-28T10:12:47Z"
+      },
+      {
+        "name": "integration-tests",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/anupamme/AgentBench/actions/runs/23683021226/job/68997989108",
+        "observed_run_timestamp": "2026-03-28T10:12:49Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
+  },
+  {
+    "repository": "vishnucs5/agentbench-research",
+    "reason": "Verificări CI eșuate la versiunea observată",
+    "commit": "1beb131b9cdb677ae084a99de18bf70071da9926",
+    "checks": [
+      {
+        "name": "Deploy to Staging",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546888772",
+        "observed_run_timestamp": "2026-09-27T04:02:05Z"
+      },
+      {
+        "name": "Deploy to Production",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546888665",
+        "observed_run_timestamp": "2026-09-27T04:02:05Z"
+      },
+      {
+        "name": "Docker Build",
+        "status": "completed",
+        "conclusion": "skipped",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546888527",
+        "observed_run_timestamp": "2026-09-27T04:02:04Z"
+      },
+      {
+        "name": "Integration Tests",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546603796",
+        "observed_run_timestamp": "2026-09-27T04:00:37Z"
+      },
+      {
+        "name": "Unit Tests",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546603793",
+        "observed_run_timestamp": "2026-09-27T04:02:04Z"
+      },
+      {
+        "name": "Security Scan",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546603762",
+        "observed_run_timestamp": "2026-09-27T04:00:38Z"
+      },
+      {
+        "name": "Lint & Typecheck",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/vishnucs5/agentbench-research/actions/runs/36293025479/job/108546603708",
+        "observed_run_timestamp": "2026-09-27T04:00:21Z"
+      }
+    ],
+    "scope": "Nicio aprobare de import; nu am modificat codul proiectului."
   }
 ]

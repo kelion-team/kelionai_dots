@@ -20,12 +20,14 @@ Necesită Python 3.12, Git și `uv`. Folosim checkout-ul existent; nu creăm wor
 ```bash
 bash scripts/install.sh
 python scripts/validate.py
-python scripts/scan_github.py --pages-per-query 100
+python scripts/scan_github_api.py
+python scripts/check_upstream_tests.py
+python scripts/report_scan.py
 ```
 
-Scanarea este secvențială și reluabilă. Nu declară că a acoperit toate repository-urile GitHub. Rezultatele inaccesibile, limitările de căutare și HTTP 429 sunt înregistrate, nu interpretate ca absență a agenților. Github poate omite proiecte private, neindexate sau fără termenii căutați.
+Scanarea prin API necesită GitHub CLI și autentificarea injectată în mediu. Este secvențială și reluabilă. `api_coverage` păstrează paginarea și completitudinea fiecărei căutări. Nu declară că a acoperit toate repository-urile GitHub. Rezultatele inaccesibile, limita de 1.000 de rezultate pe căutare și HTTP 429 sunt înregistrate, nu interpretate ca absență a agenților. GitHub poate omite proiecte private, neindexate sau fără termenii căutați. `scan_github.py` oferă o variantă de rezervă prin paginile publice.
 
-Testele offline folosesc și modele deterministe/mocks ale autorilor. Ele verifică implementarea și execuția instrumentelor, nu reproduc scorurile publicate pentru LLM-uri.
+Testele offline folosesc și modele deterministe/mocks ale autorilor. Ele verifică implementarea și execuția instrumentelor, nu reproduc scorurile publicate pentru LLM-uri. Verificările CI eșuate, inclusiv controalele documentației, sunt păstrate în raport și împiedică aprobarea pentru import.
 
 ## Execuție AI reală
 

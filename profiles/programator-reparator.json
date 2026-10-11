@@ -44,7 +44,52 @@
     "tests_passed": true,
     "import_ready": false
   },
-  "status": "pending_live_model_validation",
+  "status": "rejected_upstream_checks_failed",
   "import_ready": false,
-  "commit": "04d809ceab9df28f9adaed044884180159172930"
+  "commit": "04d809ceab9df28f9adaed044884180159172930",
+  "known_upstream_check_errors": true,
+  "upstream_checks": [
+    {
+      "name": "markdown-link-check",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/38108807833/job/114379868748",
+      "observed_run_timestamp": "2026-10-11T03:35:04Z"
+    },
+    {
+      "name": "Dependabot",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/37318956409/job/111792809661",
+      "observed_run_timestamp": "2026-10-05T13:43:57Z"
+    },
+    {
+      "name": "copilot-pull-request-reviewer",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/35846669115/job/107134381538",
+      "observed_run_timestamp": "2026-09-23T10:07:18Z"
+    },
+    {
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483123/job/100529618057",
+      "observed_run_timestamp": "2026-09-03T05:08:25Z"
+    },
+    {
+      "name": "deploy",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483118/job/100529617853",
+      "observed_run_timestamp": "2026-09-03T05:06:34Z"
+    },
+    {
+      "name": "pylint",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/SWE-agent/mini-swe-agent/actions/runs/33717483119/job/100529617728",
+      "observed_run_timestamp": "2026-09-03T05:06:48Z"
+    }
+  ]
 }

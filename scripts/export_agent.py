@@ -28,7 +28,7 @@ def main():
         print('Export refused: agent has no complete successful verification record.', file=sys.stderr)
         return 2
     agent = entries[0]
-    if not agent.get('import_ready') or not agent.get('live_model_verified') or agent.get('passed', 0) <= 0 or any(agent.get(k, 1) != 0 for k in ('failures', 'errors', 'skipped')):
+    if not agent.get('import_ready') or not agent.get('live_model_verified') or agent.get('known_upstream_check_errors') or agent.get('passed', 0) <= 0 or any(agent.get(k, 1) != 0 for k in ('failures', 'errors', 'skipped')):
         print('Export refused: incomplete or failed checks.', file=sys.stderr)
         return 2
     source = ROOT / agent['source_path']

@@ -1,0 +1,57 @@
+{
+  "mini-swe-agent": {
+    "commit": "04d809ceab9df28f9adaed044884180159172930",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "/workspace/kelionai_dots/scripts/run_tests.py",
+      "/workspace/agent-runtime/mini-swe-venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/agents/test_default.py",
+      "tests/environments/test_local.py",
+      "tests/models/test_test_models.py",
+      "tests/config/test_init.py",
+      "-q",
+      "--junitxml=/workspace/agent-runtime/results/mini-swe-agent.xml",
+      "-o",
+      "cache_dir=/workspace/agent-runtime/pytest-mini-swe-agent"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 16.272,
+    "checked_at": "2026-10-11T11:00:51.441811+00:00",
+    "live_model_verified": false,
+    "tests": 118,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 118,
+    "tests_passed": true,
+    "import_ready": false
+  },
+  "agentd": {
+    "commit": "af573cf5a7990dd7ed49694ee0cfc6375d2a05d4",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "/workspace/kelionai_dots/scripts/run_tests.py",
+      "/workspace/agent-runtime/agentd-venv/bin/python",
+      "-m",
+      "pytest",
+      "tests",
+      "-q",
+      "--junitxml=/workspace/agent-runtime/results/agentd.xml",
+      "-o",
+      "cache_dir=/workspace/agent-runtime/pytest-agentd"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 33.163,
+    "checked_at": "2026-10-11T11:01:24.609338+00:00",
+    "live_model_verified": false,
+    "tests": 393,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 10,
+    "passed": 383,
+    "tests_passed": true,
+    "import_ready": false
+  }
+}

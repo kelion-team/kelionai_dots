@@ -1,0 +1,6 @@
+[submodule "vendor/mini-swe-agent"]
+	path = vendor/mini-swe-agent
+	url = https://github.com/SWE-agent/mini-swe-agent.git
+[submodule "vendor/agentd"]
+	path = vendor/agentd
+	url = https://github.com/hue913/agentd.git

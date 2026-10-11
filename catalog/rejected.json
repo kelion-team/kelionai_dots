@@ -1,0 +1,27 @@
+[
+  {
+    "repository": "Aider-AI/aider",
+    "reason": "8 teste eșuate în verificarea extinsă",
+    "results": "results/aider-basic.xml",
+    "passed_tests": 468,
+    "passed_subtests": 67,
+    "failed_tests": 8,
+    "skipped_tests": 1
+  },
+  {
+    "repository": "huggingface/smolagents",
+    "reason": "3 teste eșuate: dependențe opționale absente",
+    "results": "results/smolagents.xml",
+    "passed_tests": 505,
+    "failed_tests": 3,
+    "skipped_tests": 4
+  },
+  {
+    "repository": "gaia-agent/gaia-agent",
+    "reason": "1 test eșuat: lipsește E2B_API_KEY",
+    "results": "results/gaia-agent.json",
+    "passed_tests": 28,
+    "failed_tests": 1,
+    "skipped_tests": 0
+  }
+]

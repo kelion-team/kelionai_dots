@@ -1,0 +1,45 @@
+{
+  "id": "operator-cu-memorie",
+  "name": "Operator de sarcini cu memorie",
+  "upstream": "hue913/agentd",
+  "source_path": "vendor/agentd",
+  "license": "Apache-2.0",
+  "purpose": "Execută sarcini cu instrumente și memorie între episoade.",
+  "benchmark": {
+    "name": "Synthetic ops benchmark",
+    "scope": "Model sintetic, fără LLM real; nu este un rezultat WebArena.",
+    "local_control": "1/40",
+    "local_learning": "21/40",
+    "evidence": "results/agentd-synthetic-benchmark.txt",
+    "reproduced_here": true
+  },
+  "validation": {
+    "commit": "af573cf5a7990dd7ed49694ee0cfc6375d2a05d4",
+    "command": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "/workspace/kelionai_dots/scripts/run_tests.py",
+      "/workspace/agent-runtime/agentd-venv/bin/python",
+      "-m",
+      "pytest",
+      "tests",
+      "-q",
+      "--junitxml=/workspace/agent-runtime/results/agentd.xml",
+      "-o",
+      "cache_dir=/workspace/agent-runtime/pytest-agentd"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 33.163,
+    "checked_at": "2026-10-11T11:01:24.609338+00:00",
+    "live_model_verified": false,
+    "tests": 393,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 10,
+    "passed": 383,
+    "tests_passed": true,
+    "import_ready": false
+  },
+  "status": "pending_live_model_and_skipped_checks",
+  "import_ready": false,
+  "commit": "af573cf5a7990dd7ed49694ee0cfc6375d2a05d4"
+}

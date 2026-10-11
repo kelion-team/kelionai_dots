@@ -1,0 +1,17 @@
+note: (no AGENTD_BASE_URL set → using the built-in synthetic model)
+agentd bench — model: synthetic (keyless demo)  episodes/arm: 40
+
+learning OFF (control)     1/40 (  2.5%)   1st half   5.0%   2nd half   0.0%
+   ············█···························
+   memory rows    47   tokens    27355   cache hit   0.0%
+learning ON  (JitRL)      21/40 ( 52.5%)   1st half  20.0%   2nd half  85.0%
+   ·············█·█··██·█████████·██████·██
+   memory rows    84   tokens    47838   cache hit   0.0%
+
+delta rate          +0.500
+delta second half   +0.850
+extra tokens spent  +20483   (memory costs no inference; it only re-ranks)
+
+per task (learning ON):
+  - nginx-down                 9/20 (45.0%)
+  - approve-mr                 12/20 (60.0%)

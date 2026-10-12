@@ -21,6 +21,26 @@ class GateTests(unittest.TestCase):
         self.assertTrue(r['integrity_checks_passed'])
         self.assertFalse(r['fully_verified'])
         self.assertFalse(r['provenance_authenticated'])
+
+    def test_official_202_no_run_id_integrity_only(self):
+        self.receipt.pop('agent_trigger_run_id')
+        self.receipt.pop('agent_run_status')
+        self.receipt['status'] = 'trigger_accepted'
+        self.result.pop('agent_trigger_run_id')
+        self.verifier.pop('agent_trigger_run_id')
+        out = self.evaluate()
+        self.assertIsNone(out['run_id'])
+        self.assertTrue(out['integrity_checks_passed'])
+        self.assertFalse(out['fully_verified'])
+        self.assertFalse(out['provenance_authenticated'])
+
+    def test_unreceipted_run_id_is_rejected(self):
+        self.receipt.pop('agent_trigger_run_id')
+        self.receipt.pop('agent_run_status')
+        self.receipt['status'] = 'trigger_accepted'
+        with self.assertRaisesRegex(ValueError, 'Unexpected agent_trigger_run_id'):
+            self.evaluate()
+
     def test_wrong_output_blocked(self):
         self.out=b'tampered'
         with self.assertRaisesRegex(ValueError,'result_sha256'):

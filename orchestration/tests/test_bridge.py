@@ -55,11 +55,20 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(receipt['verified'])
         self.assertNotIn('SECRET', json.dumps(receipt))
 
-    def test_trigger_no_fake_success_without_url(self):
+    def test_trigger_202_empty_body_is_accepted_without_claiming_result(self):
         def fake(req, timeout):
             return FakeResponse(202, {})
-        with self.assertRaises(RuntimeError):
-            bridge.trigger(self.env, 'SECRET', opener=fake)
+        receipt = bridge.trigger(self.env, 'SECRET', opener=fake)
+        self.assertEqual(receipt['status'], 'trigger_accepted')
+        self.assertIsNone(receipt['conversation_url'])
+        self.assertIsNone(receipt['agent_trigger_run_id'])
+        self.assertFalse(receipt['result_retrieved'])
+        self.assertFalse(receipt['verified'])
+
+    def test_status_requires_run_id_only_if_available(self):
+        receipt = bridge.trigger(self.env, 'SECRET', opener=lambda req, timeout: FakeResponse(202, {}))
+        with self.assertRaisesRegex(ValueError, 'configured result destination'):
+            bridge.check_status(receipt, 'SECRET')
 
     def test_status_completed_does_not_prove_result(self):
         receipt = {'task_id': 'kelion-4', 'api_trigger_id': 'agtch_456',

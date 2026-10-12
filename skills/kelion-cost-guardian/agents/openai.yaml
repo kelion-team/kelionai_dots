@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kelion Cost Guardian"
+  short_description: "Regulator inteligent al costurilor, modelelor și conectorilor, fără pierderea beneficiilor"
+  brand_color: "#2460B7"

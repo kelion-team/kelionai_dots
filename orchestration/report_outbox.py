@@ -24,21 +24,28 @@ class ReportOutbox:
         ''')
 
     def publish(self, owner, event_id, task_id, payload, destinations):
-        destinations = sorted(set(destinations))
+        if isinstance(destinations, (str, bytes)):
+            raise ValueError('Destinations must be a collection of nonblank strings')
+        try:
+            destinations = list(destinations)
+        except TypeError as error:
+            raise ValueError('Destinations must be a collection of nonblank strings') from error
         if not all(isinstance(v, str) and v.strip() for v in
                    [owner, event_id, task_id, *destinations]) or not destinations:
             raise ValueError('Explicit owner, event, task and destinations required')
+        destinations = sorted(set(destinations))
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True,
                              separators=(',', ':'), allow_nan=False)
         digest = hashlib.sha256(encoded.encode()).hexdigest()
         with self.db:
+            # Start the write transaction before checking the stored report.
+            self.db.execute('INSERT OR IGNORE INTO reports VALUES (?,?,?,?,?)',
+                            (owner, event_id, task_id, encoded, digest))
             existing = self.db.execute(
                 'SELECT task_id,payload FROM reports WHERE owner=? AND event_id=?',
                 (owner, event_id)).fetchone()
             if existing and existing != (task_id, encoded):
                 raise ValueError('Event ID already belongs to a different report')
-            self.db.execute('INSERT OR IGNORE INTO reports VALUES (?,?,?,?,?)',
-                            (owner, event_id, task_id, encoded, digest))
             for destination in destinations:
                 self.db.execute('INSERT OR IGNORE INTO recipients VALUES (?,?,?,0)',
                                 (owner, event_id, destination))

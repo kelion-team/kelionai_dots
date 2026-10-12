@@ -17,3 +17,10 @@
 - **Criteriu de încheiere:** un agent existent primește efectiv sarcina, execută, produce un rezultat accesibil și acesta este recitit/verificat; apoi demonstrează predarea între ChatGPT, Work și Codex. Testele locale, PR-ul integrat, un mesaj Slack sau HTTP 202 singure NU dovedesc finalizarea.
 - **Transparență:** când o etapă depinde efectiv de un control rezervat utilizatorului/administratorului, indică precis controlul și de ce e necesar; nu pretinde nici că l-ai executat, nici că poți continua independent după ce accesul chiar lipsește. Starea rămâne ÎN LUCRU, nu „gata”.
 
+
+## Kelion central cost decision — every DOTS
+
+- Every target DOTS supplies its task-bound difficulty assessment (1..4), reason and risk flags. Kelion is the final model/effort selector, via `orchestration/kelion_brain.py`; a DOTS does not select its own model.
+- Use the public `bridge.trigger` or CLI, both of which require the assessment and verified cost manifest. The internal `_trigger_transport` is transport plumbing, not a caller entry point.
+- Before any run, selected model and effort must match the verified configuration of the exact published agent/channel, and its estimated credit bound must fit the remaining authorized budget. Included subscription usage is not zero-credit usage.
+- Do not use a fixed global model as a substitute for per-task routing. Do not claim cloud activation from offline tests. No live verified manifest or adapter has been installed by this code change.

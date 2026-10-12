@@ -50,7 +50,7 @@ class BridgeTests(unittest.TestCase):
             self.assertIn('Task ledger:', body['input'])
             return FakeResponse(202, {'conversation_url': 'https://chatgpt.com/c/aaa',
                                       'agent_trigger_run_id': 'apirun_123'})
-        receipt = bridge.trigger(self.env, 'SECRET', opener=fake_open)
+        receipt = bridge._trigger_transport(self.env, 'SECRET', opener=fake_open)
         self.assertEqual(receipt['status'], 'trigger_accepted')
         self.assertFalse(receipt['verified'])
         self.assertNotIn('SECRET', json.dumps(receipt))
@@ -58,7 +58,7 @@ class BridgeTests(unittest.TestCase):
     def test_trigger_202_empty_body_is_accepted_without_claiming_result(self):
         def fake(req, timeout):
             return FakeResponse(202, {})
-        receipt = bridge.trigger(self.env, 'SECRET', opener=fake)
+        receipt = bridge._trigger_transport(self.env, 'SECRET', opener=fake)
         self.assertEqual(receipt['status'], 'trigger_accepted')
         self.assertIsNone(receipt['conversation_url'])
         self.assertIsNone(receipt['agent_trigger_run_id'])
@@ -66,7 +66,7 @@ class BridgeTests(unittest.TestCase):
         self.assertFalse(receipt['verified'])
 
     def test_status_requires_run_id_only_if_available(self):
-        receipt = bridge.trigger(self.env, 'SECRET', opener=lambda req, timeout: FakeResponse(202, {}))
+        receipt = bridge._trigger_transport(self.env, 'SECRET', opener=lambda req, timeout: FakeResponse(202, {}))
         with self.assertRaisesRegex(ValueError, 'configured result destination'):
             bridge.check_status(receipt, 'SECRET')
 
@@ -90,7 +90,7 @@ class BridgeTests(unittest.TestCase):
 
     def test_missing_access_token_rejected(self):
         with self.assertRaises(ValueError):
-            bridge.trigger(self.env, None)
+            bridge._trigger_transport(self.env, None)
 
     def test_no_live_trigger_without_execute(self):
         self.assertEqual(bridge.main(['trigger', '--envelope', '/nonexistent', '--out', '/tmp/out.json']), 2)
@@ -98,3 +98,4 @@ class BridgeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -91,7 +91,7 @@ def api_request(channel_id, token, method, suffix="/trigger", body=None, key=Non
     return status, payload
 
 
-def trigger(envelope, token, opener=None):
+def _trigger_transport(envelope, token, opener=None):
     if envelope.get("status") != "prepared_not_dispatched":
         raise ValueError("Only prepared tasks may be triggered")
     task_id = envelope["task_id"]
@@ -116,6 +116,16 @@ def trigger(envelope, token, opener=None):
             "issue_url": envelope.get("issue_url"), "conversation_url": url,
             "agent_trigger_run_id": run, "status": "trigger_accepted", "accepted_at_utc": utcnow(),
             "result_retrieved": False, "verified": False}
+
+
+def trigger(envelope, token, opener=None, *, assessment=None, manifest=None):
+    from kelion_brain import preflight
+    if assessment is None or manifest is None:
+        raise ValueError("DOTS assessment and verified cost manifest required before dispatch")
+    decision = preflight(envelope, assessment, manifest)
+    receipt = _trigger_transport(envelope, token, opener=opener)
+    receipt["kelion_decision"] = decision
+    return receipt
 
 
 def check_status(receipt, token, opener=None):
@@ -158,6 +168,8 @@ def main(argv=None):
     b.add_argument("--envelope", required=True)
     b.add_argument("--out", required=True)
     b.add_argument("--execute", action="store_true", help="Explicitly authorize one live Workspace Agent trigger")
+    b.add_argument("--dots-assessment", help="Exact target DOTS difficulty assessment JSON")
+    b.add_argument("--cost-manifest", help="Verified per-agent models, execution bindings and credit budget")
     c = sub.add_parser("status")
     c.add_argument("--receipt", required=True)
     c.add_argument("--out", required=True)
@@ -169,7 +181,11 @@ def main(argv=None):
         elif opts.action == "trigger":
             if not opts.execute:
                 raise ValueError("Not executed; pass --execute after checking entitlement and costs")
-            obj = trigger(parse_json(opts.envelope), os.getenv("WORKSPACE_AGENT_ACCESS_TOKEN"))
+            if not opts.dots_assessment or not opts.cost_manifest:
+                raise ValueError("DOTS assessment and verified cost manifest required before dispatch")
+            envelope = parse_json(opts.envelope)
+            obj = trigger(envelope, os.getenv("WORKSPACE_AGENT_ACCESS_TOKEN"),
+                          assessment=parse_json(opts.dots_assessment), manifest=parse_json(opts.cost_manifest))
         else:
             obj = check_status(parse_json(opts.receipt), os.getenv("WORKSPACE_AGENT_ACCESS_TOKEN"))
         save_json(opts.out, obj)
@@ -182,3 +198,4 @@ def main(argv=None):
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

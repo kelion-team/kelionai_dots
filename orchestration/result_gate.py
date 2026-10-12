@@ -36,10 +36,12 @@ def evaluate(receipt, result, input_bytes, output_bytes, verifier):
     the caller; callers must preserve source URLs, authors, and tool receipts.
     """
     for val, rule, label in ((receipt.get('task_id'), TASK, 'task_id'),
-                             (receipt.get('agent_id'), AGENT, 'agent_id'),
-                             (receipt.get('agent_trigger_run_id'), RUN, 'run_id')):
+                             (receipt.get('agent_id'), AGENT, 'agent_id')):
         if not isinstance(val, str) or not rule.fullmatch(val):
             raise ValueError('Missing or invalid ' + label)
+    run_id = receipt.get('agent_trigger_run_id')
+    if run_id is not None and (not isinstance(run_id, str) or not RUN.fullmatch(run_id)):
+        raise ValueError('Invalid optional run_id')
     if receipt.get('status') not in ('run_completed_result_not_retrieved', 'trigger_accepted'):
         raise ValueError('No accepted/completed trigger receipt')
     if receipt.get('agent_run_status') != 'completed':

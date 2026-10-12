@@ -44,13 +44,23 @@ def evaluate(receipt, result, input_bytes, output_bytes, verifier):
         raise ValueError('Invalid optional run_id')
     if receipt.get('status') not in ('run_completed_result_not_retrieved', 'trigger_accepted'):
         raise ValueError('No accepted/completed trigger receipt')
-    if receipt.get('agent_run_status') != 'completed':
-        raise ValueError('A confirmed completed run is required')
-    for field in ('task_id', 'agent_id', 'agent_trigger_run_id'):
+    # Accepted 202 and an artifact allow integrity checks, not proven execution.
+    run_status = receipt.get('agent_run_status')
+    if run_status not in (None, 'completed'):
+        raise ValueError('A confirmed completed run is required when status is available')
+    if run_id is not None and run_status != 'completed':
+        raise ValueError('A confirmed completed run is required when run ID is available')
+    for field in ('task_id', 'agent_id'):
         _same(field, receipt.get(field), result.get(field))
     _same('task_id verifier', receipt['task_id'], verifier.get('task_id'))
     _same('agent_id verifier', receipt['agent_id'], verifier.get('agent_id'))
-    _same('agent_trigger_run_id verifier', receipt['agent_trigger_run_id'], verifier.get('agent_trigger_run_id'))
+    for record in (result, verifier):
+        other_run = record.get('agent_trigger_run_id')
+        if run_id is None:
+            if other_run is not None:
+                raise ValueError('Unexpected agent_trigger_run_id without API receipt')
+        else:
+            _same('agent_trigger_run_id', run_id, other_run)
     if not output_bytes:
         raise ValueError('No output retrieved')
     if len(output_bytes) > 10000000 or len(input_bytes) > 10000000:
@@ -77,7 +87,7 @@ def evaluate(receipt, result, input_bytes, output_bytes, verifier):
     return {
         'task_id': receipt['task_id'],
         'agent_id': receipt['agent_id'],
-        'run_id': receipt['agent_trigger_run_id'],
+        'run_id': run_id,
         'integrity_checks_passed': True,
         'independent_verification_claim_present': True,
         'provenance_authenticated': False,

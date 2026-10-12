@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "checked_at": null,
+  "source": "TEMPLATE; NOT a verified entitlement or a live workspace setting",
+  "models": [
+    {"id": "GPT-6 Luna", "surface": "work", "capability_tier": 1, "cost_rank": 1, "reasoning_levels": ["low", "medium"], "enabled": false, "verified": false, "billing_mode": "unknown"},
+    {"id": "GPT-6 Sol", "surface": "work", "capability_tier": 2, "cost_rank": 2, "reasoning_levels": ["low", "medium", "high"], "enabled": false, "verified": false, "billing_mode": "unknown"},
+    {"id": "GPT-6.1 Sol", "surface": "work", "capability_tier": 3, "cost_rank": 3, "reasoning_levels": ["medium", "high"], "enabled": false, "verified": false, "billing_mode": "unknown"},
+    {"id": "GPT-6 Astra", "surface": "work", "capability_tier": 4, "cost_rank": 4, "reasoning_levels": ["high"], "enabled": false, "verified": false, "billing_mode": "unknown"}
+  ],
+  "connectors": []
+}

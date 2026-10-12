@@ -106,8 +106,9 @@ def trigger(envelope, token, opener=None):
         raise RuntimeError("API did not confirm acceptance (HTTP %s)" % code)
     url = data.get("conversation_url")
     run = data.get("agent_trigger_run_id")
-    if not isinstance(url, str) or not url.startswith("https://chatgpt.com/"):
-        raise RuntimeError("API 202 without verifiable ChatGPT conversation URL")
+    # API 202 may have an empty body; response links are optional.
+    if url is not None and (not isinstance(url, str) or not url.startswith("https://chatgpt.com/")):
+        raise RuntimeError("Invalid optional ChatGPT conversation URL")
     if run is not None:
         _match(RUN_ID, run, "run_id")
     return {"schema_version": 1, "task_id": task_id, "origin": envelope["origin"],
@@ -119,6 +120,8 @@ def trigger(envelope, token, opener=None):
 
 def check_status(receipt, token, opener=None):
     channel_id = _match(CHANNEL_ID, receipt["api_trigger_id"], "api_trigger_id")
+    if receipt.get("agent_trigger_run_id") is None:
+        raise ValueError("No run ID was returned by the API; check the configured result destination")
     run_id = _match(RUN_ID, receipt.get("agent_trigger_run_id"), "run_id")
     code, data = api_request(channel_id, token, "GET", suffix="/runs/" + run_id, opener=opener)
     if code != 200:

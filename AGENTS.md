@@ -24,3 +24,14 @@
 - Use the public `bridge.trigger` or CLI, both of which require the assessment and verified cost manifest. The internal `_trigger_transport` is transport plumbing, not a caller entry point.
 - Before any run, selected model and effort must match the verified configuration of the exact published agent/channel, and its estimated credit bound must fit the remaining authorized budget. Included subscription usage is not zero-credit usage.
 - Do not use a fixed global model as a substitute for per-task routing. Do not claim cloud activation from offline tests. No live verified manifest or adapter has been installed by this code change.
+
+## Native Kelion execution (Work / Codex)
+
+- Use the 22 project profiles in `.codex/agents/`, derived from Library index v15. Published Agent Studio identities remain provenance only; native profiles do not inherit their cloud skills, OAuth, plugins or memory.
+- Kelion alone selects the native model and reasoning effort for each task from the current runtime's available supported models. Explicitly set both native `spawn_agent` arguments; use `fork_turns=none` and transfer only the required task/context. Custom profiles intentionally omit fixed model/effort so they cannot override Kelion.
+- First obtain a scoped DOTS difficulty assessment without executing the work, then use `orchestration/native_dispatch.py` to prepare the native request. The parent invokes the actual native delegation tool and reads the actual output. Do not describe a prepared request as execution.
+- If the assessment thread already uses exactly Kelion's selected model/effort, continue that same native thread to avoid another startup. Otherwise create the work thread with explicit selected model/effort; do not pretend a follow-up changes the existing model.
+- Default to one native specialist at a time. Retain valid results; escalate only on verified failure or supported higher difficulty. No new subscriptions, paid API keys, automatic top-ups, or unverified credit savings.
+- In plain Chat, report lack of a native spawn tool instead of promising automatic routing. Work does not necessarily load Codex TOML files: include the relevant profile instructions in the native task message.
+- Firecrawl is restricted to the dedicated `dots_cautare_cod` role and an actually available, authenticated connection within its Free quota. Do not claim native profile migration transfers the published agent's connection.
+

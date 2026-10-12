@@ -1,0 +1,41 @@
+{
+  "task_id": "kelion-native-probe-001",
+  "runtime": "native Work subagent",
+  "source_role": "harta-sectiuni-cod",
+  "source_agent_id": "agt_6acbddc2cfcc8191aea5c28f180c0893",
+  "native_thread": "/root/dots_harta_sectiuni_cod",
+  "model_requested": "gpt-6-luna",
+  "reasoning_effort_requested": "low",
+  "fork_turns": "none",
+  "assessment": {
+    "difficulty": 1,
+    "reason": "A small read-only inspection of one JSON file and related TOML files, followed by counting fields.",
+    "risk_flags": []
+  },
+  "decision": {
+    "decision_by": "Kelion controller code",
+    "policy_tier": 1,
+    "model": "gpt-6-luna",
+    "reasoning_effort": "low"
+  },
+  "actual_native_spawn_tool": "collaboration.spawn_agent",
+  "actual_native_work_tool": "collaboration.followup_task",
+  "result": {
+    "native_role_profiles": 22,
+    "toml_role_files": 22,
+    "files_pinning_model": 0,
+    "files_pinning_model_reasoning_effort": 0,
+    "exit_code": 0
+  },
+  "verification": {
+    "matches_parent_tomllib_inspection": true,
+    "orchestration_tests_passed": 40
+  },
+  "limits": [
+    "Spawn parameters were explicit and accepted; model internals and credit consumption not independently measured.",
+    "One native role executed; 22 role configuration files were parsed, not 22 role functions tested.",
+    "Native profiles do not migrate published Workspace Agent skill packages, OAuth attachments or memory.",
+    "Plain Chat has no proven native tool execution path.",
+    "GitHub persistence does not install the configuration in unrelated Work/Codex sessions or the always-on Kelion dot."
+  ]
+}

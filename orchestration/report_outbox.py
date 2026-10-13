@@ -21,7 +21,46 @@ class ReportOutbox:
                 owner TEXT NOT NULL, event_id TEXT NOT NULL, destination TEXT NOT NULL,
                 acknowledged INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY(owner, event_id, destination));
+            CREATE TABLE IF NOT EXISTS delivery_receipts (
+                owner TEXT NOT NULL, event_id TEXT NOT NULL,
+                destination TEXT NOT NULL, digest TEXT NOT NULL,
+                receipt_ref TEXT NOT NULL,
+                PRIMARY KEY(owner, event_id, destination));
         ''')
+
+    def acknowledge_verified(self, owner, destination, event_id, digest, receipt_ref):
+        """Record an externally verified delivery reference and acknowledge atomically.
+
+        The caller must independently authenticate the destination and validate
+        the receipt reference against the destination. This function does not
+        fetch external messages or treat an arbitrary string as delivery proof.
+        """
+        if not isinstance(receipt_ref, str) or not receipt_ref.strip():
+            raise ValueError('Nonblank externally verified delivery reference required')
+        with self.db:
+            row = self.db.execute('''SELECT r.digest FROM reports r JOIN recipients d
+                ON r.owner=d.owner AND r.event_id=d.event_id
+                WHERE d.owner=? AND d.destination=? AND d.event_id=?''',
+                (owner, destination, event_id)).fetchone()
+            if not row or row[0] != digest:
+                raise ValueError('Unknown recipient/event or mismatched report hash')
+            existing = self.db.execute('''SELECT digest,receipt_ref FROM delivery_receipts
+                WHERE owner=? AND event_id=? AND destination=?''',
+                (owner, event_id, destination)).fetchone()
+            if existing and existing != (digest, receipt_ref):
+                raise ValueError('Conflicting delivery receipt for recipient/event')
+            self.db.execute('''INSERT OR IGNORE INTO delivery_receipts
+                (owner,event_id,destination,digest,receipt_ref) VALUES (?,?,?,?,?)''',
+                (owner, event_id, destination, digest, receipt_ref))
+            self.db.execute('''UPDATE recipients SET acknowledged=1
+                WHERE owner=? AND destination=? AND event_id=?''',
+                (owner, destination, event_id))
+
+    def delivery_receipt(self, owner, destination, event_id):
+        row = self.db.execute('''SELECT digest,receipt_ref FROM delivery_receipts
+            WHERE owner=? AND destination=? AND event_id=?''',
+            (owner, destination, event_id)).fetchone()
+        return dict(sha256=row[0], receipt_ref=row[1]) if row else None
 
     def publish(self, owner, event_id, task_id, payload, destinations):
         if isinstance(destinations, (str, bytes)):

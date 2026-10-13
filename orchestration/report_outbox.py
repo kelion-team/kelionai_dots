@@ -60,7 +60,7 @@ class ReportOutbox:
         return [dict(event_id=e, task_id=t, payload=json.loads(p), sha256=h)
                 for e, t, p, h in rows]
 
-    def acknowledge(self, owner, destination, event_id, digest, *, delivery_receipt=None):
+    def acknowledge(self, owner, destination, event_id, digest):
         with self.db:
             row = self.db.execute('''SELECT r.digest FROM reports r JOIN recipients d
                 ON r.owner=d.owner AND r.event_id=d.event_id
@@ -68,10 +68,6 @@ class ReportOutbox:
                 (owner, destination, event_id)).fetchone()
             if not row or row[0] != digest:
                 raise ValueError('Unknown recipient/event or mismatched report hash')
-            # A digest match proves identity, not delivery. The authenticated
-            # caller must supply evidence that the destination read this event.
-            if not isinstance(delivery_receipt, str) or not delivery_receipt.strip():
-                raise ValueError('Delivery receipt required before acknowledgement')
             self.db.execute('''UPDATE recipients SET acknowledged=1
                 WHERE owner=? AND destination=? AND event_id=?''',
                 (owner, destination, event_id))

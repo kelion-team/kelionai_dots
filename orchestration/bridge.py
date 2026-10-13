@@ -14,6 +14,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 
 BASE = "https://api.chatgpt.com/v1/workspace_agents"
 AGENT_ID = re.compile(r"^agt_[A-Za-z0-9_-]+$")
@@ -52,8 +53,13 @@ def prepare(task_id, surface, agent_id, channel_id, input_text, issue_url):
     _match(CHANNEL_ID, channel_id, "channel_id")
     if not isinstance(input_text, str) or not input_text.strip() or len(input_text) > 100000:
         raise ValueError("Invalid input")
-    if issue_url and not issue_url.startswith("https://github.com/"):
-        raise ValueError("Issue must be a GitHub URL")
+    if issue_url:
+        parsed = urllib.parse.urlsplit(issue_url)
+        if (parsed.scheme != "https" or parsed.netloc != "github.com" or
+                parsed.username is not None or parsed.password is not None or
+                parsed.query or parsed.fragment or
+                not re.fullmatch(r"/[^/]+/[^/]+/issues/[1-9][0-9]*", parsed.path)):
+            raise ValueError("Issue must be a canonical GitHub issue URL")
     return {
         "schema_version": 1,
         "task_id": task_id,

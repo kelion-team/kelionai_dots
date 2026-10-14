@@ -160,6 +160,18 @@ class StoreFlowTests(unittest.TestCase):
         self.assertEqual(self.store.get("web-0004")["progress"][0]["surface"], "chat")
 
 
+class WebSearchTests(unittest.TestCase):
+    def test_web_search_flag_reaches_backend(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "b.sh"
+            script.write_text('#!/bin/sh\ncat >/dev/null; echo "search=${KELION_WEB_SEARCH:-0}"\n')
+            script.chmod(script.stat().st_mode | stat.S_IEXEC)
+            on = magistrala_worker.command_backend({"command": [str(script)], "web_search": True})
+            off = magistrala_worker.command_backend({"command": [str(script)]})
+            self.assertEqual(on("t", "x", {"surface": "chat", "effort": "low"})["output"], "search=1")
+            self.assertEqual(off("t", "x", {"surface": "chat", "effort": "low"})["output"], "search=0")
+
+
 class CodexHomeTests(unittest.TestCase):
     def test_codex_home_passed_to_backend(self):
         with tempfile.TemporaryDirectory() as tmp:

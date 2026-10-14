@@ -3,17 +3,32 @@
   "surfaces": {
     "chat": {
       "enabled": true,
-      "command": ["/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"],
+      "command": [
+        "/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"
+      ],
       "codex_home": "/CALEA/CODEX_HOME/CU/LOGIN",
-      "models": {"low": "gpt-6-astra", "medium": "gpt-6-astra", "high": "gpt-6.1-sol"},
-      "timeout": 300
+      "models": {
+        "low": "gpt-6-astra",
+        "medium": "gpt-6-astra",
+        "high": "gpt-6.1-sol"
+      },
+      "timeout": 300,
+      "web_search": true
     },
     "codex": {
       "enabled": true,
-      "command": ["/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"],
+      "command": [
+        "/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"
+      ],
       "codex_home": "/CALEA/CODEX_HOME/CU/LOGIN",
-      "models": {"low": "gpt-6-luna", "medium": "gpt-6-sol", "high": "gpt-6.1-sol", "xhigh": "gpt-6.1-sol"},
-      "timeout": 900
+      "models": {
+        "low": "gpt-6-luna",
+        "medium": "gpt-6-sol",
+        "high": "gpt-6.1-sol",
+        "xhigh": "gpt-6.1-sol"
+      },
+      "timeout": 900,
+      "web_search": true
     },
     "work": {
       "enabled": false,

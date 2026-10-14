@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
 <body><nav class="rail" id="rail" aria-label="Navigare"><span class="rail-logo">K</span>
   <button id="history-open" type="button" class="railbtn" title="Istoric" aria-label="Istoric">&#128337;</button>
   <a id="settings-open" class="railbtn" href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener noreferrer" title="Setări ChatGPT: conectori, pluginuri, cont" aria-label="Setări ChatGPT">&#9881;</a>
@@ -33,10 +33,17 @@
       <label class="menu-row" for="src-lang">Limba vorbită <select id="src-lang"><option value="ro-RO">Română</option><option value="en-US">English</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option><option value="es-ES">Español</option><option value="it-IT">Italiano</option><option value="pt-PT">Português</option><option value="hu-HU">Magyar</option><option value="pl-PL">Polski</option><option value="uk-UA">Українська</option><option value="ru-RU">Русский</option><option value="tr-TR">Türkçe</option><option value="ar-SA">العربية</option><option value="hi-IN">हिन्दी</option><option value="zh-CN">中文</option><option value="ja-JP">日本語</option></select></label>
       <p id="tr-status" class="voice" role="status"></p>
       <button id="tr-stop" type="button" class="ghost small">Oprește</button></div>
+    <div id="cam-card" class="call-card" hidden><p class="call-title">Cameră</p>
+      <video id="cam-video" playsinline muted autoplay></video>
+      <div class="call-actions"><button id="cam-flip" type="button" class="ghost small">Față / spate</button><button id="cam-shot" type="button" class="small">Fă poză</button><button id="cam-close" type="button" class="ghost small">Închide</button></div></div>
     <ol id="monitor" class="monitor"><li class="idle">Monitor: aici apar pașii și rezultatele lucrului lui Kelion.</li></ol>
     <div id="results" class="results"></div>
   </section>
   <div id="conv" class="conv" aria-label="Conversația scrisă" aria-live="polite"></div>
+  <div id="attach" class="menu attach" hidden>
+    <button id="geo" type="button">&#128205; Trimite locația (GPS)</button>
+    <button id="cam-front" type="button">&#129331; Cameră față</button>
+    <button id="cam-back" type="button">&#128247; Cameră spate</button></div>
   <form id="chat" class="composer"><div class="row"><label for="task" class="sr">Mesaj pentru Kelion</label>
     <button id="plus" type="button" class="iconbtn plus" title="Istoric și setări" aria-label="Istoric și setări">+</button>
     <textarea id="task" maxlength="100000" rows="1" required placeholder="Trimite un mesaj"></textarea>

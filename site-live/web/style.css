@@ -107,3 +107,12 @@ body:has(#workspace[hidden]) .account{display:none}
 @keyframes wave{to{transform:rotate(-25deg)}}
 .kelion[data-state=error] .c{fill:#c86f7f}
 @media (prefers-reduced-motion:reduce){.kelion *{animation:none!important}}
+/* Toate ecranele: telefon, tabletă, laptop; zone sigure (notch, bara de jos). */
+#workspace{padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.attach{position:absolute;left:16px;bottom:78px;top:auto;right:auto}
+#cam-video{width:100%;max-height:40dvh;border-radius:12px;background:#000;object-fit:contain}
+.results img{max-width:100%;max-height:40dvh;border-radius:10px;align-self:flex-start}
+@media (min-width:701px) and (max-width:1100px){#workspace{max-width:900px}.screen{min-height:30dvh}}
+@media (min-width:1101px){#workspace{max-width:880px}}
+@media (max-height:520px) and (orientation:landscape){.persona .kelion{display:none}.persona{flex-direction:row;gap:8px}.top{padding:4px 12px}.conv{max-height:30dvh}}
+@media (max-width:700px){.attach{left:8px;right:8px;bottom:72px}.composer{border-radius:22px}}

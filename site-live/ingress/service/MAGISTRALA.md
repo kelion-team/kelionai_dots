@@ -65,6 +65,7 @@ Toate suprafețele consumă din creditele/limita contului ChatGPT. Fără credit
 REL=/opt/kelion-app/ingress-v2/current/service
 install -d -m 0700 /etc/kelion-magistrala /var/lib/kelion-magistrala
 cp "$REL/magistrala-adapters/config.example.json" /etc/kelion-magistrala/config.json
+cp <clona repo>/orchestration/native_roles.json /etc/kelion-magistrala/native_roles.json   # cele 22 de profiluri DOTS
 # Modelele din config trebuie să existe în catalogul contului (verificați cu Codex pe server).
 # codex_home = directorul în care Codex e deja autentificat (login-ul e per director/utilizator).
 # worker.env: aceeași valoare KELION_WORKER_TOKEN ca serviciul ingress, plus PATH către codex:
@@ -80,4 +81,4 @@ Serviciul ingress trebuie repornit o dată pentru noile rute `/v1/worker/magistr
 
 - `journalctl -u kelion-magistrala -n 30 --no-pager` și `tail /var/lib/kelion-magistrala/events.jsonl`
 - O cerere pe kelionai.app trebuie să ajungă la `result_received` cu răspunsul afișat, sau la `blocked` cu motivul.
-- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (21 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).
+- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (24 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).

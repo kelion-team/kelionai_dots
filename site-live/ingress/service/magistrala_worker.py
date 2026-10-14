@@ -86,7 +86,16 @@ def serve_once(ingress, backends, worker_id, events=None, wait=25):
         return None
     text = task["payload"]["request"]["task"]
     log_event(events, {"event": "task_taken", "task_id": task["task_id"], "route": magistrala.route(text)})
-    result = magistrala.run(task["task_id"], text, backends, record=lambda hop: log_event(events, {"event": "hop", **hop}))
+    def on_progress(hop):
+        try:  # monitorul live: pasul apare imediat pe kelionai.app
+            ingress.post("/v1/worker/magistrala/progress", {"task_id": task["task_id"], "take_token": task["take_token"],
+                                                            "event": {k: hop.get(k) for k in ("surface", "effort", "reason", "status", "duration_ms")}})
+        except Exception as error:  # monitorul nu oprește execuția
+            log_event(events, {"event": "progress_error", "detail": str(error)[:200]})
+    def on_hop(hop):
+        log_event(events, {"event": "hop", **hop})
+        on_progress(hop)
+    result = magistrala.run(task["task_id"], text, backends, record=on_hop, progress=on_progress)
     ingress.post("/v1/worker/magistrala/finish", {"task_id": task["task_id"], "take_token": task["take_token"],
                                                    "status": result["status"], "output": result["output"],
                                                    "hops": result["hops"]})

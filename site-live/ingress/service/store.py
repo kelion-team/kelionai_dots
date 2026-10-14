@@ -56,6 +56,8 @@ class Store:
                 created REAL NOT NULL, updated REAL NOT NULL, worker_id TEXT,
                 lease_hash TEXT, lease_expires REAL, receipt TEXT, output TEXT,
                 output_hash TEXT, failure TEXT)''')
+            if 'progress' not in [c[1] for c in db.execute('PRAGMA table_info(tasks)')]:
+                db.execute('ALTER TABLE tasks ADD COLUMN progress TEXT')
             db.execute('''CREATE TABLE IF NOT EXISTS runner_jobs (
                 task_id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, runtime_hash TEXT NOT NULL,
                 worker_id TEXT NOT NULL, state TEXT NOT NULL, journal TEXT NOT NULL,
@@ -78,8 +80,8 @@ class Store:
             raise KeyError('Unknown task_id')
         out = dict(row)
         out.pop('lease_hash', None)
-        for key in ('payload', 'decision', 'receipt'):
-            out[key] = json.loads(out[key]) if out[key] else None
+        for key in ('payload', 'decision', 'receipt', 'progress'):
+            out[key] = json.loads(out[key]) if out.get(key) else None
         provenance = None
         if out['output'] is not None:
             adapter = out['receipt'].get('adapter')
@@ -129,6 +131,24 @@ class Store:
             out = self._view(db.execute('SELECT * FROM tasks WHERE task_id=?', (row['task_id'],)).fetchone())
             out['take_token'] = token
             return out
+
+    def magistrala_progress(self, task_id, take_token, event):
+        """Adaugă un pas live (pentru monitor). Maxim 40 de pași păstrați per cerere."""
+        identity(task_id, 'task_id')
+        if not isinstance(event, dict) or len(json.dumps(event)) > 2000:
+            raise ValueError('Bounded progress event required')
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM tasks WHERE task_id=?', (task_id,)).fetchone()
+            if row is None:
+                raise KeyError('Unknown task_id')
+            if row['state'] != 'running_magistrala' or not isinstance(take_token, str) or not row['lease_hash'] \
+                    or not hmac.compare_digest(row['lease_hash'], digest(take_token)):
+                raise Conflict('Task is not running on the magistrala for this token')
+            steps = json.loads(row['progress']) if row['progress'] else []
+            steps = (steps + [{**event, 'at': time.time()}])[-40:]
+            db.execute('UPDATE tasks SET progress=?,updated=? WHERE task_id=?', (canonical(steps), time.time(), task_id))
+            return {'steps': len(steps)}
 
     def magistrala_finish(self, task_id, take_token, status, output, hops):
         """Scrie rezultatul magistralei: result_received cu output real, sau blocked cu motiv."""

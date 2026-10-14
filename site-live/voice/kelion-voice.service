@@ -1,0 +1,15 @@
+[Unit]
+Description=Kelion: serviciul DOTS de voce (STT whisper.cpp + TTS piper, doar loopback)
+After=network-online.target
+
+[Service]
+# KELION_VOICE_TOKEN=... (același token ca în configurarea serverului web, câmpul voiceToken; nu se pune în repo)
+EnvironmentFile=/etc/kelion-voice/voice.env
+ExecStart=/usr/bin/python3 /opt/kelion-app/voice/voice_service.py --config /etc/kelion-voice/config.json
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

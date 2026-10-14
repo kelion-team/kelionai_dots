@@ -1,0 +1,15 @@
+{
+  "_note": "Copiați în /etc/kelion-voice/config.json. Fără secrete aici. Căile modelelor trebuie să existe pe kelion-nou.",
+  "stt": {
+    "convert": ["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", "{in}", "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", "{wav}"],
+    "command": ["/opt/kelion-voice/whisper.cpp/build/bin/whisper-cli", "-m", "{model}", "-l", "{lang}", "-f", "{wav}", "-nt", "-otxt", "-of", "{out}", "-t", "4"],
+    "model": "/opt/kelion-voice/models/ggml-small.bin",
+    "timeout": 120
+  },
+  "tts": {
+    "command": ["/opt/kelion-voice/piper/piper", "--model", "{model}", "--output_file", "{out}"],
+    "models": {"ro": "/opt/kelion-voice/voices/ro_RO-mihai-medium.onnx"},
+    "model": "/opt/kelion-voice/voices/ro_RO-mihai-medium.onnx",
+    "timeout": 120
+  }
+}

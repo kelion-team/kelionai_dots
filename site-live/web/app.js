@@ -139,6 +139,91 @@ export class VoiceConversation {
   }
 }
 
+// Detector de vorbire (VAD) pe nivelul sunetului: începutul și sfârșitul fiecărei fraze, prag adaptat la zgomot.
+export function createVad({ minThreshold = 0.012, factor = 3, silenceMs = 900, minSpeechMs = 350, maxMs = 30000 } = {}) {
+  let noise = 0.008, speaking = false, start = 0, lastVoice = 0;
+  return function step(rms, t) {
+    const threshold = Math.max(minThreshold, noise * factor);
+    if (!speaking) {
+      if (rms > threshold) { speaking = true; start = lastVoice = t; return 'start'; }
+      noise = noise * 0.95 + rms * 0.05; return null;
+    }
+    if (rms > threshold) lastVoice = t;
+    if (t - lastVoice > silenceMs || t - start > maxMs) { speaking = false; return lastVoice - start >= minSpeechMs ? 'end' : 'discard'; }
+    return null;
+  };
+}
+// Voce prin serviciul DOTS de pe server: frază → /api/voice/stt → magistrală (Kelion alege canalul) → /api/voice/tts → redare.
+// Full duplex prin întrerupere: dacă vorbești peste răspuns, redarea se oprește și fraza nouă e preluată.
+export class ServerVoice {
+  constructor({ media, AudioCtx, Recorder, stt, tts, request, play, onState = () => {}, onTranscript = () => {}, onResult = () => {}, pollMs = 1500, waitMs = 600000, vad = createVad() }) {
+    Object.assign(this, { media, AudioCtx, Recorder, stt, tts, request, play, onState, onTranscript, onResult, pollMs, waitMs, vad });
+    this.active = false; this.state = 'idle'; this.queue = Promise.resolve();
+  }
+  notify(state, message) { this.state = state; this.onState({ state, message, active: this.active }); }
+  async start() {
+    if (this.active) return;
+    if (!this.media?.getUserMedia || !this.AudioCtx || !this.Recorder) { this.notify('error', 'Browserul nu oferă microfon pentru vocea Kelion.'); return; }
+    this.active = true; this.notify('starting', 'Pornesc microfonul…');
+    try { this.stream = await this.media.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch { this.active = false; this.notify('error', 'Microfon refuzat sau indisponibil. Permite microfonul și reîncearcă.'); return; }
+    if (!this.active) { this.stream.getTracks().forEach(t => t.stop()); return; }
+    this.ctx = new this.AudioCtx(); const source = this.ctx.createMediaStreamSource(this.stream);
+    this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; source.connect(this.analyser);
+    const buf = new Float32Array(this.analyser.fftSize);
+    this.timer = setInterval(() => {
+      this.analyser.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v;
+      this.onLevel(Math.sqrt(sum / buf.length), performance.now());
+    }, 40);
+    this.notify('listening', 'Te ascult. Vorbește când vrei; poți întrerupe răspunsul vorbind.');
+  }
+  onLevel(rms, t) {
+    const event = this.vad(rms, t);
+    if (event === 'start') {
+      this.stopPlayback();  // vorbești peste răspuns: îl opresc
+      this.chunks = []; this.recorder = new this.Recorder(this.stream);
+      this.recorder.ondataavailable = e => { if (e.data?.size) this.chunks.push(e.data); };
+      this.recorder.start(); this.notify('listening', 'Te aud…');
+    } else if (event === 'end' || event === 'discard') {
+      const rec = this.recorder, chunks = this.chunks; this.recorder = null; if (!rec) return;
+      rec.onstop = () => { if (event === 'end' && this.active && chunks.length) { const blob = new Blob(chunks, { type: rec.mimeType || chunks[0].type || 'audio/webm' }); this.queue = this.queue.then(() => this.turn(blob)).catch(() => {}); } };
+      try { rec.stop(); } catch {}
+    }
+  }
+  stopPlayback() { if (this.playing) { try { this.playing.stop(); } catch {} this.playing = null; } }
+  async turn(blob) {
+    if (!this.active) return;
+    try {
+      this.notify('submitting', 'Transcriu pe server…');
+      const text = (await this.stt(blob)).trim(); if (!this.active) return;
+      if (!text) { this.notify('listening', 'Nu am înțeles; te ascult.'); return; }
+      this.onTranscript(text); this.notify('waiting', 'Kelion lucrează pe canalul ales…');
+      let result = await this.request('/api/tasks', { task: text, input_mode: 'voice_transcript' });
+      const id = result.task_id, deadline = Date.now() + this.waitMs;
+      while (this.active) {
+        this.onResult(result);
+        if (result.state === 'result_received' && result.output) break;
+        if (['blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'].includes(result.state)) { this.notify('error', 'Cererea nu a primit răspuns: ' + (result.block_reason || result.failure || result.state) + ' Ascult în continuare.'); return; }
+        if (Date.now() > deadline) { this.notify('error', 'Răspunsul întârzie; cererea rămâne în istoric. Ascult în continuare.'); return; }
+        await new Promise(r => setTimeout(r, this.pollMs)); if (!this.active) return;
+        result = await this.request('/api/tasks/' + id);
+      }
+      if (!this.active) return;
+      this.notify('speaking', 'Kelion îți răspunde (vorbește ca să întrerupi).');
+      const audio = await this.tts(result.output.slice(0, 1500)); if (!this.active) return;
+      this.playing = this.play(audio, () => { this.playing = null; if (this.active) this.notify('listening', 'Te ascult.'); });
+    } catch (error) { if (this.active) this.notify('error', (error.message || 'Vocea a întâmpinat o eroare.') + ' Ascult în continuare.'); }
+  }
+  interrupt() { this.stopPlayback(); if (this.active) this.notify('listening', 'Te ascult.'); }
+  stop(message = 'Conversația s-a încheiat.') {
+    this.active = false; clearInterval(this.timer); this.stopPlayback();
+    try { this.recorder?.stop(); } catch {} this.recorder = null;
+    this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
+    try { this.ctx?.close(); } catch {} this.ctx = null;
+    this.notify('idle', message);
+  }
+}
+
 if (typeof document !== 'undefined') {
 const $ = id => document.getElementById(id);
 let csrf, voiceInput = false, dictation;
@@ -191,16 +276,12 @@ function renderResults(result, parts) {
   for (const c of parts.code) { const pre = document.createElement('pre'); pre.textContent = c.body; if (c.lang) pre.dataset.lang = c.lang; box.append(pre); }
   for (const url of parts.links.slice(0, 10)) { const a = document.createElement('a'); a.href = url; a.textContent = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; box.append(a); }
 }
-// Ruta vocii, aleasă în spate: lucrul pe server merge → apel prin magistrală; blocat (cota Codex/Work) → apel live în ChatGPT.
+// Starea lucrului pe server (pentru raportare pe monitor).
 let workRoute = 'unknown';
-const CHATGPT_CALL = 'https://chatgpt.com/dots/home';
 function routeNote(text) { const li = document.createElement('li'); li.className = 'state'; li.textContent = new Date().toLocaleTimeString() + ' · ' + text; $('monitor').prepend(li); }
 function showResult(result) {
   if (result.state === 'result_received' && result.output) workRoute = 'ok';
   else if (TERMINAL.includes(result.state)) workRoute = 'blocked';
-  let call = null; try { call = conversation; } catch {}  // conversation poate să nu fie încă inițializată
-  if (workRoute === 'blocked' && call?.active)
-    call.stop('Lucrul pe server e blocat (cota Codex/Work). Apasă microfonul: deschid apelul live în ChatGPT.');
   renderMonitor(result);
   if (result.output) renderResults(result, splitOutput(result.output));
   if (answered.has(result.task_id)) return;
@@ -327,12 +408,41 @@ function kelionState(state) { const k = document.getElementById('kelion'); if (k
 const GENDER_KEY = 'kelion-voice-gender';
 try { const saved = localStorage.getItem(GENDER_KEY); if (saved === 'masculin' || saved === 'feminin') $('voice-gender').value = saved; } catch {}
 $('voice-gender').onchange = () => { try { localStorage.setItem(GENDER_KEY, $('voice-gender').value); } catch {} };
-const conversation = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
+const browserVoice = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
   onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active; $('call-card').hidden = !active; $('call-title').textContent = CALL_TITLES[state] || 'Apel cu Kelion';
     $('call-interrupt').disabled = state !== 'speaking'; $('send').disabled = active; $('task').disabled = active; },
   onTranscript: text => { $('voice-transcript').textContent = ''; asked(text); },
   onResult: result => { showResult(result); if (result.state === 'result_received') tasks().catch(() => {}); },
 });
+// Vocea prin serviciul DOTS de pe server (când e instalat): aceleași afișări, ruta audio rămâne în aplicație.
+const pickMime = () => ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+const serverVoice = new ServerVoice({
+  media: navigator.mediaDevices, AudioCtx: window.AudioContext || window.webkitAudioContext,
+  Recorder: window.MediaRecorder ? function (stream) { const m = pickMime(); return new MediaRecorder(stream, m ? { mimeType: m } : undefined); } : null,
+  request: api,
+  stt: async blob => {
+    const r = await fetch('/api/voice/stt', { method: 'POST', credentials: 'same-origin', body: blob,
+      headers: { 'Content-Type': blob.type || 'audio/webm', 'X-CSRF-Token': csrf, 'X-Kelion-Lang': $('user-lang').value.slice(0, 2) } });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw Error(j.error || 'Transcrierea a eșuat'); return j.text || '';
+  },
+  tts: async text => {
+    const r = await fetch('/api/voice/tts', { method: 'POST', credentials: 'same-origin', body: JSON.stringify({ text, lang: $('user-lang').value.slice(0, 2) }),
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf } });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw Error(j.error || 'Sinteza vocală a eșuat'); } return r.blob();
+  },
+  play: (blob, onEnd) => {
+    const url = URL.createObjectURL(blob), el = new Audio(url), done = () => { URL.revokeObjectURL(url); onEnd(); };
+    el.onended = done; el.onerror = done; el.play().catch(done);
+    return { stop() { el.onended = el.onerror = null; el.pause(); URL.revokeObjectURL(url); } };
+  },
+  onState: browserVoice.onState, onTranscript: browserVoice.onTranscript, onResult: browserVoice.onResult,
+});
+// Un singur microfon: ruta audio e mereu în aplicație; serverul DOTS dacă e instalat, altfel recunoașterea din browser.
+const conversation = {
+  impl: browserVoice,
+  get active() { return this.impl.active; },
+  start() { return this.impl.start(); }, stop(message) { return this.impl.stop(message); }, interrupt() { return this.impl.interrupt(); },
+};
 if (Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance) {
   $('call-start').disabled = false; $('call-status').textContent = 'Pregătit. Pornește conversația când dorești să folosești microfonul.';
 } else $('call-status').textContent = 'Conversația vocală nu este disponibilă: browserul trebuie să ofere recunoaștere și redare vocală. Poți folosi chatul text.';
@@ -392,13 +502,10 @@ if (Recognition) {
   };
 }
 $('call-start').onclick = () => {
+  // Microfonul deschide doar ruta audio, în aplicație. Canalul (chat/codex/work/magentic) îl alege Kelion în spate, pe magistrală.
   following++; if (translator.active) translatorStop();
   if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; }
-  if (workRoute === 'blocked') {
-    routeNote('Rută voce: apel live în ChatGPT (abonament) — lucrul pe server e blocat, ultima cerere nu a primit răspuns.');
-    window.open(CHATGPT_CALL, '_blank', 'noopener'); return;
-  }
-  routeNote('Rută voce: Kelion pe server, prin magistrală (Codex/Work).');
+  routeNote('Voce: ascult în aplicație; Kelion alege canalul pentru fiecare cerere.');
   conversation.start();
 };
 $('call-end').onclick = () => conversation.stop();
@@ -410,6 +517,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && con
   try {
     const config = await api('/api/config');
     if (!config.ready) { status('Configurare lipsă: ' + config.missing.join(', ') + '. Conectarea și trimiterea sunt dezactivate.'); return; }
+    if (config.voice) { conversation.impl = serverVoice; $('call-start').disabled = false; $('call-status').textContent = 'Voce prin serviciul DOTS de pe server.'; }
     try { await signedIn(await api('/api/session')); } catch { $('signin').hidden = false; status('Conectează-te cu un cont Google autorizat.'); }
   } catch (e) { status(e.message); }
 })();

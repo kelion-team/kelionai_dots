@@ -19,6 +19,15 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 110000) fail(413, 'Request too large'); chunks.push(chunk); }
   try { const data = JSON.parse(Buffer.concat(chunks)); if (!data || Array.isArray(data) || typeof data !== 'object') throw 0; return data; } catch { fail(400, 'Invalid JSON'); }
 }
+const AUDIO_TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mp4']);
+async function audioBody(req) {
+  const type = (req.headers['content-type'] ?? '').split(';')[0].trim();
+  if (!AUDIO_TYPES.has(type)) fail(415, 'Audio required');
+  let size = 0; const chunks = [];
+  for await (const chunk of req) { size += chunk.length; if (size > 4 * 1024 * 1024) fail(413, 'Audio too large'); chunks.push(chunk); }
+  if (!size) fail(400, 'Empty audio');
+  return { type, data: Buffer.concat(chunks) };
+}
 export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch } = {}) {
   if (config.publicOrigin !== 'https://kelionai.app') throw Error('Exact public HTTPS origin required');
   if (config.clientId && !/^[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$/.test(config.clientId)) throw Error('Invalid Google client ID');
@@ -26,6 +35,18 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
   if ([...allowed].some(e => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) throw Error('Invalid owner allowlist');
   const missing = [!config.clientId && 'GOOGLE_CLIENT_ID', !allowed.size && 'KELION_ALLOWED_EMAILS', !config.apiToken && 'KELION_CLIENT_TOKEN'].filter(Boolean);
   if (config.apiToken && !/^[A-Za-z0-9_-]{32,256}$/.test(config.apiToken)) throw Error('Invalid API credential');
+  if (config.voiceToken && !/^[A-Za-z0-9_-]{32,256}$/.test(config.voiceToken)) throw Error('Invalid voice credential');
+  // Serviciul DOTS de voce (loopback 8770): sunet → text (whisper.cpp) și text → sunet (piper), pe server.
+  async function voice(path, init) {
+    if (!config.voiceToken) fail(503, 'Voice service not configured');
+    let response;
+    try { response = await upstreamFetch('http://127.0.0.1:8770' + path, { ...init, redirect: 'error', signal: AbortSignal.timeout(120000),
+      headers: { ...init.headers, authorization: 'Bearer ' + config.voiceToken } }); }
+    catch { fail(502, 'Voice service unavailable'); }
+    if (response.status === 422) { const e = await response.json().catch(() => ({})); fail(422, String(e.error || 'Voice processing failed').slice(0, 300)); }
+    if (!response.ok) fail(502, 'Voice service unavailable');
+    return response;
+  }
   mkdirSync(dirname(config.database), { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(config.database);
   db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
@@ -98,7 +119,7 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
       const path = req.url;
       if (req.method === 'POST' && req.headers.origin !== config.publicOrigin) fail(403, 'Exact origin required');
       if (req.method === 'GET' && assets.has(path)) { const [type, content] = assets.get(path); res.writeHead(200, { 'content-type': type }); res.end(content); return; }
-      if (req.method === 'GET' && path === '/api/config') return send(200, { clientId: config.clientId || null, missing, ready: !missing.length, worker: 'not_verified' });
+      if (req.method === 'GET' && path === '/api/config') return send(200, { clientId: config.clientId || null, missing, ready: !missing.length, worker: 'not_verified', voice: Boolean(config.voiceToken) });
       if (req.method === 'POST' && path === '/auth/nonce') {
         if (missing.length) fail(503, 'Missing: ' + missing.join(', '));
         limit('nonce', 30); cleanup();
@@ -119,7 +140,7 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
         prepared('INSERT INTO sessions VALUES (?,?,?,?,?)').run(hash(id), user.sub, user.email, csrf, Date.now() + 43200000);
         return send(200, { email: user.email, csrf }, { 'set-cookie': [setCookie(COOKIE, id, 43200), setCookie(LOGIN, '', 0)] });
       }
-      if (!['/api/session', '/auth/logout', '/api/tasks'].includes(path) && !/^\/api\/tasks\/web-[a-f0-9]{32}$/.test(path)) fail(404, 'Unknown endpoint');
+      if (!['/api/session', '/auth/logout', '/api/tasks', '/api/voice/stt', '/api/voice/tts'].includes(path) && !/^\/api\/tasks\/web-[a-f0-9]{32}$/.test(path)) fail(404, 'Unknown endpoint');
       const user = session(req);
       if (req.method === 'POST' && req.headers['x-csrf-token'] !== user.csrf) fail(403, 'Invalid CSRF token');
       if (req.method === 'GET' && path === '/api/session') return send(200, { email: user.email, csrf: user.csrf });
@@ -137,6 +158,20 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
           return send(202, result);
         } catch { prepared('UPDATE tasks SET delivery=? WHERE id=?').run('submission_uncertain_readback_required', id); return send(502, { task_id: id, error: 'Submission uncertain; read this task before sending again' }); }
       }
+      if (req.method === 'POST' && path === '/api/voice/stt') {
+        limit('voice', 60); const audio = await audioBody(req);
+        const lang = /^[a-z]{2}$/.test(req.headers['x-kelion-lang'] ?? '') ? req.headers['x-kelion-lang'] : 'ro';
+        const response = await voice('/v1/stt', { method: 'POST', body: audio.data, headers: { 'content-type': audio.type, 'x-kelion-lang': lang } });
+        const result = await response.json(); return send(200, { text: typeof result.text === 'string' ? result.text.slice(0, 4000) : '' });
+      }
+      if (req.method === 'POST' && path === '/api/voice/tts') {
+        limit('voice', 60); const data = await body(req);
+        if (Object.keys(data).some(k => !['text', 'lang'].includes(k)) || typeof data.text !== 'string' || !data.text.trim() || data.text.length > 4000) fail(400, 'Invalid text');
+        const lang = /^[a-z]{2}$/.test(data.lang ?? '') ? data.lang : 'ro';
+        const response = await voice('/v1/tts', { method: 'POST', body: JSON.stringify({ text: data.text, lang }), headers: { 'content-type': 'application/json' } });
+        const wav = Buffer.from(await response.arrayBuffer()); if (wav.length > 20 * 1024 * 1024) fail(502, 'Voice response too large');
+        res.writeHead(200, { 'content-type': 'audio/wav', 'content-length': wav.length }); res.end(wav); return;
+      }
       if (req.method === 'GET' && path.startsWith('/api/tasks/')) {
         limit('read', 300); const id = path.slice('/api/tasks/'.length);
         if (!prepared('SELECT 1 FROM tasks WHERE id=? AND sub=?').get(id, user.sub)) fail(404, 'Unknown task');
@@ -153,7 +188,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   process.umask(0o077);
   const app = createApp({ publicOrigin: 'https://kelionai.app', clientId: process.env.GOOGLE_CLIENT_ID ?? '',
     allowedEmails: (process.env.KELION_ALLOWED_EMAILS ?? '').split(',').map(s => s.trim()).filter(Boolean),
-    apiToken: process.env.KELION_CLIENT_TOKEN ?? '', database: join(process.env.STATE_DIRECTORY || '/var/lib/kelion-web', 'web.sqlite') });
+    apiToken: process.env.KELION_CLIENT_TOKEN ?? '', voiceToken: process.env.KELION_VOICE_TOKEN ?? '', database: join(process.env.STATE_DIRECTORY || '/var/lib/kelion-web', 'web.sqlite') });
   app.listen(8766, '127.0.0.1', () => console.log('Kelion web listening on loopback:8766'));
   for (const event of ['SIGINT', 'SIGTERM']) process.on(event, () => { app.close(); app.closeAllConnections(); });
 }

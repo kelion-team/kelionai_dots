@@ -238,15 +238,11 @@ async function login() {
 }
 $('signin').onclick = login;
 $('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
-$('history-open').onclick = () => { closeMenu(); $('settings').hidden = true; $('history').hidden = false; tasks().catch(e => status(e.message)); };
+$('history-open').onclick = () => { closeMenu(); $('history').hidden = false; tasks().catch(e => status(e.message)); };
 const closeMenu = () => { $('menu').hidden = true; $('menu-open').setAttribute('aria-expanded', 'false'); };
 $('menu-open').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('menu-open').setAttribute('aria-expanded', String(open)); };
 $('plus').onclick = () => $('menu-open').click();
 document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #menu-open, #plus')) closeMenu(); });
-$('settings-open').onclick = async () => { closeMenu(); $('history').hidden = true; $('settings').hidden = false;
-  try { const c = await api('/api/config'); $('server-state').textContent = (c.ready ? 'Pagina web: configurată.' : 'Pagina web: lipsesc ' + c.missing.join(', ') + '.')
-    + ' Starea ultimei cereri apare pe monitor.'; } catch (e) { $('server-state').textContent = 'Serverul nu răspunde: ' + e.message; } };
-$('settings-close').onclick = () => { $('settings').hidden = true; };
 $('history-close').onclick = () => { $('history').hidden = true; };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
 $('task').addEventListener('input', () => { voiceInput = false; });

@@ -2,7 +2,7 @@
 <html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
 <body><nav class="rail" id="rail" aria-label="Navigare"><span class="rail-logo">K</span>
   <button id="history-open" type="button" class="railbtn" title="Istoric" aria-label="Istoric">&#128337;</button>
-  <button id="settings-open" type="button" class="railbtn" title="Setări" aria-label="Setări">&#9881;</button>
+  <a id="settings-open" class="railbtn" href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener noreferrer" title="Setări ChatGPT: conectori, pluginuri, cont" aria-label="Setări ChatGPT">&#9881;</a>
   <span class="spacer"></span><span id="avatar" class="avatar" aria-hidden="true">?</span></nav><main>
 <header class="top"><span class="brand">KelionAI</span><span class="spacer"></span>
   <div class="account" id="workspace-account"><button id="menu-open" type="button" class="iconbtn" title="Meniu" aria-label="Meniu" aria-expanded="false">&#8943;</button>
@@ -14,23 +14,6 @@
 <div id="login"><div id="google"></div><button id="signin" hidden>Conectare Google</button></div>
 <section id="workspace" hidden>
   <aside class="panel list" id="history" hidden><div class="panel-head"><h2>Istoric</h2><button id="refresh" class="ghost small">Actualizează</button><button id="history-close" class="ghost small" aria-label="Închide istoricul">✕</button></div><div id="tasks"></div></aside>
-  <aside class="panel list" id="settings" hidden><div class="panel-head"><h2>Setări</h2><button id="settings-close" class="ghost small" aria-label="Închide setările">✕</button></div>
-    <div class="settings-body">
-      <p class="note">Kelion folosește pe serverul Linux contul tău ChatGPT (prin Codex). Setările acelui cont sunt cele de mai jos și se deschid în ChatGPT, ca în pagina normală.</p>
-      <h3>Contul ChatGPT</h3>
-      <a href="https://chatgpt.com/#settings/General" target="_blank" rel="noopener noreferrer">General</a>
-      <a href="https://chatgpt.com/#settings/Personalization" target="_blank" rel="noopener noreferrer">Personalizare și memorie</a>
-      <a href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener noreferrer">Pluginuri și conectori</a>
-      <a href="https://chatgpt.com/plugins" target="_blank" rel="noopener noreferrer">Catalog pluginuri (instalare)</a>
-      <a href="https://chatgpt.com/#settings/DataControls" target="_blank" rel="noopener noreferrer">Controlul datelor</a>
-      <a href="https://chatgpt.com/#settings/Security" target="_blank" rel="noopener noreferrer">Securitate și autentificare</a>
-      <h3>Workspace, Codex și Kelion</h3>
-      <a href="https://chatgpt.com/admin" target="_blank" rel="noopener noreferrer">Administrare workspace (locuri, credite, tokenuri)</a>
-      <a href="https://chatgpt.com/codex" target="_blank" rel="noopener noreferrer">Codex</a>
-      <a href="https://chatgpt.com/dots/home" target="_blank" rel="noopener noreferrer">Chatul Kelion</a>
-      <h3>Server Kelion</h3>
-      <p id="server-state" class="note">Se verifică…</p>
-    </div></aside>
   <div class="persona"><div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
 <g class="body-g">
 <circle cx="34" cy="40" r="20" class="c"/><circle cx="60" cy="28" r="24" class="c"/><circle cx="86" cy="40" r="20" class="c"/><circle cx="60" cy="48" r="30" class="c"/>

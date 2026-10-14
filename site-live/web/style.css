@@ -78,7 +78,7 @@ body:has(#workspace[hidden]) .account{display:none}
 .duplex{width:40px;height:40px;padding:0;background:#7b85f0;color:#fff}.duplex:hover:not(:disabled){background:#8e97ff}
 /* Panouri Istoric / Setări. */
 .panel{background:#2f2f2f;border:1px solid #3d3d3d;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0}
-.list{position:absolute;z-index:15;inset:0 auto 14px 0;width:min(360px,calc(100% - 32px));box-shadow:0 10px 40px #0009}
+.list{position:absolute;z-index:15;inset:118px auto 14px 0;width:min(360px,calc(100% - 32px));box-shadow:0 10px 40px #0009}
 .panel-head{display:flex;align-items:center;gap:6px}.panel-head h2{flex:1;font-size:14px;color:#b4b4b4;text-transform:uppercase;letter-spacing:.5px}
 #tasks{overflow:auto;min-height:0;flex:1}
 #tasks button{display:block;width:100%;text-align:left;background:#3a3a3a;border-radius:10px;font-size:12px;padding:8px 10px;margin:0 0 6px;overflow-wrap:anywhere}
@@ -114,5 +114,8 @@ body:has(#workspace[hidden]) .account{display:none}
 .results img{max-width:100%;max-height:40dvh;border-radius:10px;align-self:flex-start}
 @media (min-width:701px) and (max-width:1100px){#workspace{max-width:900px}.screen{min-height:30dvh}}
 @media (min-width:1101px){#workspace{max-width:880px}}
-@media (max-height:520px) and (orientation:landscape){.persona .kelion{display:none}.persona{flex-direction:row;gap:8px}.top{padding:4px 12px}.conv{max-height:30dvh}}
+@media (max-height:520px) and (orientation:landscape){.persona .kelion{width:40px;height:44px}.persona{flex-direction:row;gap:8px}.top{padding:4px 12px}.conv{max-height:30dvh}}
 @media (max-width:700px){.attach{left:8px;right:8px;bottom:72px}.composer{border-radius:22px}}
+/* Roboțelul e permanent: nimic nu-l acoperă sau ascunde (panouri, meniuri, apel, traducere, cameră). */
+.persona{position:relative;z-index:25}
+@media (max-height:520px) and (orientation:landscape){.list{top:56px}}

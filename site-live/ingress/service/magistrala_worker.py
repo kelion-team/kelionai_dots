@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import magistrala  # noqa: E402
+from dots_profiles import Profiles  # noqa: E402
 
 
 def command_backend(spec):
@@ -82,22 +83,22 @@ def log_event(path, entry):
             handle.write(line + "\n")
 
 
-def serve_once(ingress, backends, worker_id, events=None, wait=25):
+def serve_once(ingress, backends, worker_id, events=None, wait=25, profiles=None):
     task = ingress.post("/v1/worker/magistrala/take", {"worker_id": worker_id, "wait_seconds": wait})["task"]
     if not task:
         return None
     text = task["payload"]["request"]["task"]
-    log_event(events, {"event": "task_taken", "task_id": task["task_id"], "route": magistrala.route(text)})
+    log_event(events, {"event": "task_taken", "task_id": task["task_id"], "route": magistrala.route(text, profiles)})
     def on_progress(hop):
         try:  # monitorul live: pasul apare imediat pe kelionai.app
             ingress.post("/v1/worker/magistrala/progress", {"task_id": task["task_id"], "take_token": task["take_token"],
-                                                            "event": {k: hop.get(k) for k in ("surface", "effort", "reason", "status", "duration_ms", "detail") if hop.get(k) is not None}})
+                                                            "event": {k: hop.get(k) for k in ("surface", "effort", "reason", "status", "duration_ms", "detail", "profile") if hop.get(k) is not None}})
         except Exception as error:  # monitorul nu oprește execuția
             log_event(events, {"event": "progress_error", "detail": str(error)[:200]})
     def on_hop(hop):
         log_event(events, {"event": "hop", **hop})
         on_progress(hop)
-    result = magistrala.run(task["task_id"], text, backends, record=on_hop, progress=on_progress)
+    result = magistrala.run(task["task_id"], text, backends, record=on_hop, progress=on_progress, profiles=profiles)
     ingress.post("/v1/worker/magistrala/finish", {"task_id": task["task_id"], "take_token": task["take_token"],
                                                    "status": result["status"], "output": result["output"],
                                                    "hops": result["hops"]})
@@ -119,11 +120,12 @@ def main(argv=None):
         raise SystemExit("KELION_WORKER_TOKEN lipsește din mediul serviciului")
     Path(args.events).parent.mkdir(parents=True, exist_ok=True)
     backends = load_backends(args.config)
-    log_event(args.events, {"event": "worker_start", "surfaces": sorted(backends)})
+    profiles = Profiles.load(json.loads(Path(args.config).read_text(encoding="utf-8")).get("profiles_path"))
+    log_event(args.events, {"event": "worker_start", "surfaces": sorted(backends), "dots_profiles": len(profiles)})
     ingress = Ingress(args.ingress, token)
     while True:
         try:
-            serve_once(ingress, backends, args.worker_id, args.events)
+            serve_once(ingress, backends, args.worker_id, args.events, profiles=profiles)
         except Exception as error:  # rețea/ingress indisponibil: nu se pierde nicio cerere, se reîncearcă
             log_event(args.events, {"event": "worker_error", "detail": str(error)[:300]})
             time.sleep(5)

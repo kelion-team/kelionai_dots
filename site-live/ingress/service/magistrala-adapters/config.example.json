@@ -40,5 +40,6 @@
       "_note": "Orchestratorul Microsoft Magentic (site-live/candidate/worker). Se activează după preflight-ul de izolare verde și grantul SIWC.",
       "command": []
     }
-  }
+  },
+  "profiles_path": "/etc/kelion-magistrala/native_roles.json"
 }

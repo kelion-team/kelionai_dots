@@ -183,6 +183,35 @@ class WebSearchTests(unittest.TestCase):
             self.assertEqual(off("t", "x", {"surface": "chat", "effort": "low"})["output"], "search=0")
 
 
+class DotsProfileTests(unittest.TestCase):
+    from dots_profiles import Profiles
+    profiles = Profiles.load()
+
+    def test_registry_has_22_profiles_all_addressable(self):
+        self.assertEqual(len(self.profiles), 22)
+        for name in self.profiles.roles:
+            self.assertEqual(self.profiles.pick("@" + name.removeprefix("dots_") + " salut")[0], name)
+
+    def test_keyword_and_explicit_routing(self):
+        plan = magistrala.route("Repară bug-ul din pagina de login", self.profiles)
+        self.assertEqual((plan["profile"], plan["surface"]), ("dots_reparator", "codex"))
+        self.assertEqual(magistrala.route("@ux propune un ecran nou", self.profiles)["profile"], "dots_ux")
+        self.assertNotIn("profile", magistrala.route("Salut, ce faci?", self.profiles))
+        self.assertNotIn("profile", magistrala.route("Ce mașină de lux îmi recomanzi?", self.profiles))
+
+    def test_backend_receives_profile_instructions_and_hop_records_it(self):
+        seen = {}
+        def codex(task_id, task, plan):
+            seen["task"] = task
+            return {"status": "completed", "output": "ok"}
+        result = magistrala.run("t9", "@reparator repară scriptul", {"codex": codex}, profiles=self.profiles)
+        self.assertEqual(result["status"], "completed")
+        self.assertIn("[Profil DOTS: 🔧 DOTS — Programator și reparator de cod]", seen["task"])
+        self.assertIn("phase=work", seen["task"])
+        self.assertTrue(seen["task"].rstrip().endswith("repară scriptul"))
+        self.assertEqual(result["hops"][0]["profile"], "dots_reparator")
+
+
 class CodexHomeTests(unittest.TestCase):
     def test_codex_home_passed_to_backend(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -31,8 +31,14 @@ def _has(text, words):
     return [w for w in words if re.search(r"\b" + re.escape(w), text)]
 
 
-def route(task):
-    """Alege suprafața, dificultatea (1..4) și efortul pentru o cerere."""
+CODE_PROFILES = {"dots_reparator", "dots_programare", "dots_teste_reparatii", "dots_loguri", "dots_lansare",
+                 "dots_defecte_git", "dots_cautare_cod", "dots_harta_sectiuni_cod", "dots_context_cod",
+                 "dots_editare_fisiere", "dots_extrage_sarcini_git", "dots_evalueaza_reparari_teste_ascunse",
+                 "dots_determinism_date", "dots_analiza_traiectorii", "dots_verificare_logici_temporare"}
+
+
+def route(task, profiles=None):
+    """Alege suprafața, dificultatea (1..4), efortul și profilul DOTS pentru o cerere."""
     if not isinstance(task, str) or not task.strip():
         raise ValueError("Cerere goală")
     t = _plain(task)
@@ -49,8 +55,18 @@ def route(task):
         surface, why = "work", "unelte/conectori: " + ", ".join(tools[:3])
     else:
         surface, why = "chat", "conversație / răspuns direct"
+    profile = None
+    if profiles is not None and len(profiles):
+        profile, pwhy, _ = profiles.pick(task)
+        if profile:
+            why += "; profil " + profile + " (" + pwhy + ")"
+            if profile in CODE_PROFILES and surface == "chat":
+                surface = "codex"
     effort = EFFORTS[min(difficulty - 1, EFFORTS.index(MAX_EFFORT[surface]))]
-    return {"surface": surface, "difficulty": difficulty, "effort": effort, "reason": why}
+    plan = {"surface": surface, "difficulty": difficulty, "effort": effort, "reason": why}
+    if profile:
+        plan["profile"] = profile
+    return plan
 
 
 def escalate(plan, outcome):
@@ -77,14 +93,18 @@ def escalate(plan, outcome):
     return {**plan, "surface": nxt, "effort": effort, "reason": "suprafață superioară"}
 
 
-def run(task_id, task, backends, record=lambda entry: None, progress=lambda entry: None, clock=time.monotonic):
+def run(task_id, task, backends, record=lambda entry: None, progress=lambda entry: None, clock=time.monotonic, profiles=None):
     """Execută cererea pe magistrală, cu escaladare. backends[surface](task_id, task, plan) -> outcome."""
-    plan = route(task)
+    plan = route(task, profiles)
+    if plan.get("profile"):
+        # Cererea pleacă spre backend cu instrucțiunile profilului DOTS ales (faza work).
+        _, _, clean = profiles.pick(task)
+        task = profiles.compose(plan["profile"], clean, task_id)
     hops = []
     for _ in range(MAX_HOPS):
         backend = backends.get(plan["surface"])
         progress({"task_id": task_id, "surface": plan["surface"], "effort": plan["effort"],
-                  "reason": plan["reason"], "status": "running"})
+                  "reason": plan["reason"], "status": "running", "profile": plan.get("profile")})
         started = clock()
         if backend is None:
             outcome = {"status": "unavailable", "detail": "backend neconfigurat"}
@@ -96,6 +116,8 @@ def run(task_id, task, backends, record=lambda entry: None, progress=lambda entr
         hop = {"task_id": task_id, "surface": plan["surface"], "effort": plan["effort"],
                "reason": plan["reason"], "status": outcome.get("status"),
                "duration_ms": round((clock() - started) * 1000)}
+        if plan.get("profile"):
+            hop["profile"] = plan["profile"]
         if outcome.get("status") != "completed" and outcome.get("detail"):
             hop["detail"] = str(outcome["detail"])[-300:]  # motivul real al eșecului, vizibil în monitor
         hops.append(hop)

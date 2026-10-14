@@ -21,6 +21,14 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
 - **Fără succes fals**: un răspuns gol nu e succes; un backend căzut sau neconfigurat escaladează; dacă nicio suprafață nu răspunde, cererea devine `blocked` cu motivul.
 - **Fără secrete în repo**: comenzile backend sunt în `/etc/kelion-magistrala/config.json`; tokenul worker-ului vine din fișierul de mediu al serviciului.
 
+## Profilurile DOTS (22) pe magistrală
+
+- Kelion alege profilul potrivit după cerere (ex. reparație → `dots_reparator`, loguri → `dots_loguri`, interfață → `dots_ux`, cerințe/documente → `dots_cerinte`); conversația simplă nu primește profil.
+- Oricare profil se poate chema explicit: `@reparator …`, `@ux …`, `@dots_cerinte …` (numele, rolul sau numele fără `dots_`).
+- Cererea pleacă spre backend cu instrucțiunile profilului (faza `work`); profilurile de cod merg pe suprafața `codex`.
+- Monitorul și istoricul (`receipt.hops[].profile`) arată profilul care a lucrat.
+- Registrul: `orchestration/native_roles.json`, copiat pe server în `/etc/kelion-magistrala/native_roles.json` (`profiles_path` în config). La pornire, worker-ul scrie `"dots_profiles": 22` în jurnal.
+
 ## Rute clare: ce consumă fiecare cerere
 
 | Cerere | Ruta | Cota / plata |
@@ -60,6 +68,7 @@ Toate suprafețele consumă din creditele/limita contului ChatGPT. Fără credit
 REL=/opt/kelion-app/ingress-v2/current/service
 install -d -m 0700 /etc/kelion-magistrala /var/lib/kelion-magistrala
 cp "$REL/magistrala-adapters/config.example.json" /etc/kelion-magistrala/config.json
+cp <clona repo>/orchestration/native_roles.json /etc/kelion-magistrala/native_roles.json   # cele 22 de profiluri DOTS
 # Modelele din config trebuie să existe în catalogul contului (verificați cu Codex pe server).
 # codex_home = directorul în care Codex e deja autentificat (login-ul e per director/utilizator).
 # worker.env: aceeași valoare KELION_WORKER_TOKEN ca serviciul ingress, plus PATH către codex:
@@ -75,4 +84,4 @@ Serviciul ingress trebuie repornit o dată pentru noile rute `/v1/worker/magistr
 
 - `journalctl -u kelion-magistrala -n 30 --no-pager` și `tail /var/lib/kelion-magistrala/events.jsonl`
 - O cerere pe kelionai.app trebuie să ajungă la `result_received` cu răspunsul afișat, sau la `blocked` cu motivul.
-- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (21 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).
+- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (24 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).

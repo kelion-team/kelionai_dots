@@ -3,16 +3,16 @@
 Deploy-ul pornește **numai** când GitHub trimite evenimentul real `push` pe `main`. Nu există timer sau verificare periodică.
 
 ```
-merge în main ──► GitHub webhook (push, semnat) ──► https://kelionai.app/hooks/github
+merge în main ──► GitHub Actions (.github/workflows/deploy-web.yml) ──► POST https://kelionai.app/hooks/github cu token OIDC semnat de GitHub
                                                    ──► webhook-receiver.mjs (127.0.0.1:8767)
                                                    ──► systemctl start kelion-web-deploy.service
                                                    ──► auto-deploy-web.sh: copie de siguranță → fișiere noi → restart → verificare /api/config → revenire automată la eșec
 ```
 
-- Receptorul acceptă doar cereri semnate cu secretul webhook-ului (`X-Hub-Signature-256`), doar `push` pe `refs/heads/main` din `kelion-team/kelionai_dots`. Orice altceva primește 401/202 și nu face nimic.
-- Push-urile fără schimbări în `site-live/web/` sunt ignorate (și înregistrate).
+- **Fără secret de copiat.** Workflow-ul cere de la GitHub un token OIDC (valabil câteva minute); receptorul îl verifică cu cheile publice GitHub și acceptă doar: emitent GitHub Actions, audiența `https://kelionai.app/hooks/github`, repo `kelion-team/kelionai_dots`, `refs/heads/main`, eveniment `push`. Un token nu poate fi folosit de două ori. Orice altceva primește 401 și este înregistrat ca `rejected`.
+- Workflow-ul rulează doar dacă push-ul schimbă `site-live/web/**`. Rezultatul (cod HTTP, durată) apare și în GitHub → Actions.
 - Push-urile venite în timpul unui deploy nu se suprapun: se face un singur deploy suplimentar, cu ultima versiune.
-- **Fiecare eveniment este măsurat** în `/var/lib/kelion-deploy/events.jsonl` (și în `journalctl -u kelion-deploy-webhook`): `push_received` / `push_ignored` / `deploy_start` / `deploy_end`, cu ora, ID-ul livrării GitHub, commit, cine a făcut push, `duration_ms` și `ok`.
+- **Fiecare eveniment este măsurat** în `/var/lib/kelion-deploy/events.jsonl` (și în `journalctl -u kelion-deploy-webhook`): `push_received` / `rejected` / `deploy_start` / `deploy_end`, cu ora, ID-ul rulării GitHub Actions, commit, autor, `duration_ms` și `ok`.
 - Atinge doar `index.html`, `app.js`, `auth.mjs`, `server.mjs`, `style.css` din `/opt/kelion-app/web-v1`. Nu atinge `.env`, baza de date, sesiunile sau serviciul ingress. Copiile de siguranță rămân în `/var/lib/kelion-deploy/backup-*`.
 
 ## Instalare (o singură dată, ca root pe kelion-nou)
@@ -25,9 +25,6 @@ install -m 0644 kd/deploy/webhook-receiver.mjs /usr/local/lib/kelion-deploy/
 install -m 0644 kd/deploy/kelion-web-deploy.service kd/deploy/kelion-deploy-webhook.service /etc/systemd/system/
 # Dacă a fost instalat timerul vechi, se oprește și se șterge:
 systemctl disable --now kelion-web-deploy.timer 2>/dev/null; rm -f /etc/systemd/system/kelion-web-deploy.timer
-# Secretul webhook-ului (rămâne doar pe server și în setările GitHub):
-install -d -m 0700 /etc/kelion-deploy
-[ -s /etc/kelion-deploy/webhook-secret ] || (umask 077; head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 48 > /etc/kelion-deploy/webhook-secret)
 systemctl daemon-reload
 systemctl enable --now kelion-deploy-webhook.service
 systemctl start kelion-web-deploy.service      # primul deploy, cu versiunea curentă din main
@@ -39,17 +36,13 @@ systemctl start kelion-web-deploy.service      # primul deploy, cu versiunea cur
 location = /hooks/github { proxy_pass http://127.0.0.1:8767/hooks/github; client_max_body_size 1m; }
 ```
 
-**Webhook în GitHub** (îl adaugă Adrian, o singură dată): repo `kelionai_dots` → Settings → Webhooks → Add webhook:
-- Payload URL: `https://kelionai.app/hooks/github`
-- Content type: `application/json`
-- Secret: conținutul lui `/etc/kelion-deploy/webhook-secret` (agentul i-l arată lui Adrian o singură dată, în privat; nu se pune în repo sau în chat public)
-- Events: **Just the push event** → Add webhook
+**În GitHub nu e nimic de configurat**: workflow-ul `.github/workflows/deploy-web.yml` este deja în repo. Dacă un webhook a fost adăugat manual în Settings → Webhooks pentru această adresă, se șterge.
 
-GitHub trimite imediat un `ping`; în pagina webhook-ului trebuie să apară bifa verde (răspuns 200 „pong”).
+**Notă:** adresa `/hooks/github` nu se deschide în browser (răspunde 405); primește doar notificări POST de la GitHub Actions.
 
 ## Verificare
 
 - Ultimele evenimente măsurate: `tail -n 20 /var/lib/kelion-deploy/events.jsonl`
 - Receptorul: `systemctl status kelion-deploy-webhook --no-pager`
-- În GitHub → Settings → Webhooks → Recent Deliveries: fiecare livrare cu codul de răspuns.
+- În GitHub → Actions → „Deploy kelionai.app”: fiecare push cu codul HTTP și durata.
 - Oprire: `systemctl disable --now kelion-deploy-webhook`

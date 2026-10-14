@@ -1,0 +1,32 @@
+name: Deploy kelionai.app (eveniment push)
+
+# Rulează numai la push real pe main care schimbă pagina site-ului.
+on:
+  push:
+    branches: [main]
+    paths: ['site-live/web/**']
+
+permissions:
+  id-token: write   # token OIDC semnat de GitHub, verificat de server; fără secrete
+  contents: read
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  notify-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Anunță serverul kelionai.app
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://kelionai.app/hooks/github" | jq -r .value)
+          START=$(date +%s%3N)
+          CODE=$(curl -sS -o resp.txt -w '%{http_code}' -X POST -H "Authorization: Bearer $TOKEN" https://kelionai.app/hooks/github || true)
+          END=$(date +%s%3N)
+          echo "Răspuns server: HTTP $CODE în $((END-START)) ms — $(cat resp.txt 2>/dev/null)"
+          echo "### Deploy kelionai.app: HTTP $CODE ($((END-START)) ms) pentru ${GITHUB_SHA::12}" >> "$GITHUB_STEP_SUMMARY"
+          test "$CODE" = "202"

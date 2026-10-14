@@ -239,10 +239,11 @@ async function login() {
 $('signin').onclick = login;
 $('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
 $('history-open').onclick = () => { closeMenu(); $('history').hidden = false; tasks().catch(e => status(e.message)); };
-const closeMenu = () => { $('menu').hidden = true; $('menu-open').setAttribute('aria-expanded', 'false'); };
-$('menu-open').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('menu-open').setAttribute('aria-expanded', String(open)); };
-$('plus').onclick = () => $('menu-open').click();
-document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #menu-open, #plus')) closeMenu(); });
+// Avatarul (ca în ChatGPT) deschide meniul contului: email, Voce, Limba ta, Ieșire.
+const closeMenu = () => { $('menu').hidden = true; $('avatar').setAttribute('aria-expanded', 'false'); };
+$('avatar').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('avatar').setAttribute('aria-expanded', String(open)); };
+$('plus').onclick = () => $('avatar').click();
+document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #avatar, #plus')) closeMenu(); });
 $('history-close').onclick = () => { $('history').hidden = true; };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
 $('task').addEventListener('input', () => { voiceInput = false; });

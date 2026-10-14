@@ -155,11 +155,9 @@ function renderMonitor(result) {
   for (const step of result.progress || []) {
     const at = step.at ? new Date(step.at * 1000).toLocaleTimeString() + ' · ' : '';
     add(at + (SURFACES[step.surface] || step.surface || '?') + (step.effort ? ' · raționament ' + step.effort : '') + ' · '
-      + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : ''),
+      + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : '') + (step.detail ? ' · ' + step.detail : ''),
       step.status === 'running' ? 'running' : step.status === 'completed' ? 'done' : 'step');
   }
-  if (result.block_reason) add('Motiv: ' + result.block_reason, 'bad');
-  if (result.failure) add('Eroare: ' + result.failure, 'bad');
   $('monitor').replaceChildren(...items); $('monitor').scrollTop = $('monitor').scrollHeight;
 }
 // Conversația scrisă (jos): mesajele tale și răspunsurile lui Kelion, separat de monitor.
@@ -186,9 +184,20 @@ async function tasks() {
     $('tasks').append(button);
   }
 }
+// La deschidere: ultimele cereri apar în conversație (mesajul tău + răspunsul), monitorul arată ultima cerere.
+async function loadConversation() {
+  const list = (await api('/api/tasks')).tasks.slice(0, 8).reverse();
+  let last;
+  for (const t of list) {
+    try { last = await api('/api/tasks/' + t.task_id); } catch { continue; }
+    if (last.task) bubble('me', last.task);
+    showResult(last);
+  }
+  if (last && !TERMINAL.includes(last.state)) follow(last.task_id);
+}
 async function signedIn(user) {
   csrf = user.csrf; $('account').textContent = user.email; $('workspace').hidden = false;
-  $('signin').hidden = true; $('google').replaceChildren(); status('Conectat.'); await tasks();
+  $('signin').hidden = true; $('google').replaceChildren(); status('Conectat.'); await tasks(); await loadConversation().catch(e => status(e.message));
 }
 async function login() {
   $('signin').disabled = true;

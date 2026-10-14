@@ -5,8 +5,8 @@ O singură cale pentru fiecare cerere de pe kelionai.app:
 ```
 kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-poll, eveniment cerere nouă)
    ─► magistrala.route: suprafață + dificultate + raționament
-        chat     = ChatGPT Astra 6.1 (raționament automat low→high)
-        codex    = Codex (raționament automat low→xhigh)
+        chat     = Codex CLI pe server cu model de chat (cota Codex/Work, NU cota ChatGPT)
+        codex    = Codex CLI pe server (cota Codex/Work; raționament low→xhigh)
         work     = ChatGPT Work / agentul Kelion publicat (conectori, skill-uri)
         magentic = orchestratorul Microsoft Magentic cu cei 22 de DOTS
    ─► execuție ─► rezultat insuficient? escaladare automată, cel mai economic canal întâi:
@@ -21,11 +21,25 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
 - **Fără succes fals**: un răspuns gol nu e succes; un backend căzut sau neconfigurat escaladează; dacă nicio suprafață nu răspunde, cererea devine `blocked` cu motivul.
 - **Fără secrete în repo**: comenzile backend sunt în `/etc/kelion-magistrala/config.json`; tokenul worker-ului vine din fișierul de mediu al serviciului.
 
+## Rute clare: ce consumă fiecare cerere
+
+| Cerere | Ruta | Cota / plata |
+|---|---|---|
+| Text simplu | magistrala → `chat` = Codex CLI, model de chat | cota **Codex/Work** a contului ChatGPT |
+| Cod / server / GitHub | magistrala → `codex` = Codex CLI | cota **Codex/Work** |
+| Conectori (Gmail, Drive, Calendar…) | magistrala → `work` = agentul Kelion publicat (Workspace Agents) | cota **Codex/Work** + token Workspace Agents |
+| Mai mulți pași / domenii | magistrala → `magentic` (DOTS) → Codex/Work | cota **Codex/Work** |
+| Voce live / traducere T | browser → text → aceeași magistrală | cota **Codex/Work** |
+| Chat/voce din aplicația ChatGPT | doar în ChatGPT, nu poate fi chemată din kelionai.app | cota **ChatGPT** (separată) |
+| (opțional) OpenAI API / Realtime | server → API OpenAI | credite **API**, separate, în plafonul de 100 GBP |
+
+Cota Codex/Work la 0% (ChatGPT → Setări → Utilizare) înseamnă că toate rutele din kelionai.app se blochează, chiar dacă chat-ul și vocea din aplicația ChatGPT merg.
+
 ## Backend-uri
 
 | Suprafață | Adaptor | Stare la instalare |
 |---|---|---|
-| chat | `magistrala-adapters/codex-exec.sh` cu modelul Astra din config, sandbox read-only | activ — folosește contul ChatGPT deja autentificat în Codex pe server |
+| chat | `magistrala-adapters/codex-exec.sh` (Codex CLI) cu un model de chat din config, sandbox read-only | activ — folosește contul ChatGPT deja autentificat în Codex pe server |
 | codex | același adaptor, modele Codex, efort până la xhigh | activ — idem |
 | work | agentul Kelion publicat (Workspace Agents API, `orchestration/bridge.py`) | dezactivat până la tokenul Workspace Agents din ChatGPT Admin |
 | magentic | worker-ul SIWC + Magentic din `site-live/candidate/worker` | dezactivat până la preflight-ul de izolare verde și grantul SIWC |

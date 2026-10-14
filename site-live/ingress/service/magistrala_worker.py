@@ -34,6 +34,9 @@ def command_backend(spec):
         env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "CODEX_HOME")}
         env.update(KELION_SURFACE=plan["surface"], KELION_EFFORT=plan["effort"], KELION_TASK_ID=task_id,
                    KELION_MODEL=models.get(plan["effort"], spec.get("model", "")))
+        if spec.get("codex_home"):
+            # Login-ul Codex e per director; folosim exact directorul în care s-a făcut login-ul.
+            env["CODEX_HOME"] = spec["codex_home"]
         done = subprocess.run(command, input=task, capture_output=True, text=True, timeout=timeout, env=env)
         out = done.stdout.strip()
         if done.returncode != 0:

@@ -140,5 +140,15 @@ class StoreFlowTests(unittest.TestCase):
         self.assertEqual([l["event"] for l in lines], ["task_taken", "hop", "task_finished"])
 
 
+class CodexHomeTests(unittest.TestCase):
+    def test_codex_home_passed_to_backend(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "b.sh"
+            script.write_text('#!/bin/sh\ncat >/dev/null; echo "home=$CODEX_HOME"\n')
+            script.chmod(script.stat().st_mode | stat.S_IEXEC)
+            call = magistrala_worker.command_backend({"command": [str(script)], "codex_home": "/srv/codex-login"})
+            self.assertEqual(call("t", "x", {"surface": "chat", "effort": "low"})["output"], "home=/srv/codex-login")
+
+
 if __name__ == "__main__":
     unittest.main()

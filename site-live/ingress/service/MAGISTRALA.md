@@ -41,6 +41,7 @@ REL=/opt/kelion-app/ingress-v2/current/service
 install -d -m 0700 /etc/kelion-magistrala /var/lib/kelion-magistrala
 cp "$REL/magistrala-adapters/config.example.json" /etc/kelion-magistrala/config.json
 # Modelele din config trebuie să existe în catalogul contului (verificați cu Codex pe server).
+# codex_home = directorul în care Codex e deja autentificat (login-ul e per director/utilizator).
 # worker.env: aceeași valoare KELION_WORKER_TOKEN ca serviciul ingress, plus PATH către codex:
 #   KELION_WORKER_TOKEN=…   PATH=/opt/kelion-siwc/codex-…/bin:/usr/bin:/bin
 install -m 0600 /dev/null /etc/kelion-magistrala/worker.env   # completat de operator, nu în repo

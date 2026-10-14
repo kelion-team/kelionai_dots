@@ -152,7 +152,7 @@ async function api(path, data, options = {}) {
 }
 function status(message) { $('status').textContent = message; }
 const TERMINAL = ['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'];
-const SURFACES = { chat: 'ChatGPT', codex: 'Codex', work: 'Work (agentul Kelion)', magentic: 'Microsoft Magentic' };
+const SURFACES = { chat: 'Codex (chat) · cota Codex/Work', codex: 'Codex · cota Codex/Work', work: 'Work (agentul Kelion) · cota Codex/Work', magentic: 'Microsoft Magentic' };
 const STEP_STATUS = { running: 'lucrează', completed: 'gata', insufficient: 'insuficient → escaladez', needs_code: 'trece la Codex', needs_tools: 'trece la Work', failed: 'eșuat → escaladez', unavailable: 'indisponibil → următoarea' };
 const STATE_TEXT = { awaiting_kelion: 'Cererea a ajuns la Kelion, în coadă', running_magistrala: 'Kelion rutează cererea pe magistrală', result_received: 'Răspuns primit', blocked: 'Blocat' };
 // Monitorul de sub roboțel: pașii reali raportați de magistrală (suprafață, raționament, stare, durată).

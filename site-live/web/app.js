@@ -251,7 +251,7 @@ function renderMonitor(result) {
   add(new Date().toLocaleTimeString() + ' · ' + (STATE_TEXT[result.state] || 'Stare: ' + result.state), 'state');
   for (const step of result.progress || []) {
     const at = step.at ? new Date(step.at * 1000).toLocaleTimeString() + ' · ' : '';
-    add(at + (SURFACES[step.surface] || step.surface || '?') + (step.effort ? ' · raționament ' + step.effort : '') + ' · '
+    add(at + (step.profile ? step.profile.replace('dots_', 'DOTS ') + ' · ' : '') + (SURFACES[step.surface] || step.surface || '?') + (step.effort ? ' · raționament ' + step.effort : '') + ' · '
       + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : '') + (step.detail ? ' · ' + step.detail : ''),
       step.status === 'running' ? 'running' : step.status === 'completed' ? 'done' : 'step');
   }

@@ -25,7 +25,7 @@ class VoiceTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         d = self.tmp.name
-        conv = script(d, "conv", 'cp "$1" "$2"\n')
+        conv = script(d, "conv", '[ "$1" = "$2" ] && exit 1; cp "$1" "$2"\n')  # ca ffmpeg: aceeași cale = eroare
         stt = script(d, "stt", 'echo "  salut   kelion ($2)  " > "$3.txt"\n')
         tts = script(d, "tts", 'cat > /dev/null; printf "RIFF%040d" 0 > "$1"\n')
         self.voice = vs.Voice({
@@ -42,6 +42,9 @@ class VoiceTests(unittest.TestCase):
 
     def test_stt_normalizes_text(self):
         self.assertEqual(self.voice.stt(b"x" * 100, "audio/webm;codecs=opus", "ro"), "salut kelion (ro)")
+
+    def test_stt_accepts_wav_input(self):
+        self.assertEqual(self.voice.stt(b"RIFF" + b"x" * 100, "audio/wav", "ro"), "salut kelion (ro)")
 
     def test_stt_rejects_bad_input(self):
         for args in ((b"", "audio/webm", "ro"), (b"x", "text/plain", "ro"), (b"x", "audio/webm", "xx")):

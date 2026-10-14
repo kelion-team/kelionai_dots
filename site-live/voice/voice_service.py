@@ -69,7 +69,8 @@ class Voice:
         if not audio or len(audio) > MAX_AUDIO:
             raise VoiceError("Sunet gol sau prea mare")
         with tempfile.TemporaryDirectory(prefix="kelion-stt-") as tmp:
-            values = {"in": str(Path(tmp, "in" + suffix)), "wav": str(Path(tmp, "in.wav")),
+            # Intrarea și WAV-ul convertit au nume diferite (altfel ffmpeg refuză când intrarea e deja WAV).
+            values = {"in": str(Path(tmp, "upload" + suffix)), "wav": str(Path(tmp, "pcm16k.wav")),
                       "out": str(Path(tmp, "out")), "lang": lang, "model": spec.get("model", "")}
             Path(values["in"]).write_bytes(audio)
             if spec.get("convert"):

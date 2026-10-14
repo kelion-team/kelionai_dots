@@ -60,7 +60,9 @@ body:has(#workspace[hidden]) .account{display:none}
 .call-actions{display:flex;gap:28px}.call-actions span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:#cfcfcf}
 .round{width:58px;height:58px;padding:0;border-radius:50%;font-size:20px;background:#3a3a3a}
 .round.end{background:#e5484d;color:#fff;transform:rotate(135deg)}
-.screen:has(#call-card:not([hidden])) .monitor,.screen:has(#call-card:not([hidden])) .results{display:none}
+.screen:has(.call-card:not([hidden])) .monitor,.screen:has(.call-card:not([hidden])) .results{display:none}
+.msg.heard{align-self:flex-end;background:#3a3a3a;color:#cfcfcf;font-style:italic}
+#translate[aria-pressed=true]{background:#6f86ad;color:#fff}
 /* Panouri Istoric / Setări. */
 .panel{background:#2f2f2f;border:1px solid #3d3d3d;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0}
 .list{position:absolute;z-index:15;inset:0 auto 14px 16px;width:min(360px,calc(100% - 32px));box-shadow:0 10px 40px #0009}

@@ -205,7 +205,8 @@ async function loadConversation() {
   let last;
   for (const t of list) {
     try { last = await api('/api/tasks/' + t.task_id); } catch { continue; }
-    if (last.task) bubble('me', last.task);
+    const tr = last.task && /^Traduce în [^.]+\. Răspunde doar cu traducerea, fără alt text:\n/.exec(last.task);
+    if (tr) bubble('heard', '🎧 ' + last.task.slice(tr[0].length)); else if (last.task) bubble('me', last.task);
     showResult(last);
   }
   if (last && !TERMINAL.includes(last.state)) follow(last.task_id);
@@ -281,10 +282,64 @@ const conversation = new VoiceConversation({ Recognition, synthesis: window.spee
 if (Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance) {
   $('call-start').disabled = false; $('call-status').textContent = 'Pregătit. Pornește conversația când dorești să folosești microfonul.';
 } else $('call-status').textContent = 'Conversația vocală nu este disponibilă: browserul trebuie să ofere recunoaștere și redare vocală. Poți folosi chatul text.';
-$('call-start').onclick = () => { following++; if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; } dictation?.abort(); conversation.start(); };
+// Ascultă și traduce: ce aude microfonul (în limba aleasă) apare tradus în limba ta, doar scris, fără voce.
+const LANG_KEY = 'kelion-lang', SRC_KEY = 'kelion-src-lang';
+const langName = code => $('user-lang').querySelector('option[value="' + code + '"]')?.textContent || code;
+try {
+  const saved = localStorage.getItem(LANG_KEY), nav = navigator.language || 'ro-RO';
+  const guess = [...$('user-lang').options].find(o => o.value === saved) || [...$('user-lang').options].find(o => o.value.slice(0, 2) === nav.slice(0, 2));
+  if (guess) $('user-lang').value = guess.value;
+  const src = localStorage.getItem(SRC_KEY); if (src) $('src-lang').value = src; else $('src-lang').value = $('user-lang').value === 'en-US' ? 'ro-RO' : 'en-US';
+} catch {}
+$('user-lang').onchange = () => { try { localStorage.setItem(LANG_KEY, $('user-lang').value); } catch {} };
+async function translateResult(taskId) {
+  for (let i = 0; i < 150; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    let r; try { r = await api('/api/tasks/' + taskId); } catch { continue; }
+    showResult(r); if (TERMINAL.includes(r.state)) return;
+  }
+}
+const translator = { active: false, mic: null };
+function translatorStop(message) {
+  translator.active = false; const mic = translator.mic; translator.mic = null;
+  if (mic) { mic.onresult = mic.onend = mic.onerror = null; try { mic.abort(); } catch {} }
+  $('tr-card').hidden = true; $('translate').setAttribute('aria-pressed', 'false'); if (message) status(message);
+}
+function translatorListen() {
+  if (!translator.active) return;
+  const mic = new Recognition(); translator.mic = mic;
+  mic.lang = $('src-lang').value; mic.continuous = true; mic.interimResults = false;
+  mic.onresult = async event => {
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (!event.results[i].isFinal) continue;
+      const heard = event.results[i][0].transcript.trim(); if (!heard) continue;
+      bubble('heard', '🎧 ' + heard);
+      try {
+        const r = await api('/api/tasks', { task: 'Traduce în ' + langName($('user-lang').value) + '. Răspunde doar cu traducerea, fără alt text:\n' + heard, input_mode: 'voice_transcript' });
+        showResult(r); translateResult(r.task_id);
+      } catch (e) { status(e.message); }
+    }
+  };
+  mic.onerror = event => { if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error)) translatorStop('Microfon indisponibil sau refuzat pentru traducere.'); };
+  mic.onend = () => { if (translator.active && translator.mic === mic) translatorListen(); };  // repornește la evenimentul de oprire al browserului
+  try { mic.start(); $('tr-status').textContent = 'Ascult ' + langName($('src-lang').value) + ' → scriu în ' + langName($('user-lang').value) + '. Fără voce.'; }
+  catch { translatorStop('Browserul nu a putut porni microfonul.'); }
+}
+$('src-lang').onchange = () => { try { localStorage.setItem(SRC_KEY, $('src-lang').value); } catch {} if (translator.active) { const mic = translator.mic; translator.mic = null; if (mic) { mic.onend = null; try { mic.abort(); } catch {} } translatorListen(); } };
+$('tr-stop').onclick = () => translatorStop();
+if (Recognition) {
+  $('translate').hidden = false;
+  $('translate').onclick = () => {
+    if (translator.active) { translatorStop(); return; }
+    if (!csrf) { status('Conectează-te întâi.'); return; }
+    if (conversation.active) conversation.stop();
+    translator.active = true; $('tr-card').hidden = false; $('translate').setAttribute('aria-pressed', 'true'); translatorListen();
+  };
+}
+$('call-start').onclick = () => { following++; if (translator.active) translatorStop(); if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; } dictation?.abort(); conversation.start(); };
 $('call-end').onclick = () => conversation.stop();
 $('call-interrupt').onclick = () => conversation.interrupt();
-window.addEventListener('pagehide', () => { conversation.stop(); dictation?.abort(); });
+window.addEventListener('pagehide', () => { translatorStop(); conversation.stop(); dictation?.abort(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && conversation.active) conversation.stop('Conversația s-a oprit deoarece pagina nu mai este vizibilă.'); });
 
 (async () => {

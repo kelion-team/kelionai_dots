@@ -7,6 +7,7 @@
     <div id="menu" class="menu" hidden><span id="account" class="menu-email"></span>
       <button id="history-open" type="button">Istoric</button><button id="settings-open" type="button">Setări</button>
       <label class="menu-row" for="voice-gender">Voce <select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select></label>
+      <label class="menu-row" for="user-lang">Limba ta <select id="user-lang"><option value="ro-RO">Română</option><option value="en-US">English</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option><option value="es-ES">Español</option><option value="it-IT">Italiano</option><option value="pt-PT">Português</option><option value="hu-HU">Magyar</option><option value="pl-PL">Polski</option><option value="uk-UA">Українська</option><option value="ru-RU">Русский</option><option value="tr-TR">Türkçe</option><option value="ar-SA">العربية</option><option value="hi-IN">हिन्दी</option><option value="zh-CN">中文</option><option value="ja-JP">日本語</option></select></label>
       <button id="logout" type="button">Ieșire</button></div></div></header>
 <p id="status" role="status">Se verifică configurația…</p>
 <div id="login"><div id="google"></div><button id="signin" hidden>Conectare Google</button></div>
@@ -44,6 +45,10 @@
       <p class="voice"><span id="call-status" role="status"></span> <span id="voice-transcript" aria-live="polite"></span></p>
       <div class="call-actions"><span><button id="call-interrupt" type="button" class="round" disabled aria-label="Întrerupe">&#10074;&#10074;</button><small>Întrerupe</small></span>
         <span><button id="call-end" type="button" class="round end" disabled aria-label="Încheie">&#9742;</button><small>Încheie</small></span></div></div>
+    <div id="tr-card" class="call-card" hidden><p class="call-title">Ascult și traduc</p>
+      <label class="menu-row" for="src-lang">Limba vorbită <select id="src-lang"><option value="ro-RO">Română</option><option value="en-US">English</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option><option value="es-ES">Español</option><option value="it-IT">Italiano</option><option value="pt-PT">Português</option><option value="hu-HU">Magyar</option><option value="pl-PL">Polski</option><option value="uk-UA">Українська</option><option value="ru-RU">Русский</option><option value="tr-TR">Türkçe</option><option value="ar-SA">العربية</option><option value="hi-IN">हिन्दी</option><option value="zh-CN">中文</option><option value="ja-JP">日本語</option></select></label>
+      <p id="tr-status" class="voice" role="status"></p>
+      <button id="tr-stop" type="button" class="ghost small">Oprește</button></div>
     <ol id="monitor" class="monitor"><li class="idle">Monitor: aici apar pașii și rezultatele lucrului lui Kelion.</li></ol>
     <div id="results" class="results"></div>
   </section>
@@ -51,6 +56,7 @@
   <form id="chat" class="composer"><label for="task" class="sr">Mesaj pentru Kelion</label>
     <button id="plus" type="button" class="iconbtn plus" title="Istoric și setări" aria-label="Istoric și setări">+</button>
     <textarea id="task" maxlength="100000" rows="1" required placeholder="Trimite un mesaj"></textarea>
+    <button id="translate" type="button" class="iconbtn" hidden title="Ascultă și traduce (doar scris)" aria-label="Ascultă și traduce">&#127760;</button>
     <button id="send" type="submit" class="sendbtn" title="Trimite" aria-label="Trimite">&#8593;</button>
   </form>
 </section>

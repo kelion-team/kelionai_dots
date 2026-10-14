@@ -89,7 +89,9 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
     try {
       if (![new URL(config.publicOrigin).host, '127.0.0.1:' + server.address().port].includes(req.headers.host)) fail(403, 'Invalid host');
       if (req.headers.origin && req.headers.origin !== config.publicOrigin) fail(403, 'Invalid origin');
-      if (req.headers['sec-fetch-site'] === 'cross-site') fail(403, 'Cross-site request rejected');
+      // Deschiderea paginii dintr-un link (ChatGPT, e-mail) e o navigare de top-level: permisă doar pentru pagina „/”.
+      const topNavigation = req.method === 'GET' && req.url === '/' && req.headers['sec-fetch-mode'] === 'navigate' && req.headers['sec-fetch-dest'] === 'document';
+      if (req.headers['sec-fetch-site'] === 'cross-site' && !topNavigation) fail(403, 'Cross-site request rejected');
       if (!['GET', 'POST'].includes(req.method)) fail(405, 'Method not allowed');
       if (req.url.includes('?') || req.url.includes('#')) fail(404, 'Unknown endpoint');
       const path = req.url;

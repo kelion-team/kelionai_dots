@@ -90,6 +90,8 @@ def run(task_id, task, backends, record=lambda entry: None, progress=lambda entr
         hop = {"task_id": task_id, "surface": plan["surface"], "effort": plan["effort"],
                "reason": plan["reason"], "status": outcome.get("status"),
                "duration_ms": round((clock() - started) * 1000)}
+        if outcome.get("status") != "completed" and outcome.get("detail"):
+            hop["detail"] = str(outcome["detail"])[-300:]  # motivul real al eșecului, vizibil în monitor
         hops.append(hop)
         record(hop)
         if outcome.get("status") == "completed" and isinstance(outcome.get("output"), str) and outcome["output"].strip():

@@ -78,6 +78,10 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertEqual([h["status"] for h in result["hops"]][-1], "unavailable")
 
+    def test_failure_detail_is_kept(self):
+        result = magistrala.run("t4", "Salut", {"chat": lambda *_: {"status": "failed", "detail": "model inexistent"}})
+        self.assertEqual(result["hops"][0]["detail"], "model inexistent")
+
     def test_empty_output_is_not_success(self):
         result = magistrala.run("t3", "Salut", {"chat": lambda *_: {"status": "completed", "output": " "}})
         self.assertEqual(result["status"], "blocked")

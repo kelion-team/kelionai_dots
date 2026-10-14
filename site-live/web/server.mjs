@@ -77,7 +77,8 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
         failure: result.failure ?? null, block_reason: result.block_reason ?? null,
         result_retrieved: result.result_retrieved === true, verified: result.verified === true,
         output_provenance: result.output_provenance ?? null,
-        progress: Array.isArray(result.progress) ? result.progress.slice(-40) : [] };
+        progress: Array.isArray(result.progress) ? result.progress.slice(-40) : [],
+        task: typeof result.payload?.request?.task === 'string' ? result.payload.request.task.slice(0, 4000) : null };
     } catch (error) { if (error instanceof HttpError) throw error; fail(502, 'Kelion API unavailable'); }
   }
   const assets = new Map([['/', ['text/html; charset=utf-8', readFileSync(join(here, 'index.html'))]], ['/app.js', ['text/javascript; charset=utf-8', readFileSync(join(here, 'app.js'))]], ['/style.css', ['text/css; charset=utf-8', readFileSync(join(here, 'style.css'))]]]);

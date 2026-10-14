@@ -13,7 +13,11 @@ if ! "$CODEX" login status >/dev/null 2>&1; then
 fi
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 SANDBOX="read-only"; [ "${KELION_SURFACE:-}" = "codex" ] && SANDBOX="${KELION_CODEX_SANDBOX:-read-only}"
-"$CODEX" exec --skip-git-repo-check --sandbox "$SANDBOX" -C "$WORK" \
+if ! "$CODEX" exec --skip-git-repo-check --sandbox "$SANDBOX" -C "$WORK" \
   -m "$KELION_MODEL" -c "model_reasoning_effort=\"$KELION_EFFORT\"" \
-  --output-last-message "$WORK/last.txt" - < /dev/stdin > "$WORK/log.txt" 2>&1
+  --output-last-message "$WORK/last.txt" - < /dev/stdin > "$WORK/log.txt" 2>&1; then
+  # Motivul real (ultimele rânduri din jurnalul Codex), ca JSON valid, ca să apară în monitor.
+  python3 -c 'import json,sys; t=open(sys.argv[1],errors="replace").read()[-400:]; print(json.dumps({"status":"failed","detail":"Codex ("+sys.argv[2]+"): "+t.strip()}))' "$WORK/log.txt" "$KELION_MODEL"
+  exit 0
+fi
 cat "$WORK/last.txt"

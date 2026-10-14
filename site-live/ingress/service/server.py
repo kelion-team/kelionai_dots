@@ -184,6 +184,8 @@ def handler_for(store, client_token, worker_token, public_origin=None):
                     if task is not None or time.time() >= deadline:
                         return self.respond(200, {'task': task})
                     time.sleep(0.5)
+            if path.path == '/v1/worker/magistrala/progress' and set(data) == {'task_id','take_token','event'}:
+                return self.respond(200, store.magistrala_progress(**data))
             if path.path == '/v1/worker/magistrala/finish' and set(data) == {'task_id','take_token','status','output','hops'}:
                 return self.respond(200, store.magistrala_finish(**data))
             if path.path.startswith('/v1/worker/magentic/'):

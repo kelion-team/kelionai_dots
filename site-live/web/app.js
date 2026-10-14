@@ -143,9 +143,28 @@ async function api(path, data, options = {}) {
   return result;
 }
 function status(message) { $('status').textContent = message; }
+const SURFACES = { chat: 'ChatGPT', codex: 'Codex', work: 'Work (agentul Kelion)', magentic: 'Microsoft Magentic' };
+const STEP_STATUS = { running: 'lucrează', completed: 'gata', insufficient: 'insuficient → escaladez', needs_code: 'trece la Codex', needs_tools: 'trece la Work', failed: 'eșuat → escaladez', unavailable: 'indisponibil → următoarea' };
+const STATE_TEXT = { awaiting_kelion: 'Cererea a ajuns la Kelion, în coadă', running_magistrala: 'Kelion rutează cererea pe magistrală', result_received: 'Răspuns primit', blocked: 'Blocat' };
+// Monitorul de sub roboțel: pașii reali raportați de magistrală (suprafață, raționament, stare, durată).
+function renderMonitor(result) {
+  const items = [];
+  const add = (text, cls = '') => { const li = document.createElement('li'); li.textContent = text; if (cls) li.className = cls; items.push(li); };
+  add(new Date().toLocaleTimeString() + ' · ' + (STATE_TEXT[result.state] || 'Stare: ' + result.state), 'state');
+  for (const step of result.progress || []) {
+    const at = step.at ? new Date(step.at * 1000).toLocaleTimeString() + ' · ' : '';
+    add(at + (SURFACES[step.surface] || step.surface || '?') + (step.effort ? ' · raționament ' + step.effort : '') + ' · '
+      + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : ''),
+      step.status === 'running' ? 'running' : step.status === 'completed' ? 'done' : 'step');
+  }
+  if (result.block_reason) add('Motiv: ' + result.block_reason, 'bad');
+  if (result.failure) add('Eroare: ' + result.failure, 'bad');
+  $('monitor').replaceChildren(...items); $('monitor').scrollTop = $('monitor').scrollHeight;
+}
 function showResult(result) {
-  $('result').textContent = ['Cerere: ' + result.task_id, 'Stare API: ' + result.state,
-    result.output ? '\nRăspuns:\n' + result.output : '\nNu există încă un răspuns recuperat.',
+  renderMonitor(result);
+  $('result').textContent = [result.output ? result.output : 'Kelion lucrează; răspunsul apare aici.',
+    '\n—\nCerere: ' + result.task_id + ' · stare: ' + result.state,
     result.failure ? '\nEroare: ' + result.failure : '', result.block_reason ? '\nBlocaj: ' + result.block_reason : '',
     result.receipt ? '\nReceipt:\n' + JSON.stringify(result.receipt, null, 2) : '',
     result.output_hash ? '\nSHA-256 răspuns: ' + result.output_hash : '',
@@ -158,7 +177,7 @@ async function tasks() {
   for (const task of result.tasks) {
     const button = document.createElement('button');
     button.textContent = task.task_id + ' · ' + new Date(task.created).toLocaleString() + ' · ' + task.delivery;
-    button.onclick = async () => { try { showResult(await api('/api/tasks/' + task.task_id)); } catch (e) { status(e.message); } };
+    button.onclick = async () => { try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
     $('tasks').append(button);
   }
 }
@@ -188,9 +207,21 @@ $('signin').onclick = login;
 $('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
 $('task').addEventListener('input', () => { voiceInput = false; });
+const TERMINAL = ['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'];
+let following = 0;
+async function follow(taskId) {
+  const mine = ++following; kelionState('waiting');
+  for (let i = 0; i < 900 && mine === following; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000)); if (mine !== following) return;
+    let result; try { result = await api('/api/tasks/' + taskId); } catch (e) { status(e.message); continue; }
+    if (mine !== following) return;
+    showResult(result);
+    if (TERMINAL.includes(result.state)) { kelionState(result.state === 'result_received' ? 'idle' : 'error'); tasks().catch(() => {}); return; }
+  }
+}
 $('chat').onsubmit = async event => {
   event.preventDefault(); $('send').disabled = true;
-  try { const result = await api('/api/tasks', { task: $('task').value, input_mode: voiceInput ? 'voice_transcript' : 'text' }); showResult(result); $('task').value = ''; voiceInput = false; status('Cerere înregistrată. Actualizează starea folosind cererea din listă.'); }
+  try { const result = await api('/api/tasks', { task: $('task').value, input_mode: voiceInput ? 'voice_transcript' : 'text' }); showResult(result); $('task').value = ''; voiceInput = false; status('Cerere trimisă. Monitorul arată progresul în timp real.'); follow(result.task_id); }
   catch (e) { status(e.message + (e.taskId ? ' ID: ' + e.taskId : '')); }
   finally { $('send').disabled = false; await tasks().catch(e => status(e.message)); }
 };
@@ -209,7 +240,7 @@ const conversation = new VoiceConversation({ Recognition, synthesis: window.spee
 if (Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance) {
   $('call-start').disabled = false; $('call-status').textContent = 'Pregătit. Pornește conversația când dorești să folosești microfonul.';
 } else $('call-status').textContent = 'Conversația vocală nu este disponibilă: browserul trebuie să ofere recunoaștere și redare vocală. Poți folosi chatul text.';
-$('call-start').onclick = () => { if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; } dictation?.abort(); conversation.start(); };
+$('call-start').onclick = () => { following++; if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; } dictation?.abort(); conversation.start(); };
 $('call-end').onclick = () => conversation.stop();
 $('call-interrupt').onclick = () => conversation.interrupt();
 window.addEventListener('pagehide', () => { conversation.stop(); dictation?.abort(); });

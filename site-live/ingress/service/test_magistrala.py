@@ -129,7 +129,12 @@ class StoreFlowTests(unittest.TestCase):
             def post(self, path, data, timeout=40):
                 if path.endswith("/take"):
                     return {"task": store.magistrala_take(data["worker_id"])}
+                if path.endswith("/progress"):
+                    store.magistrala_progress(**data)
+                    seen.append(store.get(data["task_id"])["progress"][-1]["status"])
+                    return {}
                 return store.magistrala_finish(**data)
+        seen = []
         events = Path(self.tmp.name) / "events.jsonl"
         result = magistrala_worker.serve_once(LocalIngress(), backends, "kelion-magistrala", str(events), wait=0)
         self.assertEqual(result["status"], "completed")
@@ -138,6 +143,17 @@ class StoreFlowTests(unittest.TestCase):
         self.assertIn("[chat/low/gpt-6-astra] am primit: Ce faci?", view["output"])
         lines = [json.loads(l) for l in events.read_text().splitlines()]
         self.assertEqual([l["event"] for l in lines], ["task_taken", "hop", "task_finished"])
+        self.assertEqual(seen, ["running", "completed"])  # monitorul live vede pasul înainte și după
+
+    def test_progress_requires_running_and_token(self):
+        self.intake("web-0004", "Salut")
+        with self.assertRaises(Conflict):
+            self.store.magistrala_progress("web-0004", "x", {"status": "running"})
+        task = self.store.magistrala_take("kelion-magistrala")
+        with self.assertRaises(Conflict):
+            self.store.magistrala_progress("web-0004", "gresit", {"status": "running"})
+        self.store.magistrala_progress("web-0004", task["take_token"], {"surface": "chat", "status": "running"})
+        self.assertEqual(self.store.get("web-0004")["progress"][0]["surface"], "chat")
 
 
 class CodexHomeTests(unittest.TestCase):

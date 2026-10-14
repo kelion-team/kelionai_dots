@@ -67,3 +67,7 @@ body:has(#workspace:not([hidden])) #login{display:none}
 .kelion[data-state=error] .c{fill:#c86f7f}
 @media (prefers-reduced-motion:reduce){.kelion *{animation:none!important}}
 @media (max-width:700px){.kelion{width:52px;height:56px}}
+.monitor{list-style:none;margin:0;padding:8px 10px;background:#0b131b;border:1px solid #263848;border-radius:10px;font:12px/1.5 ui-monospace,monospace;color:#a5b4c4;max-height:24dvh;min-height:3.2em;overflow:auto;flex:none}
+.monitor li{padding:1px 0;overflow-wrap:anywhere}.monitor .state{color:#e9eef5}.monitor .running{color:#ffd479}.monitor .running::before{content:'● ';animation:pulse 1.2s infinite}
+.monitor .done{color:#a5f0d2}.monitor .bad{color:#ff9aa8}.monitor .idle{font-style:italic}
+@media (max-width:700px){.monitor{max-height:18dvh}}

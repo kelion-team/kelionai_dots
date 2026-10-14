@@ -49,10 +49,10 @@ install -m 0644 "$REL/magistrala-adapters/kelion-magistrala.service" /etc/system
 systemctl daemon-reload && systemctl restart <serviciul ingress> && systemctl enable --now kelion-magistrala
 ```
 
-Serviciul ingress trebuie repornit o dată pentru noile rute `/v1/worker/magistrala/take` și `/finish`.
+Serviciul ingress trebuie repornit o dată pentru noile rute `/v1/worker/magistrala/take` `/progress` (monitorul live) și `/finish`.
 
 ## Verificare
 
 - `journalctl -u kelion-magistrala -n 30 --no-pager` și `tail /var/lib/kelion-magistrala/events.jsonl`
 - O cerere pe kelionai.app trebuie să ajungă la `result_received` cu răspunsul afișat, sau la `blocked` cu motivul.
-- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (15 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).
+- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (17 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).

@@ -71,12 +71,14 @@ def escalate(plan, outcome):
     return {**plan, "surface": nxt, "effort": "high", "reason": "suprafață superioară"}
 
 
-def run(task_id, task, backends, record=lambda entry: None, clock=time.monotonic):
+def run(task_id, task, backends, record=lambda entry: None, progress=lambda entry: None, clock=time.monotonic):
     """Execută cererea pe magistrală, cu escaladare. backends[surface](task_id, task, plan) -> outcome."""
     plan = route(task)
     hops = []
     for _ in range(MAX_HOPS):
         backend = backends.get(plan["surface"])
+        progress({"task_id": task_id, "surface": plan["surface"], "effort": plan["effort"],
+                  "reason": plan["reason"], "status": "running"})
         started = clock()
         if backend is None:
             outcome = {"status": "unavailable", "detail": "backend neconfigurat"}

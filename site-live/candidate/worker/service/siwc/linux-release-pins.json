@@ -1,0 +1,14 @@
+{
+  "version": "0.162.0-alpha.17.2",
+  "release": "https://github.com/openai/codex/releases/tag/rust-v0.162.0-alpha.17.2",
+  "assets": {
+    "x86_64": {
+      "codex": {"name": "codex-x86_64-unknown-linux-musl.tar.gz", "sha256": "e537d5467761567f355f515187a6258c0e4c9d4039fbd23b7cff8c4048f2cdd1"},
+      "bwrap": {"name": "bwrap-x86_64-unknown-linux-musl.tar.gz", "sha256": "7eb491536628c1f8c402895fd0c4cde166c24b75c6793fbc8574baaa69f8e565"}
+    },
+    "aarch64": {
+      "codex": {"name": "codex-aarch64-unknown-linux-musl.tar.gz", "sha256": "180bf08d3751e5d92d046c3b286a1e262ecfbccdfa9a93ae6c64af9fc557054b"},
+      "bwrap": {"name": "bwrap-aarch64-unknown-linux-musl.tar.gz", "sha256": "c7a631a929ba8bc05ea807fe570993b5db5e24e800209f6c8b77d7228b8954e9"}
+    }
+  }
+}

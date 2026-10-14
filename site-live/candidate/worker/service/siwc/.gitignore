@@ -1,0 +1,9 @@
+private/
+*.envelope.json
+*.credentials.json
+*.registration.json
+local-host.json
+selected-registration.json
+recipient.json
+*.key
+test-results.json

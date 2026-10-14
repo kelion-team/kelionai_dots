@@ -1,0 +1,25 @@
+[Unit]
+Description=KelionAI finite SIWC owner gateway worker
+After=network.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=kelion-siwc
+StateDirectoryMode=0700
+LoadCredential=worker-config.json:@ROOT_PROTECTED_CONFIG@
+LoadCredential=worker.token:@ROOT_PROTECTED_WORKER_TOKEN@
+LoadCredential=vault.key:@ROOT_PROTECTED_VAULT_KEY@
+Environment=PATH=@CODEX_BIN_DIR@:/usr/bin:/bin
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=@NODE_ABSOLUTE@ @PUBLIC_SOURCE_ROOT@/service/siwc/systemd-entry.mjs
+TimeoutStartSec=3700
+KillMode=control-group
+UMask=0077
+Restart=no
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+# No timer or automatic restart is installed by this packet. The finite poll
+# exits at idle/session allowance limits. Restart after uncertainty is blocked.

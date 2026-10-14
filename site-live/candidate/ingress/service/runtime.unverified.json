@@ -1,0 +1,7 @@
+{
+  "adapter": "native-parent",
+  "runtime_id": "unverified-parent",
+  "execution_surface": "codex",
+  "verification_evidence": null,
+  "manifest": {"schema_version": 1, "models": [], "connectors": []}
+}

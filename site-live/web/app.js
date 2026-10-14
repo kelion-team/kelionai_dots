@@ -191,16 +191,12 @@ function renderResults(result, parts) {
   for (const c of parts.code) { const pre = document.createElement('pre'); pre.textContent = c.body; if (c.lang) pre.dataset.lang = c.lang; box.append(pre); }
   for (const url of parts.links.slice(0, 10)) { const a = document.createElement('a'); a.href = url; a.textContent = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; box.append(a); }
 }
-// Ruta vocii, aleasă în spate: lucrul pe server merge → apel prin magistrală; blocat (cota Codex/Work) → apel live în ChatGPT.
+// Starea lucrului pe server (pentru raportare pe monitor).
 let workRoute = 'unknown';
-const CHATGPT_CALL = 'https://chatgpt.com/dots/home';
 function routeNote(text) { const li = document.createElement('li'); li.className = 'state'; li.textContent = new Date().toLocaleTimeString() + ' · ' + text; $('monitor').prepend(li); }
 function showResult(result) {
   if (result.state === 'result_received' && result.output) workRoute = 'ok';
   else if (TERMINAL.includes(result.state)) workRoute = 'blocked';
-  let call = null; try { call = conversation; } catch {}  // conversation poate să nu fie încă inițializată
-  if (workRoute === 'blocked' && call?.active)
-    call.stop('Lucrul pe server e blocat (cota Codex/Work). Apasă microfonul: deschid apelul live în ChatGPT.');
   renderMonitor(result);
   if (result.output) renderResults(result, splitOutput(result.output));
   if (answered.has(result.task_id)) return;
@@ -392,13 +388,10 @@ if (Recognition) {
   };
 }
 $('call-start').onclick = () => {
+  // Microfonul deschide doar ruta audio, în aplicație. Canalul (chat/codex/work/magentic) îl alege Kelion în spate, pe magistrală.
   following++; if (translator.active) translatorStop();
   if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; }
-  if (workRoute === 'blocked') {
-    routeNote('Rută voce: apel live în ChatGPT (abonament) — lucrul pe server e blocat, ultima cerere nu a primit răspuns.');
-    window.open(CHATGPT_CALL, '_blank', 'noopener'); return;
-  }
-  routeNote('Rută voce: Kelion pe server, prin magistrală (Codex/Work).');
+  routeNote('Voce: ascult în aplicație; Kelion alege canalul pentru fiecare cerere.');
   conversation.start();
 };
 $('call-end').onclick = () => conversation.stop();

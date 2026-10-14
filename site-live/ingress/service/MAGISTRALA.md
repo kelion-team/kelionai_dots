@@ -33,11 +33,11 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
 | Chat/voce din aplicația ChatGPT | doar în ChatGPT, nu poate fi chemată din kelionai.app | cota **ChatGPT** (separată) |
 | (opțional) OpenAI API / Realtime | server → API OpenAI | credite **API**, separate, în plafonul de 100 GBP |
 
-### Ruta vocii (un singur buton, aleasă automat)
+### Ruta vocii
 
-- ultima cerere a primit răspuns → apelul vocal rulează în kelionai.app, prin magistrală (Codex/Work, cota de lucru)
-- ultima cerere s-a blocat (cota Codex/Work epuizată sau canal căzut) → același buton deschide apelul live cu Kelion în ChatGPT (cota de chat/voce a abonamentului); un apel în curs se oprește la primul blocaj
-- ruta aleasă se scrie pe monitor
+- microfonul deschide doar ruta audio, în kelionai.app; nu trimite utilizatorul în altă aplicație
+- fiecare frază devine o cerere pe magistrală; Kelion alege canalul (chat / codex / work / magentic) și escaladează economic
+- un blocaj se raportează pe monitor și apelul continuă să asculte
 
 Cota Codex/Work la 0% (ChatGPT → Setări → Utilizare) înseamnă că toate rutele din kelionai.app se blochează, chiar dacă chat-ul și vocea din aplicația ChatGPT merg.
 

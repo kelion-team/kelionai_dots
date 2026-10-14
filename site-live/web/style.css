@@ -1,51 +1,80 @@
-:root{font:15px/1.5 system-ui,sans-serif;color:#e9eef5;background:#101820;color-scheme:dark}
+:root{font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#ececec;background:#212121;color-scheme:dark}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden}
-main{height:100dvh;max-width:1100px;margin:0 auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-header{display:flex;align-items:center;gap:14px;flex:none}
-.mark{background:#a5f0d2;color:#142920;font-size:22px;font-weight:800;border-radius:12px;padding:4px 14px}
-.brand{flex:1;min-width:0}
-h1,h2,p{margin:0}
-h1{font-size:22px;letter-spacing:-.5px;line-height:1.2}
-.brand p{color:#a5b4c4;font-size:13px}
-h2{font-size:14px;font-weight:600;color:#a5b4c4;text-transform:uppercase;letter-spacing:.5px}
-.account{display:flex;align-items:center;gap:8px;font-size:13px;color:#a5b4c4;min-width:0}
-.account #account{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#status{flex:none;font-size:13px;color:#a5b4c4;min-height:1.5em}
-button{font:inherit;cursor:pointer;background:#a5f0d2;color:#13271f;border:0;border-radius:8px;padding:8px 16px}
-button.ghost{background:#2b4052;color:#e9eef5}
-button.small{padding:4px 10px;font-size:13px}
-button:disabled{opacity:.45;cursor:default}
-#login{flex:none}
-#google{min-height:44px;max-width:400px;margin:8px 0}
-#google svg{width:18px!important;height:18px!important}
-/* Un singur ecran: lista și răspunsul au scroll intern, pagina nu. */
-#workspace{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;position:relative;width:100%;max-width:860px;margin:0 auto}
-.panel{background:#17232f;border:1px solid #304354;border-radius:14px;padding:12px;min-height:0;display:flex;flex-direction:column;gap:8px}
-.list{grid-area:list}.answer{grid-area:answer}.composer{grid-area:composer}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-#tasks{overflow:auto;min-height:0;flex:1}
-#tasks button{display:block;width:100%;text-align:left;background:#22313f;color:#e9eef5;font-size:12px;padding:8px 10px;margin:0 0 6px;overflow-wrap:anywhere}
-#tasks button:hover{background:#2b4052}
-pre{margin:0;flex:1;min-height:0;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0e1721;padding:12px;border-radius:10px;font-size:13px}
-.composer{background:#17232f;border:1px solid #304354;border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px}
-textarea{width:100%;resize:none;border:1px solid #526576;border-radius:10px;background:#0e1721;color:#fff;padding:10px;font:inherit;max-height:30dvh}
-.actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.sep{flex:1}
-.voice{font-size:12px;color:#a5b4c4;min-height:1.2em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html,body{height:100%;margin:0;overflow:hidden;background:#212121}
+main{height:100dvh;display:flex;flex-direction:column}
+h1,h2,h3,p{margin:0}
+button{font:inherit;cursor:pointer;border:0;color:#ececec;background:#303030;border-radius:999px;padding:8px 16px}
+button:disabled{opacity:.4;cursor:default}
+button.ghost{background:#303030}button.small{padding:4px 12px;font-size:13px}
+select{font:inherit;background:#303030;color:#ececec;border:0;border-radius:8px;padding:4px 8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 [hidden]{display:none!important}
-body:has(#workspace[hidden]) .account{display:none}
-@media (max-width:700px){
-  main{padding:10px}
-  .brand p{display:none}
-  .sep{display:none}
-}
-select{font:inherit;background:#2b4052;color:#e9eef5;border:0;border-radius:8px;padding:7px 8px}.gender{font-size:13px;color:#a5b4c4}
+/* Antet: ca în ChatGPT — subtil, apel și meniu în dreapta. */
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;flex:none;position:relative}
+.brand{font-weight:600;color:#cfcfcf}.spacer{flex:1}
+.account{display:flex;align-items:center;gap:6px}
+.iconbtn{background:none;width:40px;height:40px;padding:0;font-size:20px;line-height:40px;color:#cfcfcf;border-radius:999px}
+.iconbtn:hover:not(:disabled){background:#2f2f2f}
+.menu{position:absolute;right:16px;top:54px;z-index:20;background:#2f2f2f;border:1px solid #3d3d3d;border-radius:14px;padding:6px;min-width:220px;display:flex;flex-direction:column;box-shadow:0 10px 30px #0008}
+.menu button{background:none;text-align:left;border-radius:8px;padding:9px 12px}.menu button:hover{background:#3a3a3a}
+.menu-email{font-size:12px;color:#9b9b9b;padding:6px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-row{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font-size:15px}
+#status{flex:none;font-size:13px;color:#9b9b9b;text-align:center;min-height:1.3em}
+#status:empty{display:none}
+#login{flex:none;display:flex;justify-content:center;padding:20px}
+#google{min-height:44px}#google svg{width:18px!important;height:18px!important}
 body:has(#workspace:not([hidden])) #login{display:none}
-@media (max-width:700px){.actions button,select{padding:6px 10px;font-size:13px}}
-.answer-head{display:flex;align-items:center;gap:12px}
-.kstate{font-size:13px;color:#a5f0d2;min-height:1.4em}
+body:has(#workspace[hidden]) .account{display:none}
+/* Coloana centrală ca în ChatGPT. */
+#workspace{flex:1;min-height:0;width:100%;max-width:800px;margin:0 auto;padding:0 16px 14px;display:flex;flex-direction:column;gap:10px;position:relative}
+.persona{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px}
+.persona .kelion{width:58px;height:62px}
+.pill{background:#2f2f2f;border-radius:12px;padding:3px 12px;text-align:center;line-height:1.25}
+.pill strong{display:block;font-size:15px}.kstate{font-size:13px;color:#b4b4b4}
+/* Monitorul de sub roboțel: pași + rezultate (cod, linkuri, documente). Fără chat. */
+.screen{flex:none;max-height:34dvh;overflow:auto;background:#171717;border:1px solid #2f2f2f;border-radius:16px;padding:10px 14px}
+.monitor{list-style:none;margin:0;padding:0;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9b9b9b}
+.monitor li{overflow-wrap:anywhere}.monitor .state{color:#ececec}.monitor .running{color:#ffd479}.monitor .running::before{content:'● ';animation:pulse 1.2s infinite}
+.monitor .done{color:#7ee2b8}.monitor .bad{color:#ff8f8f}.monitor .idle{font-style:italic}
+.results{display:flex;flex-direction:column;gap:8px}.results:not(:empty){margin-top:10px}
+.results pre{margin:0;background:#0d0d0d;border-radius:10px;padding:10px;overflow:auto;font-size:13px;white-space:pre}
+.results a{color:#8ab4ff;overflow-wrap:anywhere}
+.results h4{margin:0;font-size:12px;color:#9b9b9b;text-transform:uppercase;letter-spacing:.5px}
+/* Conversația scrisă, jos, deasupra rândului de scris. */
+.conv{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:4px 0}
+.msg{max-width:85%;padding:9px 16px;border-radius:20px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:#6f86ad;color:#fff}
+.msg.ai{align-self:flex-start;background:#2f2f2f}
+.msg.wait{color:#b4b4b4;font-style:italic}.msg.bad{color:#ff9a9a}
+/* Rândul de scris: pastilă ca „Trimite un mesaj”. */
+.composer{flex:none;display:flex;align-items:flex-end;gap:4px;background:#2f2f2f;border-radius:28px;padding:6px 8px}
+.composer textarea{flex:1;resize:none;border:0;outline:0;background:none;color:#ececec;font:inherit;padding:9px 6px;max-height:30dvh;min-height:40px}
+.composer textarea::placeholder{color:#9b9b9b}
+.plus{font-size:24px}
+.sendbtn{width:40px;height:40px;padding:0;font-size:20px;background:#ececec;color:#212121}
+.sendbtn:disabled{background:#676767;color:#2f2f2f;opacity:1}
+/* Apel vocal: card ca în ChatGPT, în locul monitorului. */
+.call-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0}
+.call-title{font-size:20px;font-weight:600}
+.voice{font-size:13px;color:#b4b4b4;text-align:center}
+.call-actions{display:flex;gap:28px}.call-actions span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:#cfcfcf}
+.round{width:58px;height:58px;padding:0;border-radius:50%;font-size:20px;background:#3a3a3a}
+.round.end{background:#e5484d;color:#fff;transform:rotate(135deg)}
+.screen:has(.call-card:not([hidden])) .monitor,.screen:has(.call-card:not([hidden])) .results{display:none}
+.msg.heard{align-self:flex-end;background:#3a3a3a;color:#cfcfcf;font-style:italic}
+#translate[aria-pressed=true]{background:#6f86ad;color:#fff}
+/* Panouri Istoric / Setări. */
+.panel{background:#2f2f2f;border:1px solid #3d3d3d;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.list{position:absolute;z-index:15;inset:0 auto 14px 16px;width:min(360px,calc(100% - 32px));box-shadow:0 10px 40px #0009}
+.panel-head{display:flex;align-items:center;gap:6px}.panel-head h2{flex:1;font-size:14px;color:#b4b4b4;text-transform:uppercase;letter-spacing:.5px}
+#tasks{overflow:auto;min-height:0;flex:1}
+#tasks button{display:block;width:100%;text-align:left;background:#3a3a3a;border-radius:10px;font-size:12px;padding:8px 10px;margin:0 0 6px;overflow-wrap:anywhere}
+.settings-body{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:6px}
+.settings-body h3{margin:10px 0 2px;font-size:12px;color:#b4b4b4;text-transform:uppercase;letter-spacing:.5px}
+.settings-body a{display:block;background:#3a3a3a;color:#ececec;text-decoration:none;border-radius:10px;padding:8px 10px;font-size:14px}
+.settings-body a:hover{background:#454545}.settings-body a::after{content:' ↗';color:#9b9b9b}
+.note{font-size:13px;color:#b4b4b4}
+@media (max-width:700px){#workspace{padding:0 10px 10px}.screen{max-height:26dvh}.msg{max-width:92%}}
 .kelion{position:relative;width:76px;height:82px;flex:none}
 .bot{width:100%;height:100%;overflow:visible}
 .bot .c{fill:#6f7ff0}.bot .screen{fill:#1d2540}.bot .eye{fill:none;stroke:#8fd3ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.bot .eye.small{stroke-width:2.5}
@@ -65,28 +94,3 @@ body:has(#workspace:not([hidden])) #login{display:none}
 @keyframes wave{to{transform:rotate(-25deg)}}
 .kelion[data-state=error] .c{fill:#c86f7f}
 @media (prefers-reduced-motion:reduce){.kelion *{animation:none!important}}
-@media (max-width:700px){.kelion{width:52px;height:56px}}
-.monitor{list-style:none;margin:0;padding:8px 10px;background:#0b131b;border:1px solid #263848;border-radius:10px;font:12px/1.5 ui-monospace,monospace;color:#a5b4c4;max-height:24dvh;min-height:3.2em;overflow:auto;flex:none}
-.monitor li{padding:1px 0;overflow-wrap:anywhere}.monitor .state{color:#e9eef5}.monitor .running{color:#ffd479}.monitor .running::before{content:'● ';animation:pulse 1.2s infinite}
-.monitor .done{color:#a5f0d2}.monitor .bad{color:#ff9aa8}.monitor .idle{font-style:italic}
-@media (max-width:700px){.monitor{max-height:18dvh}}
-/* Ecran Kelion: roboțel sus, monitor dedesubt (pași + răspuns în același loc), bara jos. */
-.stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
-.stage .kelion{width:110px;height:118px}
-.stage .kstate{text-align:center}
-.bar{display:flex;align-items:flex-end;gap:6px}
-.bar textarea{flex:1;min-height:44px}
-.bar button{height:44px;min-width:44px;padding:0 12px;font-size:18px}
-button.call{background:#6f7ff0;color:#fff}
-button.end{background:#d9534f;color:#fff}
-.list{position:absolute;z-index:5;inset:0 auto 0 0;width:min(340px,92%);box-shadow:0 10px 40px #0009}
-.list .panel-head{gap:6px}.list .panel-head h2{flex:1}
-@media (max-width:700px){.stage .kelion{width:70px;height:76px}.bar button{min-width:40px;padding:0 9px}}
-.stage>.monitor{width:100%;max-height:22dvh;min-height:3.4em;flex:none}
-.conv{flex:1;min-height:0;width:100%;overflow:auto;background:#0e1721;border:1px solid #263848;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.conv .hint{color:#7f91a3;font-size:13px;margin:auto 0 0}
-.msg{max-width:85%;padding:7px 11px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
-.msg.me{align-self:flex-end;background:#2b4052;border-bottom-right-radius:3px}
-.msg.ai{align-self:flex-start;background:#17232f;border:1px solid #304354;border-bottom-left-radius:3px}
-.msg.wait{color:#ffd479;font-style:italic}.msg.bad{color:#ff9aa8}
-@media (max-width:700px){.stage>.monitor{max-height:16dvh}}

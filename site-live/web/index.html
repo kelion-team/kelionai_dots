@@ -1,14 +1,28 @@
 <!doctype html>
 <html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
-<body><main><header><span class="mark">K</span><div><h1>KelionAI</h1><p>Conversația ta cu Kelion</p></div></header>
-<p id="status" role="status">Se verifică configurația…</p><div id="google"></div><button id="signin" hidden>Conectare Google</button>
-<section id="workspace" hidden><div class="account"><span id="account"></span><button id="logout">Ieșire</button></div>
-<form id="chat"><label for="task">Cu ce te poate ajuta Kelion?</label><textarea id="task" maxlength="100000" rows="5" required placeholder="Scrie cererea ta aici…"></textarea><div class="actions"><button id="send" type="submit">Trimite cererea</button><button id="dictate" type="button" hidden>Dictare prin browser</button></div></form>
-<p id="voice-note">Dictarea completează textul. Modul de conversație vocală de mai jos trimite automat frazele finale.</p>
-<section aria-labelledby="call-title"><h2 id="call-title">Conversație vocală</h2>
-<p>După pornire, frazele tale sunt trimise automat către Kelion. Browserul poate procesa audio online prin serviciul său de recunoaștere. Microfonul se oprește cât aștepți și asculți răspunsul.</p>
-<div class="actions"><button id="call-start" type="button" disabled>Pornește conversația</button><button id="call-interrupt" type="button" disabled>Întrerupe redarea și ascultă</button><button id="call-end" type="button" disabled>Încheie conversația</button></div>
-<p id="call-status" role="status">Se verifică suportul vocal al browserului.</p><p id="voice-transcript" aria-live="polite"></p></section>
-<p class="notice">Cererile sunt înregistrate în API. Execuția necesită un worker conectat; activitatea acestuia nu este confirmată de această pagină.</p>
-<h2>Cererile tale</h2><button id="refresh">Actualizează lista</button><div id="tasks"></div><pre id="result" aria-live="polite"></pre></section>
-<footer>Acces limitat la conturile Google autorizate.</footer></main></body></html>
+<body><main>
+<header><span class="mark">K</span><div class="brand"><h1>KelionAI</h1><p>Conversația ta cu Kelion</p></div>
+<div class="account" id="workspace-account"><span id="account"></span><button id="logout" class="ghost">Ieșire</button></div></header>
+<p id="status" role="status">Se verifică configurația…</p>
+<div id="login"><div id="google"></div><button id="signin" hidden>Conectare Google</button></div>
+<section id="workspace" hidden>
+  <aside class="panel list"><div class="panel-head"><h2>Cererile tale</h2><button id="refresh" class="ghost small">Actualizează</button></div><div id="tasks"></div></aside>
+  <section class="panel answer" aria-labelledby="answer-title"><div class="answer-head"><div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
+<g class="body-g">
+<circle cx="34" cy="40" r="20" class="c"/><circle cx="60" cy="28" r="24" class="c"/><circle cx="86" cy="40" r="20" class="c"/><circle cx="60" cy="48" r="30" class="c"/>
+<rect x="30" y="34" width="60" height="38" rx="10" class="screen"/>
+<g class="face"><path d="M42 46 l7 6 -7 6" class="eye"/><rect x="58" y="56" width="14" height="4" rx="2" class="mouth"/></g>
+<rect x="44" y="80" width="32" height="26" rx="8" class="c"/><path d="M52 88 l4 4 -4 4" class="eye small"/><rect x="60" y="94" width="8" height="2.5" rx="1" class="tag"/>
+<rect x="30" y="84" width="10" height="16" rx="5" class="c arm l"/><rect x="80" y="84" width="10" height="16" rx="5" class="c arm r"/>
+<rect x="48" y="106" width="9" height="12" rx="4" class="c"/><rect x="63" y="106" width="9" height="12" rx="4" class="c"/>
+</g></svg><span class="ring"></span></div><div><h2 id="answer-title">Kelion</h2><p id="kelion-state" class="kstate">Pregătit</p></div></div><pre id="result" aria-live="polite">Alege o cerere din listă sau trimite una nouă.</pre></section>
+  <form id="chat" class="composer"><label for="task" class="sr">Cu ce te poate ajuta Kelion?</label>
+    <textarea id="task" maxlength="100000" rows="2" required placeholder="Cu ce te poate ajuta Kelion?"></textarea>
+    <div class="actions"><button id="send" type="submit">Trimite</button><button id="dictate" type="button" class="ghost" hidden>Dictare</button>
+      <span class="sep"></span>
+      <label class="gender" for="voice-gender">Voce</label><select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select><button id="call-start" type="button" class="ghost" disabled>Conversație vocală</button><button id="call-interrupt" type="button" class="ghost" disabled>Întrerupe</button><button id="call-end" type="button" class="ghost" disabled>Încheie</button></div>
+    <p class="voice"><span id="call-status" role="status"></span> <span id="voice-transcript" aria-live="polite"></span></p>
+    <p id="voice-note" class="sr"></p>
+  </form>
+</section>
+</main></body></html>

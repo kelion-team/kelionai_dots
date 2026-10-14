@@ -62,13 +62,19 @@ def escalate(plan, outcome):
         return {**plan, "surface": "codex", "effort": "high", "reason": "rezultatul cere cod"}
     if status == "needs_tools" and plan["surface"] in ("chat", "codex"):
         return {**plan, "surface": "work", "effort": "high", "reason": "rezultatul cere unelte"}
+    # Economic: raționament mai mare (mai scump) doar când răspunsul a fost insuficient.
+    # Un eșec tehnic (cotă, login, model, canal indisponibil) nu se repetă mai scump pe același canal.
     level = EFFORTS.index(plan["effort"])
-    if level < EFFORTS.index(MAX_EFFORT[plan["surface"]]):
+    if status == "insufficient" and level < EFFORTS.index(MAX_EFFORT[plan["surface"]]):
         return {**plan, "effort": EFFORTS[level + 1], "reason": "raționament mai mare"}
     nxt = NEXT_SURFACE[plan["surface"]]
     if nxt is None:
         return None
-    return {**plan, "surface": nxt, "effort": "high", "reason": "suprafață superioară"}
+    # Canalul următor pornește de la nivelul economic al cererii (după dificultate), nu direct de la maxim.
+    base = EFFORTS[min(plan.get("difficulty", 1) - 1, EFFORTS.index(MAX_EFFORT[nxt]))]
+    effort = base if status in ("failed", "unavailable") else max(base, plan["effort"], key=EFFORTS.index)
+    effort = EFFORTS[min(EFFORTS.index(effort), EFFORTS.index(MAX_EFFORT[nxt]))]
+    return {**plan, "surface": nxt, "effort": effort, "reason": "suprafață superioară"}
 
 
 def run(task_id, task, backends, record=lambda entry: None, progress=lambda entry: None, clock=time.monotonic):

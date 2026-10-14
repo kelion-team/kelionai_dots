@@ -1,0 +1,8 @@
+{
+  "cli.py": "91ca31ef5d7c7dab26075ed1a6be68993d75e27fa0a6771fe77a4c17daad8881",
+  "config.example.json": "ce865b49c03a977c107c9625fdea9da754288efaedf05e5b3b054e673575e1bf",
+  "connected_host.py": "0c105bbeec7fb6e5bafd3adf53714ef308bf781a7e1a3fd56dc8212829b0a82c",
+  "MAGENTIC-NATIVE-CONNECTION.md": "401ee58256e8e8ebf098239e524d2cc599e2041fedf5767d6ed1bc572cb7a846",
+  "probe_native_connection.py": "e0ae957ff6ff725fa80a8f4f602ede4a2d0a6afbdaaf3da940701d9ec3bbfa2f",
+  "runtime.py": "173b7949acdc90d9c1670fb51091778d3e2c34ba1de6f4dc6ccf5a9b92dcafc0"
+}

@@ -1,0 +1,19 @@
+{
+  "status": "review_template_not_installed",
+  "transport": "streamable-http",
+  "default_local_endpoint": "http://127.0.0.1:8765/mcp",
+  "default_port_live_verified": false,
+  "proposed_domain_endpoint": "https://KelionAI.app/mcp",
+  "domain_endpoint_live_verified": false,
+  "public_origin_option": "--public-origin https://KelionAI.app",
+  "public_origin_default": "disabled; loopback Host/Origin only",
+  "bind_address": "127.0.0.1",
+  "forwarded_headers_are_authority": false,
+  "tools": ["kelion_submit", "kelion_get"],
+  "authorization": "Bearer token from secure client configuration; never a tool argument or committed value",
+  "required_accept": ["application/json", "text/event-stream"],
+  "supported_protocol_versions": ["2025-03-26", "2025-06-18"],
+  "worker_tools_exposed": false,
+  "chat_work_connection_installed": false,
+  "limit": "This is connection metadata, not a product-specific import format. The endpoint is a configured default, not a running listener claim. Public origin is an explicit whitelist only; HTTPS requires a controlled TLS reverse proxy that preserves actual Host/Origin. X-Forwarded headers are not trusted authority. Client must support its own authenticated custom MCP connection. Hosted inference eligibility requires an official authorized path independently of MCP transport."
+}

@@ -1,0 +1,15 @@
+{
+  "adapter": "codex-app-server",
+  "runtime_id": "UNVERIFIED_LOCAL_APPSERVER",
+  "execution_surface": "codex",
+  "workspace": null,
+  "verification_evidence": null,
+  "discovery_sha256": null,
+  "usage_authorization": {
+    "included_usage_authorized": false,
+    "billing_mode": "unknown",
+    "expires_at": 0,
+    "max_turns": 3
+  },
+  "manifest": {"schema_version": 1, "models": [], "connectors": []}
+}

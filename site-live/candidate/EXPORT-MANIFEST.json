@@ -1,0 +1,407 @@
+{
+  "created_at": "2026-10-14T06:30:17.297091+00:00",
+  "source_roots": {
+    "ingress": "/opt/kelion-app/ingress-v2/releases/3ffe04334b7893b0d7be5a80f14db0e391d244b1dce74c9c5f7b2b8a47e4ed7e",
+    "worker": "/opt/kelion/staging/siwc-worker-source-42b890c80b1d90ed"
+  },
+  "files": [
+    {
+      "path": "site-live/candidate/ingress/service/.gitignore",
+      "sha256": "cca9fda03be660c4093903a6aff70474b588d793bd4ec4a3032e653d2ff8505f",
+      "bytes": 78
+    },
+    {
+      "path": "site-live/candidate/ingress/service/PROVENANCE.json",
+      "sha256": "24e581f1fc0c859b112e53ddf849ec1ef9fbc996ace8e3ac7aef35607e663d5e",
+      "bytes": 1642
+    },
+    {
+      "path": "site-live/candidate/ingress/service/README.md",
+      "sha256": "c3f841ce04afaefbdd01246ba778f9e6888cc19ca440212862bf9a7c71ecd6d1",
+      "bytes": 28551
+    },
+    {
+      "path": "site-live/candidate/ingress/service/appserver_transport.py",
+      "sha256": "17041b125124c9c3539b9d43037327e391b926572f8eee1107372c303d2d7dc7",
+      "bytes": 10131
+    },
+    {
+      "path": "site-live/candidate/ingress/service/core/orchestration/kelion_brain.py",
+      "sha256": "15ce041c9e4aa835f9a6e9032e46c7a86e27edfe24a22a1a01ed955d45cdecc6",
+      "bytes": 4219
+    },
+    {
+      "path": "site-live/candidate/ingress/service/core/orchestration/native_dispatch.py",
+      "sha256": "449ff958bf10c14bec95151d3a0e2447f2c2695c82fcbcb0ce148653f28db14d",
+      "bytes": 4343
+    },
+    {
+      "path": "site-live/candidate/ingress/service/core/orchestration/native_roles.json",
+      "sha256": "c9c5ec7f3f3f4f816b0e0620f2dc115740ee068a97e1806cc9c8c355b3e53109",
+      "bytes": 52240
+    },
+    {
+      "path": "site-live/candidate/ingress/service/core/skills/kelion-cost-guardian/scripts/route.py",
+      "sha256": "5e8a729dbc0bf6c4254a6d7879a6469b3075df732b4bc9c780b2c85a28cabb7b",
+      "bytes": 10921
+    },
+    {
+      "path": "site-live/candidate/ingress/service/diagnose_thread_start.py",
+      "sha256": "ea83e9f61f7fce2583b2c2d3d5d1d9035673d09e73602b6ab23c0df9f58c4c69",
+      "bytes": 3190
+    },
+    {
+      "path": "site-live/candidate/ingress/service/integrations/codex-mcp.example.toml",
+      "sha256": "8d60564d0fbc614abddd0124c73688453abf934aaaaa9701d9ca9639b42377f8",
+      "bytes": 604
+    },
+    {
+      "path": "site-live/candidate/ingress/service/integrations/connection-review.json",
+      "sha256": "13b4f1459bcf7c8226072e5f9b5c25d6e63d2c14bd16a082323b30f61987e643",
+      "bytes": 1327
+    },
+    {
+      "path": "site-live/candidate/ingress/service/local.py",
+      "sha256": "425a81f5ad316c726836a7909c2e90a16a6b882bc6cceb8a0d088a6abe3647ae",
+      "bytes": 2732
+    },
+    {
+      "path": "site-live/candidate/ingress/service/local_runner.py",
+      "sha256": "0aaf12346bafa66323df2f6abdecdaa342a5c080c22065270ff2327874b9e399",
+      "bytes": 22929
+    },
+    {
+      "path": "site-live/candidate/ingress/service/manual_resume.py",
+      "sha256": "818ee73175e596a559eabc25c4fecbbb8aac36432fed467fc6da1a85a376076e",
+      "bytes": 14211
+    },
+    {
+      "path": "site-live/candidate/ingress/service/mcp_protocol.py",
+      "sha256": "f37cfff229c5fbf291a2daf3d73424b78ac766dcf288426d15ece45d09f885c7",
+      "bytes": 5059
+    },
+    {
+      "path": "site-live/candidate/ingress/service/mcp_stdio.py",
+      "sha256": "d0f7656277183db80be911c2271bb102fdaa6b2c92bc13b512423a2330309208",
+      "bytes": 1699
+    },
+    {
+      "path": "site-live/candidate/ingress/service/native_success_guard.py",
+      "sha256": "ac7143af0657ae668726881e0d7a4cbdcd05f2dc096a0227cde71ca01f0420c6",
+      "bytes": 9724
+    },
+    {
+      "path": "site-live/candidate/ingress/service/probe_runtime.py",
+      "sha256": "6daccabc7c13ddd79164c63ac83ef73fada71043ab4541978e22d66e7a571a88",
+      "bytes": 9369
+    },
+    {
+      "path": "site-live/candidate/ingress/service/recovery_store.py",
+      "sha256": "2d7618cf4d967be091cbd9c0a1bf0022f29ea3a73807ff79fe4aa0f08f0e6870",
+      "bytes": 12837
+    },
+    {
+      "path": "site-live/candidate/ingress/service/runtime.appserver.unverified.json",
+      "sha256": "561f4711749862471b6f3e6474995a1db39ef04425ce64f343ecb0d5216fc91a",
+      "bytes": 408
+    },
+    {
+      "path": "site-live/candidate/ingress/service/runtime.unverified.json",
+      "sha256": "4a9497e356c6edcb31b1add79b5b144378b779a25ac06171a3be559ec030104b",
+      "bytes": 204
+    },
+    {
+      "path": "site-live/candidate/ingress/service/server.py",
+      "sha256": "37ba11978bdc4c6dbfa12c24b7f39704e663db89b923a457535460f1008c126b",
+      "bytes": 15241
+    },
+    {
+      "path": "site-live/candidate/ingress/service/siwc/magentic_store.py",
+      "sha256": "ae4bfc22b038600f5ecc452a9298647673315605df6c29116a93007c4369c192",
+      "bytes": 18157
+    },
+    {
+      "path": "site-live/candidate/ingress/service/store.py",
+      "sha256": "bd3a0bd5d5ab6dee6400df8509e40df11e5d0e004f0e0115545edef74ea33247",
+      "bytes": 26648
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/MAGENTIC-NATIVE-CONNECTION.md",
+      "sha256": "401ee58256e8e8ebf098239e524d2cc599e2041fedf5767d6ed1bc572cb7a846",
+      "bytes": 5413
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/cli.py",
+      "sha256": "91ca31ef5d7c7dab26075ed1a6be68993d75e27fa0a6771fe77a4c17daad8881",
+      "bytes": 2683
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/config.example.json",
+      "sha256": "ce865b49c03a977c107c9625fdea9da754288efaedf05e5b3b054e673575e1bf",
+      "bytes": 318
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/connected_host.py",
+      "sha256": "0c105bbeec7fb6e5bafd3adf53714ef308bf781a7e1a3fd56dc8212829b0a82c",
+      "bytes": 8559
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/probe_native_connection.py",
+      "sha256": "e0ae957ff6ff725fa80a8f4f602ede4a2d0a6afbdaaf3da940701d9ec3bbfa2f",
+      "bytes": 7132
+    },
+    {
+      "path": "site-live/candidate/worker/.runtime/magentic-recovered/runtime.py",
+      "sha256": "173b7949acdc90d9c1670fb51091778d3e2c34ba1de6f4dc6ccf5a9b92dcafc0",
+      "bytes": 29055
+    },
+    {
+      "path": "site-live/candidate/worker/docs/pachetpubliconly/SIWC.md",
+      "sha256": "3fa8c83399f51c51b43cdfb1e05fbaf2f633be97755913742c0f1ed72c1f0827",
+      "bytes": 3204
+    },
+    {
+      "path": "site-live/candidate/worker/service/PROVENANCE.json",
+      "sha256": "24e581f1fc0c859b112e53ddf849ec1ef9fbc996ace8e3ac7aef35607e663d5e",
+      "bytes": 1642
+    },
+    {
+      "path": "site-live/candidate/worker/service/core/orchestration/kelion_brain.py",
+      "sha256": "15ce041c9e4aa835f9a6e9032e46c7a86e27edfe24a22a1a01ed955d45cdecc6",
+      "bytes": 4219
+    },
+    {
+      "path": "site-live/candidate/worker/service/core/orchestration/native_dispatch.py",
+      "sha256": "449ff958bf10c14bec95151d3a0e2447f2c2695c82fcbcb0ce148653f28db14d",
+      "bytes": 4343
+    },
+    {
+      "path": "site-live/candidate/worker/service/core/orchestration/native_roles.json",
+      "sha256": "c9c5ec7f3f3f4f816b0e0620f2dc115740ee068a97e1806cc9c8c355b3e53109",
+      "bytes": 52240
+    },
+    {
+      "path": "site-live/candidate/worker/service/core/skills/kelion-cost-guardian/scripts/route.py",
+      "sha256": "5e8a729dbc0bf6c4254a6d7879a6469b3075df732b4bc9c780b2c85a28cabb7b",
+      "bytes": 10921
+    },
+    {
+      "path": "site-live/candidate/worker/service/mcp_protocol.py",
+      "sha256": "f37cfff229c5fbf291a2daf3d73424b78ac766dcf288426d15ece45d09f885c7",
+      "bytes": 5059
+    },
+    {
+      "path": "site-live/candidate/worker/service/server.py",
+      "sha256": "37ba11978bdc4c6dbfa12c24b7f39704e663db89b923a457535460f1008c126b",
+      "bytes": 15241
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/.gitignore",
+      "sha256": "ec319e79ee355e7ef0c3dd46221a1aac77df5c30585af791bb2269c8f8e9b10f",
+      "bytes": 146
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/LINUX.md",
+      "sha256": "2aebd82eb2c1c7a410d666d929ce4e2d0d57210f452b34917741175eb12b23db",
+      "bytes": 7527
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/README.md",
+      "sha256": "274743412e29440c878e721004286fd2aff5da3897fab91f7b414128d41bb6b1",
+      "bytes": 12114
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/WORKER.md",
+      "sha256": "a613234fd29e4b26b4d38e385a100903f852a50717f27e39bb833230ae5863bb",
+      "bytes": 16766
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/cli.mjs",
+      "sha256": "fbc7e36f7e477823ee3c5516cf9af914183df14ca02d4dece09dd9b83f68fda9",
+      "bytes": 9771
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/controller_bridge.py",
+      "sha256": "228e96a6bd5a6b197c9d497f709f5b6c5c0046fc5a46e6aea87fbfc1281ebe74",
+      "bytes": 2607
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/crypto-store.mjs",
+      "sha256": "8b8279658457413025b474b8a926c22396095d45c223f9475edc7d1acb632037",
+      "bytes": 7418
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/framework-cli.mjs",
+      "sha256": "fa56ae3d979bbfed62268cd32a4e55afc41d26201e13da03581e8d492f9673f3",
+      "bytes": 2762
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/http-fixture.py",
+      "sha256": "09d7b1156f118095fe25a768bc6ccb859f679565b6370ade3efdfba0d08820f7",
+      "bytes": 1307
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/install_codex.py",
+      "sha256": "7edf08c1963015b10d010d7e240eba03cf95ae9a5f2931a4621162fc9c5cd3e8",
+      "bytes": 4956
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/install_magentic.py",
+      "sha256": "3c2919697f015a36834db349365a87516a91bb996ac463c40b5c4b651f2f5458",
+      "bytes": 2820
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/kelion-siwc.service.in",
+      "sha256": "29320f483601cf1ccef5c51f392237448e60970b71771b9678bbf99d4e2da03f",
+      "bytes": 799
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/linux-preflight.mjs",
+      "sha256": "a7ffce7898c0c28a015d644f866a320d332148d7ca04516eca15be3c77fdb382",
+      "bytes": 5293
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/linux-release-pins.json",
+      "sha256": "4824918f573b6a067f99ed4f8e029e793ee33c8779c8a4d5db2f5c0272551785",
+      "bytes": 769
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/magentic-driver.mjs",
+      "sha256": "9e902cf6f683bfca222e2b0dfa5a318e6f7445ec15b43d0addb6820a3ea9e664",
+      "bytes": 8368
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/magentic-receipt.mjs",
+      "sha256": "0cf96b423193421d2d5ba72526517a25205816680404cdd8452622c32c8ee3f2",
+      "bytes": 3749
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/magentic-source-pins.json",
+      "sha256": "a8f8527cac2ad69ef118386f6a39360d543cf7ca7ca5081f321cd457a96a0063",
+      "bytes": 560
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/magentic_store.py",
+      "sha256": "ae4bfc22b038600f5ecc452a9298647673315605df6c29116a93007c4369c192",
+      "bytes": 18157
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/oauth.mjs",
+      "sha256": "3a5bdc43a1a48eb41a34fd6e6fa38b67da4016b5b3aa3fb0528e91a08746aae5",
+      "bytes": 10306
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/owner-poll.mjs",
+      "sha256": "f08f42e4dbccf89b8f95da8fca6058a36e2bceca4e170fec608f1c791a909893",
+      "bytes": 6607
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/permissions-runtime.test.mjs",
+      "sha256": "c3e203c799372cc2617aa01b37d2e0b4a514b81c38ee17104cd6a883329376dd",
+      "bytes": 1156
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/permissions.mjs",
+      "sha256": "f9beec3a430ef8955f3acd84db9d2158be109b0b88b2a707dccefe1f660a8a3c",
+      "bytes": 3218
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/private-rpc.mjs",
+      "sha256": "35daa4caa7a2097b56739b143077c040446f97413e9cc6f0dce9627f6cda81b8",
+      "bytes": 11025
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/protocol-pins.json",
+      "sha256": "4c2886abd955d22299371cdb42544aa65a52f403509c64171d0233fa53cf4401",
+      "bytes": 909
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/provider.mjs",
+      "sha256": "6771760a36bc1b5cf0e3b740ce02566ba205f4ab08b0d29616faaab65d7ac6d5",
+      "bytes": 9184
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/siwc.test.mjs",
+      "sha256": "e52c7c0a4de172594cbecb76a5031670e3348585628058ebafe79e033ec8b7d8",
+      "bytes": 19490
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/systemd-entry.mjs",
+      "sha256": "c28f90ca135640e51048fba2fad78b913b46aa1d66f5358ca5038b67e07b388f",
+      "bytes": 1457
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/test_gateway_ingress.py",
+      "sha256": "f87786fc1f598c348e6acc1aa8bb3a4cf0c59b222e7f728cc5e324ce0f1607a1",
+      "bytes": 2609
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/test_installers.py",
+      "sha256": "227fb45042f0e34ed2d76d6fc142b06615fe73ca4b9753ceb19ccb7b1f1f0392",
+      "bytes": 1564
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/test_magentic_http.py",
+      "sha256": "b7dcc79497222716c0ccbdddd3772ab074732ec09ada79321a265674bb6d3ef2",
+      "bytes": 9420
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/test_worker_http.py",
+      "sha256": "74b2d44afe420322b2ac0f4abf50d6aec6ee562f30a696b47618ae6bf08aa6d5",
+      "bytes": 6849
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/worker.disabled.json",
+      "sha256": "e63a4acfbc4a8c2ec5f68a648242d9282fdaeb5690e6b159445bd56bec19fd00",
+      "bytes": 163
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/worker.mjs",
+      "sha256": "efbea6d4e68709a4e0a240502784c911569c74c69b5fd580bc864ad9aa815d89",
+      "bytes": 25046
+    },
+    {
+      "path": "site-live/candidate/worker/service/siwc/worker.test.mjs",
+      "sha256": "3272c6e61d189ad38044b25b0e5fb06f1d95224bb220f2ea9601dff51da6f227",
+      "bytes": 26093
+    },
+    {
+      "path": "site-live/candidate/worker/service/store.py",
+      "sha256": "bd3a0bd5d5ab6dee6400df8509e40df11e5d0e004f0e0115545edef74ea33247",
+      "bytes": 26648
+    }
+  ],
+  "excluded": [
+    "worker/chunk-000",
+    "worker/chunk-001",
+    "worker/chunk-002",
+    "worker/chunk-003",
+    "worker/chunk-004",
+    "worker/chunk-005",
+    "worker/chunk-006",
+    "worker/chunk-007",
+    "worker/chunk-008",
+    "worker/chunk-009",
+    "worker/chunk-010",
+    "worker/chunk-011",
+    "worker/chunk-012",
+    "worker/chunk-013",
+    "worker/chunk-014",
+    "worker/chunk-015",
+    "worker/chunk-016",
+    "worker/chunk-017",
+    "worker/chunk-018",
+    "worker/chunk-019",
+    "worker/chunk-020"
+  ],
+  "secret_pattern_matches": [],
+  "activation": false,
+  "restart": false,
+  "transfer_sha256": "a17db597b95189647af3d19655ac320d6f31eb6502aba1624d8891501b6068b5",
+  "review": {
+    "all_73_source_hashes_verified": true,
+    "credential_literals": "Only explicitly synthetic test fixtures observed",
+    "personal_email_matches": 0,
+    "limitations": "Pattern and literal review is not a universal secret detector; environment files, credentials, databases, logs, transport chunks excluded."
+  }
+}

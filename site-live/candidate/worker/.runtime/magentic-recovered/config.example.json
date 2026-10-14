@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "mode": "native_host",
+  "task_id": "replace-with-authorized-task-id",
+  "objective": "Replace with a narrowly authorized objective and acceptance criteria.",
+  "participants": ["dots_cerinte", "dots_programare"],
+  "max_rounds": 8,
+  "max_resets": 2,
+  "max_stalls": 2,
+  "max_requests": 32
+}

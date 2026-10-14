@@ -1,0 +1,10 @@
+# Review template only. Not installed into protected/global Codex configuration.
+# Replace paths with the existing Python executable and actual service/DB locations.
+# The token is provided securely in the parent's environment; never insert it here.
+[mcp_servers.kelion]
+command = "ABSOLUTE_PATH_TO_EXISTING_PYTHON"
+args = ["ABSOLUTE_PATH_TO_SERVICE/mcp_stdio.py", "--database", "ABSOLUTE_PATH_TO_SHARED_DATABASE"]
+env_vars = ["KELION_CLIENT_TOKEN"]
+
+# The same DB is used by server.py and the native Kelion parent.
+# This installs tools in a configured client; it does not intercept every conversation.

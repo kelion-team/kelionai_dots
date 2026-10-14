@@ -1,0 +1,8 @@
+[Unit]
+Description=Kelion: auto-deploy web-v1 din GitHub (kelionai_dots/main)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kelion-auto-deploy-web

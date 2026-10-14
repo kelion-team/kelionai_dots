@@ -162,21 +162,27 @@ function renderMonitor(result) {
   if (result.failure) add('Eroare: ' + result.failure, 'bad');
   $('monitor').replaceChildren(...items); $('monitor').scrollTop = $('monitor').scrollHeight;
 }
+// Conversația scrisă (jos): mesajele tale și răspunsurile lui Kelion, separat de monitor.
+const answered = new Set();
+function bubble(cls, text) {
+  const p = document.createElement('p'); p.className = 'msg ' + cls; p.textContent = text;
+  $('conv').querySelector('.hint')?.remove(); $('conv').append(p); $('conv').scrollTop = $('conv').scrollHeight; return p;
+}
 function showResult(result) {
   renderMonitor(result);
-  // Răspunsul se scrie în același monitor, sub pași; detaliile tehnice rămân scurte.
-  $('result').textContent = result.output ? result.output
-    : TERMINAL.includes(result.state) ? '' : 'Kelion lucrează…';
-  $('result').dataset.meta = 'Cerere ' + result.task_id + ' · ' + result.state + (result.verified ? ' · verificat' : '');
+  if (answered.has(result.task_id)) return;
+  if (result.output) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai', result.output); }
+  else if (TERMINAL.includes(result.state)) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai bad', 'Nu am putut răspunde: ' + (result.block_reason || result.failure || result.state)); }
+  else if (!document.getElementById('wait-' + result.task_id)) { bubble('ai wait', 'Lucrez…').id = 'wait-' + result.task_id; }
 }
-function asked(text) { $('asked').hidden = !text; $('asked').textContent = text ? 'Tu: ' + text : ''; }
+function asked(text) { if (text) bubble('me', text); }
 async function tasks() {
   const result = await api('/api/tasks'); $('tasks').replaceChildren();
   if (!result.tasks.length) $('tasks').textContent = 'Nu ai încă cereri.';
   for (const task of result.tasks) {
     const button = document.createElement('button');
     button.textContent = task.task_id + ' · ' + new Date(task.created).toLocaleString() + ' · ' + task.delivery;
-    button.onclick = async () => { $('history').hidden = true; asked(''); try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
+    button.onclick = async () => { $('history').hidden = true; answered.delete(task.task_id); try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
     $('tasks').append(button);
   }
 }

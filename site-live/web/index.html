@@ -18,11 +18,8 @@
 <rect x="48" y="106" width="9" height="12" rx="4" class="c"/><rect x="63" y="106" width="9" height="12" rx="4" class="c"/>
 </g></svg><span class="ring"></span></div>
     <h2 id="answer-title" class="sr">Kelion</h2><p id="kelion-state" class="kstate">Pregătit</p>
-    <div class="screen-box" aria-label="Monitor: ce lucrează Kelion și răspunsul">
-      <p id="asked" class="asked" hidden></p>
-      <ol id="monitor" class="monitor"><li class="idle">Scrie sau vorbește. Aici apare, în timp real, ce lucrează Kelion și răspunsul.</li></ol>
-      <pre id="result" aria-live="polite"></pre>
-    </div>
+    <ol id="monitor" class="monitor" aria-label="Monitor: ce lucrează Kelion acum"><li class="idle">Monitor: aici apare, în timp real, ce lucrează Kelion.</li></ol>
+    <div id="conv" class="conv" aria-label="Conversația scrisă"><p class="hint">Conversația ta cu Kelion apare aici.</p></div>
   </section>
   <form id="chat" class="composer"><label for="task" class="sr">Cu ce te poate ajuta Kelion?</label>
     <div class="bar"><textarea id="task" maxlength="100000" rows="1" required placeholder="Scrie-i lui Kelion…"></textarea>

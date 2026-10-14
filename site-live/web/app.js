@@ -328,11 +328,12 @@ function translatorListen() {
 $('src-lang').onchange = () => { try { localStorage.setItem(SRC_KEY, $('src-lang').value); } catch {} if (translator.active) { const mic = translator.mic; translator.mic = null; if (mic) { mic.onend = null; try { mic.abort(); } catch {} } translatorListen(); } };
 $('tr-stop').onclick = () => translatorStop();
 if (Recognition) {
-  $('translate').hidden = false;
+  $('translate-wrap').hidden = false;
+  // T: oprește chatul full duplex și pornește traducerea (becul se aprinde); a doua apăsare stinge becul și repornește full duplex.
   $('translate').onclick = () => {
-    if (translator.active) { translatorStop(); return; }
     if (!csrf) { status('Conectează-te întâi.'); return; }
-    if (conversation.active) conversation.stop();
+    if (translator.active) { translatorStop(); conversation.start(); return; }
+    if (conversation.active) conversation.stop('Chatul vocal e oprit cât traduc.');
     translator.active = true; $('tr-card').hidden = false; $('translate').setAttribute('aria-pressed', 'true'); translatorListen();
   };
 }

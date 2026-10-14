@@ -89,6 +89,26 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked")
         self.assertEqual([h["status"] for h in result["hops"]][-1], "unavailable")
 
+    def test_magentic_unavailable_falls_back_to_codex_once(self):
+        calls = []
+        def codex(task_id, task, plan):
+            calls.append((task_id, task, plan['surface']))
+            return {'status': 'completed', 'output': 'fallback result'}
+        result = magistrala.run('m1', 'Fă un proiect complet: cod și document', {'codex': codex})
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual([hop['surface'] for hop in result['hops']], ['magentic', 'codex'])
+        self.assertEqual(calls[0][2], 'codex')
+
+    def test_magentic_failure_does_not_reenter_after_failed_fallback(self):
+        attempts = []
+        def failure(task_id, task, plan):
+            attempts.append(plan['surface'])
+            return {'status': 'failed', 'detail': 'unavailable'}
+        result = magistrala.run('m2', 'Fă un proiect complet: cod și document',
+                                {'magentic': failure, 'codex': failure})
+        self.assertEqual(result['status'], 'blocked')
+        self.assertEqual(attempts, ['magentic', 'codex'])
+
     def test_failure_detail_is_kept(self):
         result = magistrala.run("t4", "Salut", {"chat": lambda *_: {"status": "failed", "detail": "model inexistent"}})
         self.assertEqual(result["hops"][0]["detail"], "model inexistent")

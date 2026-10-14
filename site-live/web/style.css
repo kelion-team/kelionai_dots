@@ -119,4 +119,3 @@ body:has(#workspace[hidden]) .account{display:none}
 /* Roboțelul e permanent: nimic nu-l acoperă sau ascunde (panouri, meniuri, apel, traducere, cameră). */
 .persona{position:relative;z-index:25}
 @media (max-height:520px) and (orientation:landscape){.list{top:56px}}
-.callgpt{display:grid;place-items:center;text-decoration:none;width:40px;height:40px;background:#2e8b57;color:#fff}.callgpt:hover{background:#38a169}

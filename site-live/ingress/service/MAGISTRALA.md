@@ -21,6 +21,11 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
 - **Fără succes fals**: un răspuns gol nu e succes; un backend căzut sau neconfigurat escaladează; dacă nicio suprafață nu răspunde, cererea devine `blocked` cu motivul.
 - **Fără secrete în repo**: comenzile backend sunt în `/etc/kelion-magistrala/config.json`; tokenul worker-ului vine din fișierul de mediu al serviciului.
 
+## Viteză pentru conversație
+
+- `"reasoning": "minimal"` pe suprafața `chat` din config trimite la Codex raționament minim, indiferent de nivelul magistralei: răspuns mai rapid și mai ieftin pentru conversație. Lucrul (`codex`) rămâne pe nivelul ales de Kelion.
+- În pagină, după fiecare frază rostită, Kelion confirmă imediat („Mă gândesc.”), apoi vine răspunsul; vorbitul îl întrerupe.
+
 ## Rute clare: ce consumă fiecare cerere
 
 | Cerere | Ruta | Cota / plata |

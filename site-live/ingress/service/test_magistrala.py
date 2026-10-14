@@ -183,6 +183,18 @@ class WebSearchTests(unittest.TestCase):
             self.assertEqual(off("t", "x", {"surface": "chat", "effort": "low"})["output"], "search=0")
 
 
+class ReasoningOverrideTests(unittest.TestCase):
+    def test_reasoning_override_reaches_backend(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "b.sh"
+            script.write_text('#!/bin/sh\ncat >/dev/null; echo "effort=$KELION_EFFORT"\n')
+            script.chmod(script.stat().st_mode | stat.S_IEXEC)
+            fast = magistrala_worker.command_backend({"command": [str(script)], "reasoning": "minimal"})
+            normal = magistrala_worker.command_backend({"command": [str(script)]})
+            self.assertEqual(fast("t", "x", {"surface": "chat", "effort": "high"})["output"], "effort=minimal")
+            self.assertEqual(normal("t", "x", {"surface": "chat", "effort": "high"})["output"], "effort=high")
+
+
 class CodexHomeTests(unittest.TestCase):
     def test_codex_home_passed_to_backend(self):
         with tempfile.TemporaryDirectory() as tmp:

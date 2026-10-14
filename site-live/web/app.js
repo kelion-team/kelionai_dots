@@ -158,11 +158,14 @@ function renderMonitor(result) {
       + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : '') + (step.detail ? ' · ' + step.detail : ''),
       step.status === 'running' ? 'running' : step.status === 'completed' ? 'done' : 'step');
   }
+  if (result.block_reason || result.failure) add('Motiv: ' + (result.block_reason || result.failure), 'bad');
   $('monitor').replaceChildren(...items); $('monitor').scrollTop = $('monitor').scrollHeight;
 }
 // Conversația scrisă (jos): mesajele tale și răspunsurile lui Kelion, separat de monitor.
 const answered = new Set();
 function bubble(cls, text) {
+  // Rândul de scris arată doar ultimul schimb: un mesaj nou de la tine (sau o frază auzită) curăță schimbul anterior.
+  if (cls === 'me' || cls === 'heard') $('conv').replaceChildren();
   const p = document.createElement('p'); p.className = 'msg ' + cls; p.textContent = text;
   $('conv').querySelector('.hint')?.remove(); $('conv').append(p); $('conv').scrollTop = $('conv').scrollHeight; return p;
 }
@@ -185,7 +188,7 @@ function showResult(result) {
   if (result.output) renderResults(result, splitOutput(result.output));
   if (answered.has(result.task_id)) return;
   if (result.output) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai', splitOutput(result.output).text || 'Rezultatul e pe monitor.'); }
-  else if (TERMINAL.includes(result.state)) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai bad', 'Nu am putut răspunde: ' + (result.block_reason || result.failure || result.state)); }
+  else if (TERMINAL.includes(result.state)) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai bad', 'Nu am putut răspunde. Motivul e pe monitor.'); }
   else if (!document.getElementById('wait-' + result.task_id)) { bubble('ai wait', 'Gândire…').id = 'wait-' + result.task_id; }
 }
 function asked(text) { if (text) bubble('me', text); }
@@ -201,7 +204,7 @@ async function tasks() {
 }
 // La deschidere: ultimele cereri apar în conversație (mesajul tău + răspunsul), monitorul arată ultima cerere.
 async function loadConversation() {
-  const list = (await api('/api/tasks')).tasks.slice(0, 8).reverse();
+  const list = (await api('/api/tasks')).tasks.slice(0, 1);
   let last;
   for (const t of list) {
     try { last = await api('/api/tasks/' + t.task_id); } catch { continue; }
@@ -212,7 +215,7 @@ async function loadConversation() {
   if (last && !TERMINAL.includes(last.state)) follow(last.task_id);
 }
 async function signedIn(user) {
-  csrf = user.csrf; $('account').textContent = user.email; $('workspace').hidden = false;
+  csrf = user.csrf; $('account').textContent = user.email; $('avatar').textContent = (user.email || '?').slice(0, 2).toUpperCase(); $('workspace').hidden = false;
   $('signin').hidden = true; $('google').replaceChildren(); status(''); await tasks(); await loadConversation().catch(e => status(e.message));
 }
 async function login() {

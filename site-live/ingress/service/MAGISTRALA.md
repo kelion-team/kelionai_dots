@@ -9,8 +9,8 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
         codex    = Codex (raționament automat low→xhigh)
         work     = ChatGPT Work / agentul Kelion publicat (conectori, skill-uri)
         magentic = orchestratorul Microsoft Magentic cu cei 22 de DOTS
-   ─► execuție ─► rezultat insuficient? escaladare automată:
-        1. raționament mai mare pe aceeași suprafață
+   ─► execuție ─► rezultat insuficient? escaladare automată, cel mai economic canal întâi:
+        1. raționament mai mare pe aceeași suprafață (doar la răspuns insuficient; un eșec tehnic — cotă, login, model — nu se repetă mai scump)
         2. needs_code → codex, needs_tools → work
         3. suprafața următoare: chat → work → magentic, codex → magentic
    ─► rezultat real scris înapoi (result_received) sau blocked cu motivul exact
@@ -55,4 +55,4 @@ Serviciul ingress trebuie repornit o dată pentru noile rute `/v1/worker/magistr
 
 - `journalctl -u kelion-magistrala -n 30 --no-pager` și `tail /var/lib/kelion-magistrala/events.jsonl`
 - O cerere pe kelionai.app trebuie să ajungă la `result_received` cu răspunsul afișat, sau la `blocked` cu motivul.
-- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (17 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).
+- Teste: `cd site-live/ingress/service && python3 -m unittest test_magistrala -v` (21 teste: rutare, escaladare, măsurare, preluare/finalizare atomică în store-ul real, worker cap-coadă cu backend comandă).

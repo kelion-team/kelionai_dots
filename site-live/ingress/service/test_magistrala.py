@@ -51,6 +51,17 @@ class EscalationTests(unittest.TestCase):
         self.assertEqual(magistrala.escalate(base, {"status": "needs_code"})["surface"], "codex")
         self.assertEqual(magistrala.escalate(base, {"status": "needs_tools"})["surface"], "work")
 
+    def test_technical_failure_does_not_pay_more_on_same_channel(self):
+        plan = {"surface": "codex", "effort": "low", "difficulty": 1, "reason": ""}
+        nxt = magistrala.escalate(plan, {"status": "failed", "detail": "usage limit"})
+        self.assertEqual((nxt["surface"], nxt["effort"]), ("magentic", "low"))
+        nxt = magistrala.escalate({"surface": "chat", "effort": "low", "difficulty": 1, "reason": ""}, {"status": "unavailable"})
+        self.assertEqual((nxt["surface"], nxt["effort"]), ("work", "low"))
+
+    def test_insufficient_keeps_reached_effort_on_next_channel(self):
+        nxt = magistrala.escalate({"surface": "chat", "effort": "high", "difficulty": 1, "reason": ""}, {"status": "insufficient"})
+        self.assertEqual((nxt["surface"], nxt["effort"]), ("work", "high"))
+
     def test_top_stops(self):
         self.assertIsNone(magistrala.escalate({"surface": "magentic", "effort": "xhigh", "difficulty": 4, "reason": ""}, {"status": "failed"}))
 

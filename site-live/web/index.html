@@ -1,10 +1,12 @@
 <!doctype html>
 <html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
-<body><main>
+<body><nav class="rail" id="rail" aria-label="Navigare"><span class="rail-logo">K</span>
+  <button id="history-open" type="button" class="railbtn" title="Istoric" aria-label="Istoric">&#128337;</button>
+  <button id="settings-open" type="button" class="railbtn" title="Setări" aria-label="Setări">&#9881;</button>
+  <span class="spacer"></span><span id="avatar" class="avatar" aria-hidden="true">?</span></nav><main>
 <header class="top"><span class="brand">KelionAI</span><span class="spacer"></span>
   <div class="account" id="workspace-account"><button id="menu-open" type="button" class="iconbtn" title="Meniu" aria-label="Meniu" aria-expanded="false">&#8943;</button>
     <div id="menu" class="menu" hidden><span id="account" class="menu-email"></span>
-      <button id="history-open" type="button">Istoric</button><button id="settings-open" type="button">Setări</button>
       <label class="menu-row" for="voice-gender">Voce <select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select></label>
       <label class="menu-row" for="user-lang">Limba ta <select id="user-lang"><option value="ro-RO">Română</option><option value="en-US">English</option><option value="fr-FR">Français</option><option value="de-DE">Deutsch</option><option value="es-ES">Español</option><option value="it-IT">Italiano</option><option value="pt-PT">Português</option><option value="hu-HU">Magyar</option><option value="pl-PL">Polski</option><option value="uk-UA">Українська</option><option value="ru-RU">Русский</option><option value="tr-TR">Türkçe</option><option value="ar-SA">العربية</option><option value="hi-IN">हिन्दी</option><option value="zh-CN">中文</option><option value="ja-JP">日本語</option></select></label>
       <button id="logout" type="button">Ieșire</button></div></div></header>
@@ -51,13 +53,13 @@
     <ol id="monitor" class="monitor"><li class="idle">Monitor: aici apar pașii și rezultatele lucrului lui Kelion.</li></ol>
     <div id="results" class="results"></div>
   </section>
-  <div id="conv" class="conv" aria-label="Conversația scrisă"></div>
-  <form id="chat" class="composer"><label for="task" class="sr">Mesaj pentru Kelion</label>
+  <div id="conv" class="conv" aria-label="Conversația scrisă" aria-live="polite"></div>
+  <form id="chat" class="composer"><div class="row"><label for="task" class="sr">Mesaj pentru Kelion</label>
     <button id="plus" type="button" class="iconbtn plus" title="Istoric și setări" aria-label="Istoric și setări">+</button>
     <textarea id="task" maxlength="100000" rows="1" required placeholder="Trimite un mesaj"></textarea>
     <span class="tbtn" id="translate-wrap" hidden><button id="translate" type="button" class="iconbtn tkey" title="T: ascultă și traduce, doar scris (oprește chatul vocal)" aria-label="Traducere" aria-pressed="false">T</button><i class="led" aria-hidden="true"></i></span>
     <button id="call-start" type="button" class="iconbtn duplex" disabled title="Chat vocal full duplex" aria-label="Chat vocal full duplex">&#127897;</button>
-    <button id="send" type="submit" class="sendbtn" title="Trimite" aria-label="Trimite">&#8593;</button>
+    <button id="send" type="submit" class="sendbtn" title="Trimite" aria-label="Trimite">&#8593;</button></div>
   </form>
 </section>
 </main></body></html>

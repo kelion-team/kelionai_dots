@@ -5,6 +5,7 @@ import ipaddress
 import json
 import os
 import re
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -174,6 +175,17 @@ def handler_for(store, client_token, worker_token, public_origin=None):
             data = json.loads(raw)
             if not isinstance(data, dict):
                 raise ValueError('JSON object required')
+            if path.path == '/v1/worker/magistrala/take' and set(data) == {'worker_id', 'wait_seconds'}:
+                # Long-poll: răspunde imediat ce apare o cerere nouă (sau după wait_seconds, maxim 25).
+                wait = data['wait_seconds'] if type(data['wait_seconds']) is int and 0 <= data['wait_seconds'] <= 25 else 0
+                deadline = time.time() + wait
+                while True:
+                    task = store.magistrala_take(data['worker_id'])
+                    if task is not None or time.time() >= deadline:
+                        return self.respond(200, {'task': task})
+                    time.sleep(0.5)
+            if path.path == '/v1/worker/magistrala/finish' and set(data) == {'task_id','take_token','status','output','hops'}:
+                return self.respond(200, store.magistrala_finish(**data))
             if path.path.startswith('/v1/worker/magentic/'):
                 return self.respond(200,store.magentic_worker(path.path.removeprefix('/v1/worker/magentic/'),data))
             if path.path == '/v1/worker/runner/reserve' and set(data)=={'worker_id','task_id','authorization'}:

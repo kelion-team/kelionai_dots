@@ -1,0 +1,27 @@
+{
+  "_note": "Copiați în /etc/kelion-magistrala/config.json. Fără secrete în acest fișier. Modelele trebuie să existe în catalogul contului ChatGPT de pe server (codex debug models / model/list).",
+  "surfaces": {
+    "chat": {
+      "enabled": true,
+      "command": ["/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"],
+      "models": {"low": "gpt-6-astra", "medium": "gpt-6-astra", "high": "gpt-6.1-sol"},
+      "timeout": 300
+    },
+    "codex": {
+      "enabled": true,
+      "command": ["/opt/kelion-app/ingress-v2/current/service/magistrala-adapters/codex-exec.sh"],
+      "models": {"low": "gpt-6-luna", "medium": "gpt-6-sol", "high": "gpt-6.1-sol", "xhigh": "gpt-6.1-sol"},
+      "timeout": 900
+    },
+    "work": {
+      "enabled": false,
+      "_note": "Agentul Kelion publicat în ChatGPT (cu conectori). Se activează după crearea tokenului Workspace Agents în ChatGPT Admin și configurarea adaptorului bridge.py.",
+      "command": []
+    },
+    "magentic": {
+      "enabled": false,
+      "_note": "Orchestratorul Microsoft Magentic (site-live/candidate/worker). Se activează după preflight-ul de izolare verde și grantul SIWC.",
+      "command": []
+    }
+  }
+}

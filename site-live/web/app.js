@@ -1,8 +1,19 @@
 'use strict';
+// Alege vocea română după genul selectat. Numele vocilor diferă între browsere;
+// dacă nu există o voce de genul cerut, se folosește vocea română disponibilă cu ton ajustat.
+const VOICE_NAMES = { masculin: /emil|andrei|bogdan|male|masculin|bărbat/i, feminin: /ioana|alina|carmen|female|feminin|femeie/i };
+export function pickVoice(voices, gender) {
+  const ro = voices.filter(v => v.lang.toLowerCase().startsWith('ro'));
+  const wanted = gender === 'masculin' ? 'masculin' : 'feminin', other = wanted === 'masculin' ? 'feminin' : 'masculin';
+  const exact = ro.find(v => VOICE_NAMES[wanted].test(v.name));
+  if (exact) return { voice: exact, pitch: 1 };
+  const neutral = ro.find(v => !VOICE_NAMES[other].test(v.name)) || ro[0];
+  return { voice: neutral, pitch: wanted === 'masculin' ? 0.75 : 1.1 };
+}
 // Browser conversation controller. Recognition/synthesis events, not timers, delimit audio.
 export class VoiceConversation {
-  constructor({ Recognition, synthesis, Utterance, request, onState = () => {}, onTranscript = () => {}, onResult = () => {}, pollMs = 2000, waitMs = 1800000, echoDelayMs = 400 }) {
-    Object.assign(this, { Recognition, synthesis, Utterance, request, onState, onTranscript, onResult, pollMs, waitMs, echoDelayMs });
+  constructor({ Recognition, synthesis, Utterance, request, onState = () => {}, onTranscript = () => {}, onResult = () => {}, pollMs = 2000, waitMs = 1800000, echoDelayMs = 400, voiceGender = () => 'feminin' }) {
+    Object.assign(this, { Recognition, synthesis, Utterance, request, onState, onTranscript, onResult, pollMs, waitMs, echoDelayMs, voiceGender });
     this.active = false; this.generation = 0; this.state = 'idle';
   }
   notify(state, message) { this.state = state; this.onState({ state, message, active: this.active, taskId: this.taskId }); }
@@ -103,8 +114,9 @@ export class VoiceConversation {
       let cut = Math.min(700, remaining.length); if (cut < remaining.length) { const space = remaining.lastIndexOf(' ', cut); if (space > 350) cut = space; }
       const text = remaining.slice(0, cut); remaining = remaining.slice(cut).trimStart();
       const utterance = new this.Utterance(text); utterance.lang = 'ro-RO';
-      const voice = this.synthesis.getVoices().find(item => item.lang.toLowerCase().startsWith('ro'));
-      if (voice) utterance.voice = voice;
+      const pick = pickVoice(this.synthesis.getVoices(), this.voiceGender());
+      if (pick.voice) utterance.voice = pick.voice;
+      utterance.pitch = pick.pitch;
       await new Promise((resolve, reject) => {
         let settled = false;
         const finish = error => { if (settled) return; settled = true; clearTimeout(timeout); this.cancelSpeech = null; utterance.onend = utterance.onerror = utterance.onstart = null; error ? reject(error) : resolve(); };
@@ -183,8 +195,13 @@ $('chat').onsubmit = async event => {
   finally { $('send').disabled = false; await tasks().catch(e => status(e.message)); }
 };
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const conversation = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api,
-  onState: ({ state, message, active }) => { $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active;
+const KELION_LABELS = { idle: 'Pregătit', starting: 'Pornesc microfonul…', listening: 'Te ascult…', submitting: 'Am înțeles, trimit…', waiting: 'Mă gândesc…', speaking: 'Vorbesc…', error: 'Ceva nu a mers' };
+function kelionState(state) { const k = document.getElementById('kelion'); if (k) k.dataset.state = state in KELION_LABELS ? state : 'idle'; const l = document.getElementById('kelion-state'); if (l) l.textContent = KELION_LABELS[state] || KELION_LABELS.idle; }
+const GENDER_KEY = 'kelion-voice-gender';
+try { const saved = localStorage.getItem(GENDER_KEY); if (saved === 'masculin' || saved === 'feminin') $('voice-gender').value = saved; } catch {}
+$('voice-gender').onchange = () => { try { localStorage.setItem(GENDER_KEY, $('voice-gender').value); } catch {} };
+const conversation = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
+  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active;
     $('call-interrupt').disabled = state !== 'speaking'; $('dictate').disabled = active; $('send').disabled = active; $('task').disabled = active; },
   onTranscript: text => { $('voice-transcript').textContent = 'Tu: ' + text; },
   onResult: result => { showResult(result); if (result.state === 'result_received') tasks().catch(() => {}); },

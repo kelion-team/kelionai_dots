@@ -1,0 +1,27 @@
+{
+  "observed_utc": "2026-10-14T05:48:16Z",
+  "active_symlink_verified": "562af2586079d05ce1abbc2d9f65128a3fda32fba9bdbfd00a9200698b5768fc",
+  "final_preflight_stderr": {
+    "status": "failed",
+    "code": "synthetic_secret_isolation_checks_failed",
+    "isolation_verified": false
+  },
+  "web_code_observation": "api/config worker field is hardcoded not_verified, not a live runtime attestation.",
+  "no_services_modified": true,
+  "no_tests_rerun": true,
+  "no_model_calls": true,
+  "not_checked": [
+    "service process build identity",
+    "fresh public login",
+    "agent execution",
+    "live response",
+    "runtime environment values"
+  ],
+  "export_review": {
+    "known_secret_patterns_found": 0,
+    "literal_credential_assignments_found": 0,
+    "personal_email_or_long_opaque_strings_found": 0,
+    "source_hashes_match_server": true
+  },
+  "scope_limit": "Snapshot of active ingress release plus web-v1. Candidate release and staged worker sources are not included. No .env or database copied; no environment values read."
+}

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
+<body><main><header><span class="mark">K</span><div><h1>KelionAI</h1><p>Conversația ta cu Kelion</p></div></header>
+<p id="status" role="status">Se verifică configurația…</p><div id="google"></div><button id="signin" hidden>Conectare Google</button>
+<section id="workspace" hidden><div class="account"><span id="account"></span><button id="logout">Ieșire</button></div>
+<form id="chat"><label for="task">Cu ce te poate ajuta Kelion?</label><textarea id="task" maxlength="100000" rows="5" required placeholder="Scrie cererea ta aici…"></textarea><div class="actions"><button id="send" type="submit">Trimite cererea</button><button id="dictate" type="button" hidden>Dictare prin browser</button></div></form>
+<p id="voice-note">Dictarea completează textul. Modul de conversație vocală de mai jos trimite automat frazele finale.</p>
+<section aria-labelledby="call-title"><h2 id="call-title">Conversație vocală</h2>
+<p>După pornire, frazele tale sunt trimise automat către Kelion. Browserul poate procesa audio online prin serviciul său de recunoaștere. Microfonul se oprește cât aștepți și asculți răspunsul.</p>
+<div class="actions"><button id="call-start" type="button" disabled>Pornește conversația</button><button id="call-interrupt" type="button" disabled>Întrerupe redarea și ascultă</button><button id="call-end" type="button" disabled>Încheie conversația</button></div>
+<p id="call-status" role="status">Se verifică suportul vocal al browserului.</p><p id="voice-transcript" aria-live="polite"></p></section>
+<p class="notice">Cererile sunt înregistrate în API. Execuția necesită un worker conectat; activitatea acestuia nu este confirmată de această pagină.</p>
+<h2>Cererile tale</h2><button id="refresh">Actualizează lista</button><div id="tasks"></div><pre id="result" aria-live="polite"></pre></section>
+<footer>Acces limitat la conturile Google autorizate.</footer></main></body></html>

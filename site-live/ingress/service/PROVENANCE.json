@@ -1,0 +1,39 @@
+{
+  "source_repository": "kelion-team/kelionai_dots",
+  "source_tree_sha": "6c5067a1f8c8819361b7c2de0cb4d7f3beb7d12c",
+  "files": [
+    {
+      "path": "core/orchestration/native_dispatch.py",
+      "source_path": "orchestration/native_dispatch.py",
+      "git_blob_sha": "2c0774f7701847ff61d9e4777639981ce530128e",
+      "sha256": "449ff958bf10c14bec95151d3a0e2447f2c2695c82fcbcb0ce148653f28db14d",
+      "bytes": 4343,
+      "modified": false
+    },
+    {
+      "path": "core/orchestration/kelion_brain.py",
+      "source_path": "orchestration/kelion_brain.py",
+      "git_blob_sha": "712bc843077e8dcdaf7a0bc97f3cc89a02b274eb",
+      "sha256": "15ce041c9e4aa835f9a6e9032e46c7a86e27edfe24a22a1a01ed955d45cdecc6",
+      "bytes": 4219,
+      "modified": false
+    },
+    {
+      "path": "core/orchestration/native_roles.json",
+      "source_path": "orchestration/native_roles.json",
+      "git_blob_sha": "a519dc03474f2290ff6df375b88d45b6976593d0",
+      "sha256": "c9c5ec7f3f3f4f816b0e0620f2dc115740ee068a97e1806cc9c8c355b3e53109",
+      "bytes": 52240,
+      "modified": false
+    },
+    {
+      "path": "core/skills/kelion-cost-guardian/scripts/route.py",
+      "source_path": "skills/kelion-cost-guardian/scripts/route.py",
+      "git_blob_sha": "1fb709e461e671d869b65acd5fbedf8caa5a7842",
+      "sha256": "5e8a729dbc0bf6c4254a6d7879a6469b3075df732b4bc9c780b2c85a28cabb7b",
+      "bytes": 10921,
+      "modified": false
+    }
+  ],
+  "notes": "Exact minimal native controller dependency closure. Role messages included in native_roles.json; no global configs, auth, cloud skills or plugins copied."
+}

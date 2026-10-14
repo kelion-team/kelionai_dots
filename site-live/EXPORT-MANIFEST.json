@@ -1,0 +1,155 @@
+{
+  "host": "kelion-nou",
+  "captured_utc": "2026-10-14T05:47:34.758376+00:00",
+  "active_release": "562af2586079d05ce1abbc2d9f65128a3fda32fba9bdbfd00a9200698b5768fc",
+  "files": [
+    {
+      "path": "ingress/service/.gitignore",
+      "bytes": 78,
+      "sha256": "cca9fda03be660c4093903a6aff70474b588d793bd4ec4a3032e653d2ff8505f"
+    },
+    {
+      "path": "ingress/service/PROVENANCE.json",
+      "bytes": 1642,
+      "sha256": "24e581f1fc0c859b112e53ddf849ec1ef9fbc996ace8e3ac7aef35607e663d5e"
+    },
+    {
+      "path": "ingress/service/README.md",
+      "bytes": 28551,
+      "sha256": "c3f841ce04afaefbdd01246ba778f9e6888cc19ca440212862bf9a7c71ecd6d1"
+    },
+    {
+      "path": "ingress/service/appserver_transport.py",
+      "bytes": 10131,
+      "sha256": "17041b125124c9c3539b9d43037327e391b926572f8eee1107372c303d2d7dc7"
+    },
+    {
+      "path": "ingress/service/core/orchestration/kelion_brain.py",
+      "bytes": 4219,
+      "sha256": "15ce041c9e4aa835f9a6e9032e46c7a86e27edfe24a22a1a01ed955d45cdecc6"
+    },
+    {
+      "path": "ingress/service/core/orchestration/native_dispatch.py",
+      "bytes": 4343,
+      "sha256": "449ff958bf10c14bec95151d3a0e2447f2c2695c82fcbcb0ce148653f28db14d"
+    },
+    {
+      "path": "ingress/service/core/orchestration/native_roles.json",
+      "bytes": 52240,
+      "sha256": "c9c5ec7f3f3f4f816b0e0620f2dc115740ee068a97e1806cc9c8c355b3e53109"
+    },
+    {
+      "path": "ingress/service/core/skills/kelion-cost-guardian/scripts/route.py",
+      "bytes": 10921,
+      "sha256": "5e8a729dbc0bf6c4254a6d7879a6469b3075df732b4bc9c780b2c85a28cabb7b"
+    },
+    {
+      "path": "ingress/service/diagnose_thread_start.py",
+      "bytes": 3190,
+      "sha256": "ea83e9f61f7fce2583b2c2d3d5d1d9035673d09e73602b6ab23c0df9f58c4c69"
+    },
+    {
+      "path": "ingress/service/integrations/codex-mcp.example.toml",
+      "bytes": 604,
+      "sha256": "8d60564d0fbc614abddd0124c73688453abf934aaaaa9701d9ca9639b42377f8"
+    },
+    {
+      "path": "ingress/service/integrations/connection-review.json",
+      "bytes": 1327,
+      "sha256": "13b4f1459bcf7c8226072e5f9b5c25d6e63d2c14bd16a082323b30f61987e643"
+    },
+    {
+      "path": "ingress/service/local.py",
+      "bytes": 2732,
+      "sha256": "425a81f5ad316c726836a7909c2e90a16a6b882bc6cceb8a0d088a6abe3647ae"
+    },
+    {
+      "path": "ingress/service/local_runner.py",
+      "bytes": 22929,
+      "sha256": "0aaf12346bafa66323df2f6abdecdaa342a5c080c22065270ff2327874b9e399"
+    },
+    {
+      "path": "ingress/service/manual_resume.py",
+      "bytes": 14211,
+      "sha256": "818ee73175e596a559eabc25c4fecbbb8aac36432fed467fc6da1a85a376076e"
+    },
+    {
+      "path": "ingress/service/mcp_protocol.py",
+      "bytes": 5059,
+      "sha256": "f37cfff229c5fbf291a2daf3d73424b78ac766dcf288426d15ece45d09f885c7"
+    },
+    {
+      "path": "ingress/service/mcp_stdio.py",
+      "bytes": 1699,
+      "sha256": "d0f7656277183db80be911c2271bb102fdaa6b2c92bc13b512423a2330309208"
+    },
+    {
+      "path": "ingress/service/native_success_guard.py",
+      "bytes": 9724,
+      "sha256": "ac7143af0657ae668726881e0d7a4cbdcd05f2dc096a0227cde71ca01f0420c6"
+    },
+    {
+      "path": "ingress/service/probe_runtime.py",
+      "bytes": 9369,
+      "sha256": "6daccabc7c13ddd79164c63ac83ef73fada71043ab4541978e22d66e7a571a88"
+    },
+    {
+      "path": "ingress/service/recovery_store.py",
+      "bytes": 12837,
+      "sha256": "2d7618cf4d967be091cbd9c0a1bf0022f29ea3a73807ff79fe4aa0f08f0e6870"
+    },
+    {
+      "path": "ingress/service/runtime.appserver.unverified.json",
+      "bytes": 408,
+      "sha256": "561f4711749862471b6f3e6474995a1db39ef04425ce64f343ecb0d5216fc91a"
+    },
+    {
+      "path": "ingress/service/runtime.unverified.json",
+      "bytes": 204,
+      "sha256": "4a9497e356c6edcb31b1add79b5b144378b779a25ac06171a3be559ec030104b"
+    },
+    {
+      "path": "ingress/service/server.py",
+      "bytes": 15183,
+      "sha256": "1b4746c67779b8303dc3c2a9880e9669887ba4af073bd8c90307c70650e419cc"
+    },
+    {
+      "path": "ingress/service/siwc/magentic_store.py",
+      "bytes": 12319,
+      "sha256": "e530ff82a4b248b9b222e9a16707c28fb316498957488b10591ddb39ad3c378f"
+    },
+    {
+      "path": "ingress/service/store.py",
+      "bytes": 25979,
+      "sha256": "cb17f8108fdc22fecc3bafdcfb512bb522f6d3db5ca1e6eabdb42e6f55903372"
+    },
+    {
+      "path": "web/app.js",
+      "bytes": 16064,
+      "sha256": "3433310360522390d1dfa51b607115e852a1b3b6c7a7135d79c920dedb4c52b9"
+    },
+    {
+      "path": "web/auth.mjs",
+      "bytes": 3436,
+      "sha256": "f2671c13ae822298e8e38ec535342182a869dc950c330929533fda1015a2c20b"
+    },
+    {
+      "path": "web/index.html",
+      "bytes": 2181,
+      "sha256": "d8ba171eea67b2f10599755a3e6a8315dca7719ba7ae1e81edd22a8e636c68f7"
+    },
+    {
+      "path": "web/server.mjs",
+      "bytes": 12946,
+      "sha256": "11d06feb8fa150ce7a1938c9c13bead40528295486ca4e120aed7227fe6d100f"
+    },
+    {
+      "path": "web/style.css",
+      "bytes": 1435,
+      "sha256": "b1026b79ad4f59f07a2f50b888f75a47493971779b6c232f260fcab54fffd259"
+    }
+  ],
+  "excluded": [],
+  "scope": "Active ingress code plus web-v1. No env files, secrets, databases, user data, sessions, raw journal, credentials or network diagnostics copied. No service changed. Pattern scan is not a proof of absence of all secrets.",
+  "project_status": "IN_PROGRESS"
+}

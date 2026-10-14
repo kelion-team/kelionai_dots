@@ -1,9 +1,9 @@
 [Unit]
-Description=Kelion: verifică la 5 minute dacă există cod web nou în main
+Description=Kelion: plasă de siguranță - verifică o dată pe oră dacă un webhook a fost pierdut
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=5min
+OnUnitActiveSec=1h
 Persistent=true
 
 [Install]

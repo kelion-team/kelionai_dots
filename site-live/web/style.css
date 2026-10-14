@@ -74,11 +74,6 @@ body:has(#workspace:not([hidden])) #login{display:none}
 .stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
 .stage .kelion{width:110px;height:118px}
 .stage .kstate{text-align:center}
-.screen-box{flex:1;min-height:0;width:100%;overflow:auto;background:#0b131b;border:1px solid #263848;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.screen-box .monitor{max-height:none;min-height:0;border:0;padding:0;background:none;overflow:visible}
-.screen-box pre{flex:none;background:none;padding:0;font:15px/1.55 system-ui,sans-serif;color:#e9eef5;overflow:visible}
-.screen-box pre:empty{display:none}
-.asked{align-self:flex-end;max-width:85%;background:#22313f;border-radius:12px 12px 2px 12px;padding:6px 10px;font-size:14px;overflow-wrap:anywhere}
 .bar{display:flex;align-items:flex-end;gap:6px}
 .bar textarea{flex:1;min-height:44px}
 .bar button{height:44px;min-width:44px;padding:0 12px;font-size:18px}
@@ -87,3 +82,11 @@ button.end{background:#d9534f;color:#fff}
 .list{position:absolute;z-index:5;inset:0 auto 0 0;width:min(340px,92%);box-shadow:0 10px 40px #0009}
 .list .panel-head{gap:6px}.list .panel-head h2{flex:1}
 @media (max-width:700px){.stage .kelion{width:70px;height:76px}.bar button{min-width:40px;padding:0 9px}}
+.stage>.monitor{width:100%;max-height:22dvh;min-height:3.4em;flex:none}
+.conv{flex:1;min-height:0;width:100%;overflow:auto;background:#0e1721;border:1px solid #263848;border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.conv .hint{color:#7f91a3;font-size:13px;margin:auto 0 0}
+.msg{max-width:85%;padding:7px 11px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
+.msg.me{align-self:flex-end;background:#2b4052;border-bottom-right-radius:3px}
+.msg.ai{align-self:flex-start;background:#17232f;border:1px solid #304354;border-bottom-left-radius:3px}
+.msg.wait{color:#ffd479;font-style:italic}.msg.bad{color:#ff9aa8}
+@media (max-width:700px){.stage>.monitor{max-height:16dvh}}

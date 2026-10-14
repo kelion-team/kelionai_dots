@@ -166,12 +166,27 @@ function bubble(cls, text) {
   const p = document.createElement('p'); p.className = 'msg ' + cls; p.textContent = text;
   $('conv').querySelector('.hint')?.remove(); $('conv').append(p); $('conv').scrollTop = $('conv').scrollHeight; return p;
 }
+// Monitorul arată rezultatele lucrului (blocuri de cod, linkuri); chatul primește textul.
+function splitOutput(output) {
+  const code = [], links = [];
+  const text = output.replace(/```([\w+-]*)\n?([\s\S]*?)```/g, (_, lang, body) => { code.push({ lang, body }); return '[' + (lang || 'cod') + ' pe monitor]'; });
+  for (const m of output.matchAll(/https?:\/\/[^\s)<>"']+/g)) if (!links.includes(m[0])) links.push(m[0]);
+  return { text: text.trim(), code, links };
+}
+function renderResults(result, parts) {
+  const box = $('results'); box.replaceChildren();
+  if (!parts || (!parts.code.length && !parts.links.length)) return;
+  const h = document.createElement('h4'); h.textContent = 'Rezultat · ' + result.task_id.slice(0, 12); box.append(h);
+  for (const c of parts.code) { const pre = document.createElement('pre'); pre.textContent = c.body; if (c.lang) pre.dataset.lang = c.lang; box.append(pre); }
+  for (const url of parts.links.slice(0, 10)) { const a = document.createElement('a'); a.href = url; a.textContent = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; box.append(a); }
+}
 function showResult(result) {
   renderMonitor(result);
+  if (result.output) renderResults(result, splitOutput(result.output));
   if (answered.has(result.task_id)) return;
-  if (result.output) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai', result.output); }
+  if (result.output) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai', splitOutput(result.output).text || 'Rezultatul e pe monitor.'); }
   else if (TERMINAL.includes(result.state)) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai bad', 'Nu am putut răspunde: ' + (result.block_reason || result.failure || result.state)); }
-  else if (!document.getElementById('wait-' + result.task_id)) { bubble('ai wait', 'Lucrez…').id = 'wait-' + result.task_id; }
+  else if (!document.getElementById('wait-' + result.task_id)) { bubble('ai wait', 'Gândire…').id = 'wait-' + result.task_id; }
 }
 function asked(text) { if (text) bubble('me', text); }
 async function tasks() {
@@ -197,7 +212,7 @@ async function loadConversation() {
 }
 async function signedIn(user) {
   csrf = user.csrf; $('account').textContent = user.email; $('workspace').hidden = false;
-  $('signin').hidden = true; $('google').replaceChildren(); status('Conectat.'); await tasks(); await loadConversation().catch(e => status(e.message));
+  $('signin').hidden = true; $('google').replaceChildren(); status(''); await tasks(); await loadConversation().catch(e => status(e.message));
 }
 async function login() {
   $('signin').disabled = true;
@@ -219,7 +234,15 @@ async function login() {
 }
 $('signin').onclick = login;
 $('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
-$('history-open').onclick = () => { $('history').hidden = false; tasks().catch(e => status(e.message)); };
+$('history-open').onclick = () => { closeMenu(); $('settings').hidden = true; $('history').hidden = false; tasks().catch(e => status(e.message)); };
+const closeMenu = () => { $('menu').hidden = true; $('menu-open').setAttribute('aria-expanded', 'false'); };
+$('menu-open').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('menu-open').setAttribute('aria-expanded', String(open)); };
+$('plus').onclick = () => $('menu-open').click();
+document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #menu-open, #plus')) closeMenu(); });
+$('settings-open').onclick = async () => { closeMenu(); $('history').hidden = true; $('settings').hidden = false;
+  try { const c = await api('/api/config'); $('server-state').textContent = (c.ready ? 'Pagina web: configurată.' : 'Pagina web: lipsesc ' + c.missing.join(', ') + '.')
+    + ' Starea ultimei cereri apare pe monitor.'; } catch (e) { $('server-state').textContent = 'Serverul nu răspunde: ' + e.message; } };
+$('settings-close').onclick = () => { $('settings').hidden = true; };
 $('history-close').onclick = () => { $('history').hidden = true; };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
 $('task').addEventListener('input', () => { voiceInput = false; });
@@ -243,14 +266,15 @@ $('chat').onsubmit = async event => {
   finally { $('send').disabled = false; await tasks().catch(e => status(e.message)); }
 };
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const KELION_LABELS = { idle: 'Pregătit', starting: 'Pornesc microfonul…', listening: 'Te ascult…', submitting: 'Am înțeles, trimit…', waiting: 'Mă gândesc…', speaking: 'Vorbesc…', error: 'Ceva nu a mers' };
+const KELION_LABELS = { idle: 'Pregătit', starting: 'Pornesc microfonul…', listening: 'Te ascult…', submitting: 'Am înțeles, trimit…', waiting: 'Gândire', speaking: 'Vorbesc…', error: 'Ceva nu a mers' };
+const CALL_TITLES = { starting: 'Se apelează…', listening: 'Te ascult…', submitting: 'Trimit…', waiting: 'Gândire…', speaking: 'Kelion vorbește', error: 'Apel oprit' };
 function kelionState(state) { const k = document.getElementById('kelion'); if (k) k.dataset.state = state in KELION_LABELS ? state : 'idle'; const l = document.getElementById('kelion-state'); if (l) l.textContent = KELION_LABELS[state] || KELION_LABELS.idle; }
 const GENDER_KEY = 'kelion-voice-gender';
 try { const saved = localStorage.getItem(GENDER_KEY); if (saved === 'masculin' || saved === 'feminin') $('voice-gender').value = saved; } catch {}
 $('voice-gender').onchange = () => { try { localStorage.setItem(GENDER_KEY, $('voice-gender').value); } catch {} };
 const conversation = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
-  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active; $('call-end').hidden = !active; $('call-interrupt').hidden = !active;
-    $('call-interrupt').disabled = state !== 'speaking'; $('dictate').disabled = active; $('send').disabled = active; $('task').disabled = active; },
+  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active; $('call-card').hidden = !active; $('call-title').textContent = CALL_TITLES[state] || 'Apel cu Kelion';
+    $('call-interrupt').disabled = state !== 'speaking'; $('send').disabled = active; $('task').disabled = active; },
   onTranscript: text => { $('voice-transcript').textContent = ''; asked(text); },
   onResult: result => { showResult(result); if (result.state === 'result_received') tasks().catch(() => {}); },
 });
@@ -262,15 +286,7 @@ $('call-end').onclick = () => conversation.stop();
 $('call-interrupt').onclick = () => conversation.interrupt();
 window.addEventListener('pagehide', () => { conversation.stop(); dictation?.abort(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && conversation.active) conversation.stop('Conversația s-a oprit deoarece pagina nu mai este vizibilă.'); });
-if (Recognition) {
-  $('dictate').hidden = false; $('voice-note').textContent = 'Dictare prin Web Speech în browser; poate folosi serviciul furnizorului browserului. Transcrierea se trimite doar după apăsarea Trimite.';
-  $('dictate').onclick = () => {
-    const recognition = new Recognition(); dictation = recognition; recognition.lang = 'ro-RO'; recognition.interimResults = false;
-    recognition.onresult = event => { $('task').value += ($('task').value ? '\n' : '') + event.results[0][0].transcript; voiceInput = true; };
-    recognition.onerror = () => status('Dictarea nu a reușit sau permisiunea microfonului a fost refuzată.');
-    try { recognition.start(); } catch { status('Dictarea nu este disponibilă acum.'); }
-  };
-} else $('voice-note').textContent = 'Dictarea Web Speech nu este disponibilă în acest browser.';
+
 (async () => {
   try {
     const config = await api('/api/config');

@@ -1,14 +1,35 @@
 <!doctype html>
 <html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
 <body><main>
-<header><span class="mark">K</span><div class="brand"><h1>KelionAI</h1><p>Conversația ta cu Kelion</p></div>
-<div class="account" id="workspace-account"><span id="account"></span><button id="logout" class="ghost">Ieșire</button></div></header>
+<header class="top"><span class="brand">KelionAI</span><span class="spacer"></span>
+  <div class="account" id="workspace-account"><button id="call-start" type="button" class="iconbtn" disabled title="Apel vocal live" aria-label="Apel vocal live">&#128222;</button>
+    <button id="menu-open" type="button" class="iconbtn" title="Meniu" aria-label="Meniu" aria-expanded="false">&#8943;</button>
+    <div id="menu" class="menu" hidden><span id="account" class="menu-email"></span>
+      <button id="history-open" type="button">Istoric</button><button id="settings-open" type="button">Setări</button>
+      <label class="menu-row" for="voice-gender">Voce <select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select></label>
+      <button id="logout" type="button">Ieșire</button></div></div></header>
 <p id="status" role="status">Se verifică configurația…</p>
 <div id="login"><div id="google"></div><button id="signin" hidden>Conectare Google</button></div>
 <section id="workspace" hidden>
-  <aside class="panel list" id="history" hidden><div class="panel-head"><h2>Cererile tale</h2><button id="refresh" class="ghost small">Actualizează</button><button id="history-close" class="ghost small" aria-label="Închide istoricul">✕</button></div><div id="tasks"></div></aside>
-  <section class="stage" aria-labelledby="answer-title">
-    <div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
+  <aside class="panel list" id="history" hidden><div class="panel-head"><h2>Istoric</h2><button id="refresh" class="ghost small">Actualizează</button><button id="history-close" class="ghost small" aria-label="Închide istoricul">✕</button></div><div id="tasks"></div></aside>
+  <aside class="panel list" id="settings" hidden><div class="panel-head"><h2>Setări</h2><button id="settings-close" class="ghost small" aria-label="Închide setările">✕</button></div>
+    <div class="settings-body">
+      <p class="note">Kelion folosește pe serverul Linux contul tău ChatGPT (prin Codex). Setările acelui cont sunt cele de mai jos și se deschid în ChatGPT, ca în pagina normală.</p>
+      <h3>Contul ChatGPT</h3>
+      <a href="https://chatgpt.com/#settings/General" target="_blank" rel="noopener noreferrer">General</a>
+      <a href="https://chatgpt.com/#settings/Personalization" target="_blank" rel="noopener noreferrer">Personalizare și memorie</a>
+      <a href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener noreferrer">Pluginuri și conectori</a>
+      <a href="https://chatgpt.com/plugins" target="_blank" rel="noopener noreferrer">Catalog pluginuri (instalare)</a>
+      <a href="https://chatgpt.com/#settings/DataControls" target="_blank" rel="noopener noreferrer">Controlul datelor</a>
+      <a href="https://chatgpt.com/#settings/Security" target="_blank" rel="noopener noreferrer">Securitate și autentificare</a>
+      <h3>Workspace, Codex și Kelion</h3>
+      <a href="https://chatgpt.com/admin" target="_blank" rel="noopener noreferrer">Administrare workspace (locuri, credite, tokenuri)</a>
+      <a href="https://chatgpt.com/codex" target="_blank" rel="noopener noreferrer">Codex</a>
+      <a href="https://chatgpt.com/dots/home" target="_blank" rel="noopener noreferrer">Chatul Kelion</a>
+      <h3>Server Kelion</h3>
+      <p id="server-state" class="note">Se verifică…</p>
+    </div></aside>
+  <div class="persona"><div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
 <g class="body-g">
 <circle cx="34" cy="40" r="20" class="c"/><circle cx="60" cy="28" r="24" class="c"/><circle cx="86" cy="40" r="20" class="c"/><circle cx="60" cy="48" r="30" class="c"/>
 <rect x="30" y="34" width="60" height="38" rx="10" class="screen"/>
@@ -17,20 +38,20 @@
 <rect x="30" y="84" width="10" height="16" rx="5" class="c arm l"/><rect x="80" y="84" width="10" height="16" rx="5" class="c arm r"/>
 <rect x="48" y="106" width="9" height="12" rx="4" class="c"/><rect x="63" y="106" width="9" height="12" rx="4" class="c"/>
 </g></svg><span class="ring"></span></div>
-    <h2 id="answer-title" class="sr">Kelion</h2><p id="kelion-state" class="kstate">Pregătit</p>
-    <ol id="monitor" class="monitor" aria-label="Monitor: ce lucrează Kelion acum"><li class="idle">Monitor: aici apare, în timp real, ce lucrează Kelion.</li></ol>
-    <div id="conv" class="conv" aria-label="Conversația scrisă"><p class="hint">Conversația ta cu Kelion apare aici.</p></div>
+    <div class="pill"><strong>&#129504; kelion</strong><span id="kelion-state" class="kstate">Pregătit</span></div></div>
+  <section id="screen" class="screen" aria-label="Monitor: pașii și rezultatele lucrului">
+    <div id="call-card" class="call-card" hidden><p id="call-title" class="call-title">Se apelează…</p>
+      <p class="voice"><span id="call-status" role="status"></span> <span id="voice-transcript" aria-live="polite"></span></p>
+      <div class="call-actions"><span><button id="call-interrupt" type="button" class="round" disabled aria-label="Întrerupe">&#10074;&#10074;</button><small>Întrerupe</small></span>
+        <span><button id="call-end" type="button" class="round end" disabled aria-label="Încheie">&#9742;</button><small>Încheie</small></span></div></div>
+    <ol id="monitor" class="monitor"><li class="idle">Monitor: aici apar pașii și rezultatele lucrului lui Kelion.</li></ol>
+    <div id="results" class="results"></div>
   </section>
-  <form id="chat" class="composer"><label for="task" class="sr">Cu ce te poate ajuta Kelion?</label>
-    <div class="bar"><textarea id="task" maxlength="100000" rows="1" required placeholder="Scrie-i lui Kelion…"></textarea>
-      <button id="dictate" type="button" class="ghost icon" hidden title="Dictare" aria-label="Dictare">✎🎤</button>
-      <button id="call-start" type="button" class="call" disabled title="Conversație vocală live" aria-label="Conversație vocală live">🎙</button>
-      <button id="send" type="submit" title="Trimite" aria-label="Trimite">➤</button></div>
-    <div class="actions"><button id="history-open" type="button" class="ghost small">Istoric</button><span class="sep"></span>
-      <label class="gender" for="voice-gender">Voce</label><select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select>
-      <button id="call-interrupt" type="button" class="ghost small" disabled hidden>Întrerupe</button><button id="call-end" type="button" class="end small" disabled hidden>Încheie</button></div>
-    <p class="voice"><span id="call-status" role="status"></span> <span id="voice-transcript" aria-live="polite"></span></p>
-    <p id="voice-note" class="sr"></p>
+  <div id="conv" class="conv" aria-label="Conversația scrisă"></div>
+  <form id="chat" class="composer"><label for="task" class="sr">Mesaj pentru Kelion</label>
+    <button id="plus" type="button" class="iconbtn plus" title="Istoric și setări" aria-label="Istoric și setări">+</button>
+    <textarea id="task" maxlength="100000" rows="1" required placeholder="Trimite un mesaj"></textarea>
+    <button id="send" type="submit" class="sendbtn" title="Trimite" aria-label="Trimite">&#8593;</button>
   </form>
 </section>
 </main></body></html>

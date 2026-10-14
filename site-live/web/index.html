@@ -2,8 +2,7 @@
 <html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
 <body><main>
 <header class="top"><span class="brand">KelionAI</span><span class="spacer"></span>
-  <div class="account" id="workspace-account"><button id="call-start" type="button" class="iconbtn" disabled title="Apel vocal live" aria-label="Apel vocal live">&#128222;</button>
-    <button id="menu-open" type="button" class="iconbtn" title="Meniu" aria-label="Meniu" aria-expanded="false">&#8943;</button>
+  <div class="account" id="workspace-account"><button id="menu-open" type="button" class="iconbtn" title="Meniu" aria-label="Meniu" aria-expanded="false">&#8943;</button>
     <div id="menu" class="menu" hidden><span id="account" class="menu-email"></span>
       <button id="history-open" type="button">Istoric</button><button id="settings-open" type="button">Setări</button>
       <label class="menu-row" for="voice-gender">Voce <select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select></label>
@@ -56,7 +55,8 @@
   <form id="chat" class="composer"><label for="task" class="sr">Mesaj pentru Kelion</label>
     <button id="plus" type="button" class="iconbtn plus" title="Istoric și setări" aria-label="Istoric și setări">+</button>
     <textarea id="task" maxlength="100000" rows="1" required placeholder="Trimite un mesaj"></textarea>
-    <button id="translate" type="button" class="iconbtn" hidden title="Ascultă și traduce (doar scris)" aria-label="Ascultă și traduce">&#127760;</button>
+    <span class="tbtn" id="translate-wrap" hidden><button id="translate" type="button" class="iconbtn tkey" title="T: ascultă și traduce, doar scris (oprește chatul vocal)" aria-label="Traducere" aria-pressed="false">T</button><i class="led" aria-hidden="true"></i></span>
+    <button id="call-start" type="button" class="iconbtn duplex" disabled title="Chat vocal full duplex" aria-label="Chat vocal full duplex">&#127897;</button>
     <button id="send" type="submit" class="sendbtn" title="Trimite" aria-label="Trimite">&#8593;</button>
   </form>
 </section>

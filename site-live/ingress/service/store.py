@@ -82,7 +82,9 @@ class Store:
             out[key] = json.loads(out[key]) if out[key] else None
         provenance = None
         if out['output'] is not None:
-            provenance = ('official_appserver_readback_local_runner' if out['receipt'].get('adapter') == 'codex-app-server'
+            adapter = out['receipt'].get('adapter')
+            provenance = ('official_appserver_readback_local_runner' if adapter == 'codex-app-server'
+                          else 'kelion_magistrala_backend_output' if adapter == 'magistrala'
                           else 'trusted_native_parent_attestation')
         out.update(result_retrieved=out['output'] is not None, verified=False, output_provenance=provenance)
         return out
@@ -109,6 +111,51 @@ class Store:
             now = time.time()
             db.execute('INSERT INTO tasks (task_id,input_hash,payload,state,created,updated) VALUES (?,?,?,?,?,?)',
                        (task_id, fingerprint, canonical({'request':request,'assessment':None}), 'awaiting_kelion', now, now))
+            return self._view(db.execute('SELECT * FROM tasks WHERE task_id=?', (task_id,)).fetchone())
+
+    # --- Magistrala Kelion: preluare și finalizare pentru worker-ul magistralei ---
+    def magistrala_take(self, worker_id):
+        """Preia atomic cea mai veche cerere awaiting_kelion. Returnează cererea și un token de preluare."""
+        identity(worker_id, 'worker_id')
+        token = secrets.token_urlsafe(32)
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute("SELECT * FROM tasks WHERE state='awaiting_kelion' ORDER BY created,task_id LIMIT 1").fetchone()
+            if row is None:
+                return None
+            now = time.time()
+            db.execute("UPDATE tasks SET state='running_magistrala',worker_id=?,lease_hash=?,lease_expires=?,updated=? WHERE task_id=?",
+                       (worker_id, digest(token), now + self.lease_seconds, now, row['task_id']))
+            out = self._view(db.execute('SELECT * FROM tasks WHERE task_id=?', (row['task_id'],)).fetchone())
+            out['take_token'] = token
+            return out
+
+    def magistrala_finish(self, task_id, take_token, status, output, hops):
+        """Scrie rezultatul magistralei: result_received cu output real, sau blocked cu motiv."""
+        identity(task_id, 'task_id')
+        if status not in ('completed', 'blocked') or not isinstance(hops, list) or not 1 <= len(hops) <= 16:
+            raise ValueError('Magistrala status and hop record required')
+        if status == 'completed' and (not isinstance(output, str) or not output.strip() or len(output.encode('utf-8')) > 1048576):
+            raise ValueError('Actual nonempty output required (maximum 1 MiB)')
+        receipt = {'adapter': 'magistrala', 'status': status, 'hops': hops}
+        with self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute('SELECT * FROM tasks WHERE task_id=?', (task_id,)).fetchone()
+            if row is None:
+                raise KeyError('Unknown task_id')
+            if row['state'] != 'running_magistrala':
+                raise Conflict('Task is not running on the magistrala')
+            if not isinstance(take_token, str) or not row['lease_hash'] or not hmac.compare_digest(row['lease_hash'], digest(take_token)):
+                raise Conflict('Take token mismatch')
+            now = time.time()
+            if status == 'completed':
+                db.execute("UPDATE tasks SET state='result_received',receipt=?,output=?,output_hash=?,lease_hash=NULL,updated=? WHERE task_id=?",
+                           (canonical(receipt), output, digest(output), now, task_id))
+            else:
+                last = hops[-1] if isinstance(hops[-1], dict) else {}
+                reason = 'Magistrala: nicio suprafață nu a produs un rezultat (ultima: %s, %s)' % (last.get('surface'), last.get('status'))
+                db.execute("UPDATE tasks SET state='blocked',receipt=?,block_reason=?,lease_hash=NULL,updated=? WHERE task_id=?",
+                           (canonical(receipt), reason[:500], now, task_id))
             return self._view(db.execute('SELECT * FROM tasks WHERE task_id=?', (task_id,)).fetchone())
 
     def awaiting(self):

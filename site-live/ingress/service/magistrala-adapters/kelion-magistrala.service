@@ -1,0 +1,14 @@
+[Unit]
+Description=Kelion: magistrala (preia cererile kelionai.app, rutează pe Chat/Codex/Work/Magentic, escaladează)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Același fișier de mediu ca serviciul ingress (conține KELION_WORKER_TOKEN; nu se pune în repo).
+EnvironmentFile=/etc/kelion-magistrala/worker.env
+ExecStart=/usr/bin/python3 /opt/kelion-app/ingress-v2/current/service/magistrala_worker.py --config /etc/kelion-magistrala/config.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

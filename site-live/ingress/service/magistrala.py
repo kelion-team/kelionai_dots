@@ -101,7 +101,11 @@ def run(task_id, task, backends, record=lambda entry: None, progress=lambda entr
         _, _, clean = profiles.pick(task)
         task = profiles.compose(plan["profile"], clean, task_id)
     hops = []
+    magentic_fallback_used = False
     for _ in range(MAX_HOPS):
+        # A failed Magentic route may fall back once; never loop back into it.
+        if magentic_fallback_used and plan["surface"] == "magentic":
+            break
         backend = backends.get(plan["surface"])
         progress({"task_id": task_id, "surface": plan["surface"], "effort": plan["effort"],
                   "reason": plan["reason"], "status": "running", "profile": plan.get("profile")})
@@ -124,7 +128,14 @@ def run(task_id, task, backends, record=lambda entry: None, progress=lambda entr
         record(hop)
         if outcome.get("status") == "completed" and isinstance(outcome.get("output"), str) and outcome["output"].strip():
             return {"status": "completed", "output": outcome["output"], "final": plan, "hops": hops}
-        plan = escalate(plan, outcome)
+        if (plan["surface"] == "magentic" and outcome.get("status") in ("failed", "unavailable")
+                and "codex" in backends and not magentic_fallback_used):
+            magentic_fallback_used = True
+            plan = {**plan, "surface": "codex",
+                    "effort": EFFORTS[min(plan["difficulty"] - 1, EFFORTS.index(MAX_EFFORT["codex"]))],
+                    "reason": "Magentic indisponibil; fallback Codex unic"}
+        else:
+            plan = escalate(plan, outcome)
         if plan is None:
             break
     return {"status": "blocked", "output": None, "hops": hops,

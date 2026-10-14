@@ -18,6 +18,14 @@
 - **Transparență:** când o etapă depinde efectiv de un control rezervat utilizatorului/administratorului, indică precis controlul și de ce e necesar; nu pretinde nici că l-ai executat, nici că poți continua independent după ce accesul chiar lipsește. Starea rămâne ÎN LUCRU, nu „gata”.
 
 
+## PLAFON DE PLATĂ — bătut în cuie (stabilit de Adrian, 14 octombrie 2026)
+
+- **Plafon total: 100 GBP.** Nicio plată, credit, abonament sau reîncărcare care ar duce totalul peste 100 GBP. Fără excepții, fără „temporar”.
+- **Tranșe: maximum 10 GBP per plată / reîncărcare.** Nicio tranșă mai mare.
+- Orice plată se face doar de Adrian, cu aprobarea lui explicită pentru fiecare tranșă; agenții nu introduc date de plată și nu cumpără credite.
+- Reîncărcarea automată nu se setează peste 10 GBP per tranșă și nu poate depăși plafonul total.
+- Înainte de orice consum facturabil, se verifică totalul plătit până atunci; la atingerea plafonului, execuțiile facturabile se opresc și se raportează, nu se continuă.
+
 ## Kelion central cost decision — every DOTS
 
 - Every target DOTS supplies its task-bound difficulty assessment (1..4), reason and risk flags. Kelion is the final model/effort selector, via `orchestration/kelion_brain.py`; a DOTS does not select its own model.

@@ -242,7 +242,44 @@ $('history-open').onclick = () => { closeMenu(); $('history').hidden = false; ta
 // Avatarul (ca în ChatGPT) deschide meniul contului: email, Voce, Limba ta, Ieșire.
 const closeMenu = () => { $('menu').hidden = true; $('avatar').setAttribute('aria-expanded', 'false'); };
 $('avatar').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('avatar').setAttribute('aria-expanded', String(open)); };
-$('plus').onclick = () => $('avatar').click();
+$('plus').onclick = () => { closeMenu(); $('attach').hidden = !$('attach').hidden; };
+document.addEventListener('click', e => { if (!$('attach').hidden && !e.target.closest('#attach, #plus')) $('attach').hidden = true; });
+// GPS: locația se pune în mesaj, tu decizi dacă o trimiți.
+$('geo').onclick = () => {
+  $('attach').hidden = true;
+  if (!navigator.geolocation) { status('Browserul nu oferă locație.'); return; }
+  status('Cer locația (permite accesul în browser)…');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: la, longitude: lo, accuracy } = pos.coords;
+    const line = '📍 Locația mea: ' + la.toFixed(5) + ', ' + lo.toFixed(5) + ' (±' + Math.round(accuracy) + ' m) https://maps.google.com/?q=' + la.toFixed(5) + ',' + lo.toFixed(5);
+    $('task').value = ($('task').value ? $('task').value + '\n' : '') + line; $('task').focus(); status('');
+  }, err => status('Locația nu a fost primită: ' + (err.code === 1 ? 'acces refuzat' : err.message)), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+};
+// Camera față/spate: previzualizare pe monitor, poza rămâne pe monitor.
+const cam = { stream: null, facing: 'user' };
+function camStop() { cam.stream?.getTracks().forEach(t => t.stop()); cam.stream = null; $('cam-video').srcObject = null; $('cam-card').hidden = true; }
+async function camStart(facing) {
+  $('attach').hidden = true; camStop(); cam.facing = facing;
+  if (!navigator.mediaDevices?.getUserMedia) { status('Browserul nu oferă acces la cameră.'); return; }
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false });
+    $('cam-video').srcObject = cam.stream; $('cam-card').hidden = false; status('');
+  } catch (e) { status('Camera nu a pornit: ' + (e.name === 'NotAllowedError' ? 'acces refuzat' : e.message)); }
+}
+$('cam-front').onclick = () => camStart('user');
+$('cam-back').onclick = () => camStart('environment');
+$('cam-flip').onclick = () => camStart(cam.facing === 'user' ? 'environment' : 'user');
+$('cam-close').onclick = camStop;
+$('cam-shot').onclick = () => {
+  const v = $('cam-video'); if (!v.videoWidth) return;
+  const canvas = document.createElement('canvas'); const scale = Math.min(1, 1280 / v.videoWidth);
+  canvas.width = Math.round(v.videoWidth * scale); canvas.height = Math.round(v.videoHeight * scale);
+  canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+  const img = document.createElement('img'); img.src = canvas.toDataURL('image/jpeg', 0.85); img.alt = 'Poză de la cameră';
+  const h = document.createElement('h4'); h.textContent = 'Poză · ' + new Date().toLocaleTimeString();
+  camStop(); $('results').replaceChildren(h, img);
+  status('Poza e pe monitor. Trimiterea pozelor către Kelion se activează după ce serverul primește imagini.');
+};
 document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #avatar, #plus')) closeMenu(); });
 $('history-close').onclick = () => { $('history').hidden = true; };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
@@ -340,7 +377,7 @@ if (Recognition) {
 $('call-start').onclick = () => { following++; if (translator.active) translatorStop(); if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; } dictation?.abort(); conversation.start(); };
 $('call-end').onclick = () => conversation.stop();
 $('call-interrupt').onclick = () => conversation.interrupt();
-window.addEventListener('pagehide', () => { translatorStop(); conversation.stop(); dictation?.abort(); });
+window.addEventListener('pagehide', () => { camStop(); translatorStop(); conversation.stop(); dictation?.abort(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && conversation.active) conversation.stop('Conversația s-a oprit deoarece pagina nu mai este vizibilă.'); });
 
 (async () => {

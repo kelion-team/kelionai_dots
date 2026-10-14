@@ -91,6 +91,7 @@ export class VoiceConversation {
       if (!this.current(generation)) return;
       if (!/^web-[a-f0-9]{32}$/.test(result.task_id)) throw new Error('API-ul nu a returnat un identificator valid de cerere.');
       this.taskId = result.task_id; const taskId = this.taskId, deadline = Date.now() + this.waitMs;
+      try { const ack = new this.Utterance('Mă gândesc.'); ack.lang = 'ro-RO'; this.synthesis.speak(ack); } catch {}
       while (this.current(generation)) {
         if (result.task_id !== taskId) throw new Error('Răspunsul API nu corespunde cererii vocale.');
         this.onResult(result);
@@ -198,6 +199,9 @@ export class ServerVoice {
       const text = (await this.stt(blob)).trim(); if (!this.active) return;
       if (!text) { this.notify('listening', 'Nu am înțeles; te ascult.'); return; }
       this.onTranscript(text); this.notify('waiting', 'Kelion lucrează pe canalul ales…');
+      // Fără tăcere: o confirmare scurtă imediat, până vine răspunsul (vorbitul o întrerupe ca pe orice răspuns).
+      if (!this.ack) this.ack = this.tts('Mă gândesc.').catch(() => null);
+      this.ack.then(b => { if (b && this.active && this.state === 'waiting' && !this.playing) this.playing = this.play(b, () => { this.playing = null; }); });
       let result = await this.request('/api/tasks', { task: text, input_mode: 'voice_transcript' });
       const id = result.task_id, deadline = Date.now() + this.waitMs;
       while (this.active) {

@@ -21,13 +21,10 @@ kelionai.app ─► ingress (awaiting_kelion) ─► magistrala_worker (long-pol
 - **Fără succes fals**: un răspuns gol nu e succes; un backend căzut sau neconfigurat escaladează; dacă nicio suprafață nu răspunde, cererea devine `blocked` cu motivul.
 - **Fără secrete în repo**: comenzile backend sunt în `/etc/kelion-magistrala/config.json`; tokenul worker-ului vine din fișierul de mediu al serviciului.
 
-## Profilurile DOTS (22) pe magistrală
+## Viteză pentru conversație
 
-- Kelion alege profilul potrivit după cerere (ex. reparație → `dots_reparator`, loguri → `dots_loguri`, interfață → `dots_ux`, cerințe/documente → `dots_cerinte`); conversația simplă nu primește profil.
-- Oricare profil se poate chema explicit: `@reparator …`, `@ux …`, `@dots_cerinte …` (numele, rolul sau numele fără `dots_`).
-- Cererea pleacă spre backend cu instrucțiunile profilului (faza `work`); profilurile de cod merg pe suprafața `codex`.
-- Monitorul și istoricul (`receipt.hops[].profile`) arată profilul care a lucrat.
-- Registrul: `orchestration/native_roles.json`, copiat pe server în `/etc/kelion-magistrala/native_roles.json` (`profiles_path` în config). La pornire, worker-ul scrie `"dots_profiles": 22` în jurnal.
+- `"reasoning": "minimal"` pe suprafața `chat` din config trimite la Codex raționament minim, indiferent de nivelul magistralei: răspuns mai rapid și mai ieftin pentru conversație. Lucrul (`codex`) rămâne pe nivelul ales de Kelion.
+- În pagină, după fiecare frază rostită, Kelion confirmă imediat („Mă gândesc.”), apoi vine răspunsul; vorbitul îl întrerupe.
 
 ## Rute clare: ce consumă fiecare cerere
 

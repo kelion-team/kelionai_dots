@@ -33,7 +33,8 @@ def command_backend(spec):
 
     def call(task_id, task, plan):
         env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "CODEX_HOME")}
-        env.update(KELION_SURFACE=plan["surface"], KELION_EFFORT=plan["effort"], KELION_TASK_ID=task_id,
+        # "reasoning" din config (ex. "minimal" la chat) suprascrie efortul trimis la Codex, pentru răspuns rapid.
+        env.update(KELION_SURFACE=plan["surface"], KELION_EFFORT=spec.get("reasoning") or plan["effort"], KELION_TASK_ID=task_id,
                    KELION_MODEL=models.get(plan["effort"], spec.get("model", "")))
         if spec.get("web_search"):
             env["KELION_WEB_SEARCH"] = "1"  # căutare pe internet permisă pentru această suprafață

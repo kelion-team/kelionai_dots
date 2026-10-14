@@ -55,12 +55,14 @@ export class VoiceConversation {
     mic.onstart = () => { if (this.current(generation) && !consumed) this.notify('listening', 'Ascult. Fraza finală va fi trimisă automat.'); };
     mic.onerror = event => {
       if (!this.current(generation) || consumed) return;
+      if (['no-speech', 'aborted'].includes(event.error)) return;  // apel permanent: tăcerea nu închide apelul
       const messages = { 'not-allowed': 'Microfon refuzat. Permite microfonul în browser, apoi apasă Pornește conversația.',
         'service-not-allowed': 'Serviciul de recunoaștere este blocat de browser.', 'audio-capture': 'Microfon indisponibil. Verifică dispozitivul și permisiunea.',
         network: 'Recunoașterea vocală nu are conexiune. Verifică rețeaua și reîncearcă.', 'no-speech': 'Nu am detectat vorbire. Apasă Pornește conversația pentru a relua.' };
       this.fail(messages[event.error] || 'Recunoașterea s-a oprit: ' + event.error + '. Poți relua din buton.');
     };
-    mic.onend = () => { if (this.current(generation) && !consumed) this.fail('Ascultarea s-a oprit fără o frază. Apasă Pornește conversația pentru a relua.'); };
+    // Apel permanent: când browserul închide ascultarea fără frază, se reia (eveniment, nu temporizator de așteptare).
+    mic.onend = () => { if (this.current(generation) && !consumed) this.delay(300).then(() => { if (this.current(generation)) this.listen(generation); }).catch(() => {}); };
     mic.onresult = event => {
       if (!this.current(generation) || consumed) return;
       const final = Array.from(event.results).filter(item => item.isFinal).map(item => item[0].transcript).join(' ').trim();
@@ -104,7 +106,13 @@ export class VoiceConversation {
       if (!this.current(generation)) return;
       this.notify('starting', 'Răspuns redat. Se reia ascultarea.');
       await this.delay(this.echoDelayMs); this.listen(generation);
-    } catch (error) { if (this.current(generation)) this.fail(error.message || 'Conversația vocală s-a oprit. Reîncearcă din buton.'); }
+    } catch (error) {
+      // Cererea a eșuat sau s-a blocat: raportez real (pe monitor și aici), apelul rămâne deschis și ascultă mai departe.
+      if (!this.current(generation)) return;
+      this.notify('error', (error.message || 'Cererea nu a primit răspuns.') + ' Ascult în continuare.');
+      try { await this.delay(1500); } catch { return; }
+      if (this.current(generation)) this.listen(generation);
+    }
   }
   async speak(output, generation) {
     // Bound spoken duration while retaining the full actual response in the text panel.

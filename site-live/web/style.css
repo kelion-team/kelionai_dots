@@ -20,7 +20,7 @@ button:disabled{opacity:.45;cursor:default}
 #google{min-height:44px;max-width:400px;margin:8px 0}
 #google svg{width:18px!important;height:18px!important}
 /* Un singur ecran: lista și răspunsul au scroll intern, pagina nu. */
-#workspace{flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:minmax(220px,300px) 1fr;grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"list answer" "composer composer"}
+#workspace{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;position:relative;width:100%;max-width:860px;margin:0 auto}
 .panel{background:#17232f;border:1px solid #304354;border-radius:14px;padding:12px;min-height:0;display:flex;flex-direction:column;gap:8px}
 .list{grid-area:list}.answer{grid-area:answer}.composer{grid-area:composer}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -38,7 +38,6 @@ textarea{width:100%;resize:none;border:1px solid #526576;border-radius:10px;back
 body:has(#workspace[hidden]) .account{display:none}
 @media (max-width:700px){
   main{padding:10px}
-  #workspace{grid-template-columns:1fr;grid-template-rows:minmax(70px,22dvh) minmax(0,1fr) auto;grid-template-areas:"list" "answer" "composer"}
   .brand p{display:none}
   .sep{display:none}
 }
@@ -71,3 +70,20 @@ body:has(#workspace:not([hidden])) #login{display:none}
 .monitor li{padding:1px 0;overflow-wrap:anywhere}.monitor .state{color:#e9eef5}.monitor .running{color:#ffd479}.monitor .running::before{content:'● ';animation:pulse 1.2s infinite}
 .monitor .done{color:#a5f0d2}.monitor .bad{color:#ff9aa8}.monitor .idle{font-style:italic}
 @media (max-width:700px){.monitor{max-height:18dvh}}
+/* Ecran Kelion: roboțel sus, monitor dedesubt (pași + răspuns în același loc), bara jos. */
+.stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.stage .kelion{width:110px;height:118px}
+.stage .kstate{text-align:center}
+.screen-box{flex:1;min-height:0;width:100%;overflow:auto;background:#0b131b;border:1px solid #263848;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.screen-box .monitor{max-height:none;min-height:0;border:0;padding:0;background:none;overflow:visible}
+.screen-box pre{flex:none;background:none;padding:0;font:15px/1.55 system-ui,sans-serif;color:#e9eef5;overflow:visible}
+.screen-box pre:empty{display:none}
+.asked{align-self:flex-end;max-width:85%;background:#22313f;border-radius:12px 12px 2px 12px;padding:6px 10px;font-size:14px;overflow-wrap:anywhere}
+.bar{display:flex;align-items:flex-end;gap:6px}
+.bar textarea{flex:1;min-height:44px}
+.bar button{height:44px;min-width:44px;padding:0 12px;font-size:18px}
+button.call{background:#6f7ff0;color:#fff}
+button.end{background:#d9534f;color:#fff}
+.list{position:absolute;z-index:5;inset:0 auto 0 0;width:min(340px,92%);box-shadow:0 10px 40px #0009}
+.list .panel-head{gap:6px}.list .panel-head h2{flex:1}
+@media (max-width:700px){.stage .kelion{width:70px;height:76px}.bar button{min-width:40px;padding:0 9px}}

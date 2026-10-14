@@ -143,6 +143,7 @@ async function api(path, data, options = {}) {
   return result;
 }
 function status(message) { $('status').textContent = message; }
+const TERMINAL = ['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'];
 const SURFACES = { chat: 'ChatGPT', codex: 'Codex', work: 'Work (agentul Kelion)', magentic: 'Microsoft Magentic' };
 const STEP_STATUS = { running: 'lucrează', completed: 'gata', insufficient: 'insuficient → escaladez', needs_code: 'trece la Codex', needs_tools: 'trece la Work', failed: 'eșuat → escaladez', unavailable: 'indisponibil → următoarea' };
 const STATE_TEXT = { awaiting_kelion: 'Cererea a ajuns la Kelion, în coadă', running_magistrala: 'Kelion rutează cererea pe magistrală', result_received: 'Răspuns primit', blocked: 'Blocat' };
@@ -163,21 +164,19 @@ function renderMonitor(result) {
 }
 function showResult(result) {
   renderMonitor(result);
-  $('result').textContent = [result.output ? result.output : 'Kelion lucrează; răspunsul apare aici.',
-    '\n—\nCerere: ' + result.task_id + ' · stare: ' + result.state,
-    result.failure ? '\nEroare: ' + result.failure : '', result.block_reason ? '\nBlocaj: ' + result.block_reason : '',
-    result.receipt ? '\nReceipt:\n' + JSON.stringify(result.receipt, null, 2) : '',
-    result.output_hash ? '\nSHA-256 răspuns: ' + result.output_hash : '',
-    '\nRezultat verificat independent: ' + (result.verified ? 'da' : 'nu'),
-    result.output_provenance ? 'Proveniență: ' + result.output_provenance : ''].filter(Boolean).join('\n');
+  // Răspunsul se scrie în același monitor, sub pași; detaliile tehnice rămân scurte.
+  $('result').textContent = result.output ? result.output
+    : TERMINAL.includes(result.state) ? '' : 'Kelion lucrează…';
+  $('result').dataset.meta = 'Cerere ' + result.task_id + ' · ' + result.state + (result.verified ? ' · verificat' : '');
 }
+function asked(text) { $('asked').hidden = !text; $('asked').textContent = text ? 'Tu: ' + text : ''; }
 async function tasks() {
   const result = await api('/api/tasks'); $('tasks').replaceChildren();
   if (!result.tasks.length) $('tasks').textContent = 'Nu ai încă cereri.';
   for (const task of result.tasks) {
     const button = document.createElement('button');
     button.textContent = task.task_id + ' · ' + new Date(task.created).toLocaleString() + ' · ' + task.delivery;
-    button.onclick = async () => { try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
+    button.onclick = async () => { $('history').hidden = true; asked(''); try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
     $('tasks').append(button);
   }
 }
@@ -205,9 +204,11 @@ async function login() {
 }
 $('signin').onclick = login;
 $('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
+$('history-open').onclick = () => { $('history').hidden = false; tasks().catch(e => status(e.message)); };
+$('history-close').onclick = () => { $('history').hidden = true; };
 $('refresh').onclick = () => tasks().catch(e => status(e.message));
 $('task').addEventListener('input', () => { voiceInput = false; });
-const TERMINAL = ['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'];
+$('task').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('chat').requestSubmit(); } });
 let following = 0;
 async function follow(taskId) {
   const mine = ++following; kelionState('waiting');
@@ -221,7 +222,8 @@ async function follow(taskId) {
 }
 $('chat').onsubmit = async event => {
   event.preventDefault(); $('send').disabled = true;
-  try { const result = await api('/api/tasks', { task: $('task').value, input_mode: voiceInput ? 'voice_transcript' : 'text' }); showResult(result); $('task').value = ''; voiceInput = false; status('Cerere trimisă. Monitorul arată progresul în timp real.'); follow(result.task_id); }
+  const text = $('task').value; asked(text);
+  try { const result = await api('/api/tasks', { task: text, input_mode: voiceInput ? 'voice_transcript' : 'text' }); showResult(result); $('task').value = ''; voiceInput = false; status('Cerere trimisă. Monitorul arată progresul în timp real.'); follow(result.task_id); }
   catch (e) { status(e.message + (e.taskId ? ' ID: ' + e.taskId : '')); }
   finally { $('send').disabled = false; await tasks().catch(e => status(e.message)); }
 };
@@ -232,9 +234,9 @@ const GENDER_KEY = 'kelion-voice-gender';
 try { const saved = localStorage.getItem(GENDER_KEY); if (saved === 'masculin' || saved === 'feminin') $('voice-gender').value = saved; } catch {}
 $('voice-gender').onchange = () => { try { localStorage.setItem(GENDER_KEY, $('voice-gender').value); } catch {} };
 const conversation = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
-  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active;
+  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active; $('call-end').hidden = !active; $('call-interrupt').hidden = !active;
     $('call-interrupt').disabled = state !== 'speaking'; $('dictate').disabled = active; $('send').disabled = active; $('task').disabled = active; },
-  onTranscript: text => { $('voice-transcript').textContent = 'Tu: ' + text; },
+  onTranscript: text => { $('voice-transcript').textContent = ''; asked(text); },
   onResult: result => { showResult(result); if (result.state === 'result_received') tasks().catch(() => {}); },
 });
 if (Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance) {

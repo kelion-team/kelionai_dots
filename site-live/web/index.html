@@ -6,8 +6,9 @@
 <p id="status" role="status">Se verifică configurația…</p>
 <div id="login"><div id="google"></div><button id="signin" hidden>Conectare Google</button></div>
 <section id="workspace" hidden>
-  <aside class="panel list"><div class="panel-head"><h2>Cererile tale</h2><button id="refresh" class="ghost small">Actualizează</button></div><div id="tasks"></div></aside>
-  <section class="panel answer" aria-labelledby="answer-title"><div class="answer-head"><div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
+  <aside class="panel list" id="history" hidden><div class="panel-head"><h2>Cererile tale</h2><button id="refresh" class="ghost small">Actualizează</button><button id="history-close" class="ghost small" aria-label="Închide istoricul">✕</button></div><div id="tasks"></div></aside>
+  <section class="stage" aria-labelledby="answer-title">
+    <div class="kelion" id="kelion" data-state="idle" aria-hidden="true"><svg viewBox="0 0 120 130" class="bot">
 <g class="body-g">
 <circle cx="34" cy="40" r="20" class="c"/><circle cx="60" cy="28" r="24" class="c"/><circle cx="86" cy="40" r="20" class="c"/><circle cx="60" cy="48" r="30" class="c"/>
 <rect x="30" y="34" width="60" height="38" rx="10" class="screen"/>
@@ -15,12 +16,22 @@
 <rect x="44" y="80" width="32" height="26" rx="8" class="c"/><path d="M52 88 l4 4 -4 4" class="eye small"/><rect x="60" y="94" width="8" height="2.5" rx="1" class="tag"/>
 <rect x="30" y="84" width="10" height="16" rx="5" class="c arm l"/><rect x="80" y="84" width="10" height="16" rx="5" class="c arm r"/>
 <rect x="48" y="106" width="9" height="12" rx="4" class="c"/><rect x="63" y="106" width="9" height="12" rx="4" class="c"/>
-</g></svg><span class="ring"></span></div><div><h2 id="answer-title">Kelion</h2><p id="kelion-state" class="kstate">Pregătit</p></div></div><ol id="monitor" class="monitor" aria-label="Monitor: ce lucrează Kelion acum"><li class="idle">Monitorul arată aici, în timp real, fiecare pas al cererii.</li></ol><pre id="result" aria-live="polite">Alege o cerere din listă sau trimite una nouă.</pre></section>
+</g></svg><span class="ring"></span></div>
+    <h2 id="answer-title" class="sr">Kelion</h2><p id="kelion-state" class="kstate">Pregătit</p>
+    <div class="screen-box" aria-label="Monitor: ce lucrează Kelion și răspunsul">
+      <p id="asked" class="asked" hidden></p>
+      <ol id="monitor" class="monitor"><li class="idle">Scrie sau vorbește. Aici apare, în timp real, ce lucrează Kelion și răspunsul.</li></ol>
+      <pre id="result" aria-live="polite"></pre>
+    </div>
+  </section>
   <form id="chat" class="composer"><label for="task" class="sr">Cu ce te poate ajuta Kelion?</label>
-    <textarea id="task" maxlength="100000" rows="2" required placeholder="Cu ce te poate ajuta Kelion?"></textarea>
-    <div class="actions"><button id="send" type="submit">Trimite</button><button id="dictate" type="button" class="ghost" hidden>Dictare</button>
-      <span class="sep"></span>
-      <label class="gender" for="voice-gender">Voce</label><select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select><button id="call-start" type="button" class="ghost" disabled>Conversație vocală</button><button id="call-interrupt" type="button" class="ghost" disabled>Întrerupe</button><button id="call-end" type="button" class="ghost" disabled>Încheie</button></div>
+    <div class="bar"><textarea id="task" maxlength="100000" rows="1" required placeholder="Scrie-i lui Kelion…"></textarea>
+      <button id="dictate" type="button" class="ghost icon" hidden title="Dictare" aria-label="Dictare">✎🎤</button>
+      <button id="call-start" type="button" class="call" disabled title="Conversație vocală live" aria-label="Conversație vocală live">🎙</button>
+      <button id="send" type="submit" title="Trimite" aria-label="Trimite">➤</button></div>
+    <div class="actions"><button id="history-open" type="button" class="ghost small">Istoric</button><span class="sep"></span>
+      <label class="gender" for="voice-gender">Voce</label><select id="voice-gender"><option value="feminin">Feminin</option><option value="masculin">Masculin</option></select>
+      <button id="call-interrupt" type="button" class="ghost small" disabled hidden>Întrerupe</button><button id="call-end" type="button" class="end small" disabled hidden>Încheie</button></div>
     <p class="voice"><span id="call-status" role="status"></span> <span id="voice-transcript" aria-live="polite"></span></p>
     <p id="voice-note" class="sr"></p>
   </form>

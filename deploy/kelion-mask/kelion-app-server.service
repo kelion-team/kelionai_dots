@@ -1,20 +1,24 @@
 [Unit]
-Description=Kelion Codex app-server on loopback
+Description=Kelion Codex app-server authenticated loopback
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-# Matches the existing manually launched process and existing CODEX_HOME ownership.
-# Review execution privileges independently before enabling agent commands.
-User=root
-Group=root
-WorkingDirectory=/var/lib/kelion-magistrala
+User=kelion-codex
+Group=kelion-codex
+WorkingDirectory=/var/lib/kelion-codex/workspace
 Environment=CODEX_HOME=/var/lib/kelion-magistrala/codex
-ExecStart=/usr/lib/chatgpt/resources/codex app-server --listen ws://127.0.0.1:18767
+LoadCredential=app-server-token:/etc/kelion-mask/app-server.token
+ExecStart=/usr/lib/chatgpt/resources/codex app-server --listen ws://127.0.0.1:18767 --ws-auth capability-token --ws-token-file %d/app-server-token
 Restart=on-failure
 RestartSec=5
 UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/kelion-magistrala/codex /var/lib/kelion-codex/workspace /var/lib/kelion-mask/uploads
 TimeoutStopSec=30
 
 [Install]

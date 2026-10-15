@@ -72,13 +72,14 @@ test('monitor: vizualizări sigure pentru video, hartă, web, imagine, text, în
   const yt = monitorView({ action: 'open', type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
   assert.equal(yt.src, 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1');
   assert.equal(monitorView({ action: 'open', type: 'video', url: 'https://youtu.be/dQw4w9WgXcQ' }).kind, 'frame');
-  assert.equal(monitorView({ action: 'open', type: 'video', url: 'https://cdn.example.com/a.mp4' }).kind, 'video');
+  assert.equal(monitorView({ action: 'open', type: 'video', url: 'https://cdn.example.com/a.mp4' }).kind, 'link');   // fără încărcare automată
   assert.equal(monitorView({ action: 'open', type: 'video', url: 'http://insecure.example.com/a.mp4' }), null);
   assert.equal(monitorView({ action: 'open', type: 'web', url: 'javascript:alert(1)' }), null);
   const map = monitorView({ action: 'open', type: 'map', lat: 44.43, lon: 26.1, zoom: 12 });
   assert.match(map.src, /^https:\/\/www\.openstreetmap\.org\/export\/embed\.html\?bbox=/);
   assert.equal(monitorView({ action: 'open', type: 'map', lat: 'x', lon: 1 }), null);
-  assert.equal(monitorView({ action: 'open', type: 'image', url: 'https://example.com/a.png' }).kind, 'image');
+  assert.equal(monitorView({ action: 'open', type: 'image', url: 'https://example.com/a.png' }).kind, 'link');
+  assert.equal(monitorView({ action: 'open', type: 'web', url: 'https://example.com/' }).kind, 'link');
   assert.equal(monitorView({ action: 'open', type: 'text', text: '# Meteo' }).kind, 'text');
   assert.deepEqual(monitorView({ action: 'close' }), { kind: 'close' });
   assert.equal(monitorView({ action: 'open', type: 'html', text: '<script>' }), null);

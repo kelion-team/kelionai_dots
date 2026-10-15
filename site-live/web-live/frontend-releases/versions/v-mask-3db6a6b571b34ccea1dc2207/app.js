@@ -101,8 +101,7 @@ export function monitorView(d) {
     if (host === 'youtu.be') id = u.pathname.slice(1);
     else if (host === 'youtube.com' || host === 'youtube-nocookie.com') id = u.searchParams.get('v') || (/^\/(?:embed|shorts|live)\/([^/]+)/.exec(u.pathname) || [])[1];
     if (id) return /^[A-Za-z0-9_-]{11}$/.test(id) ? { kind: 'frame', title, src: 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1', open: u.href } : null;
-    if (/\.(mp4|webm|ogg|m4v)$/i.test(u.pathname)) return { kind: 'video', title, src: u.href, open: u.href };
-    return { kind: 'frame', title, src: u.href, open: u.href };
+    return { kind: 'link', title, open: u.href };   // alte surse: doar deschidere explicită, în filă nouă
   }
   if (d.type === 'map') {
     const lat = Number(d.lat), lon = Number(d.lon), zoom = Math.min(Math.max(Number(d.zoom) || 12, 2), 18);
@@ -112,8 +111,8 @@ export function monitorView(d) {
     return { kind: 'frame', title, src: 'https://www.openstreetmap.org/export/embed.html?bbox=' + bbox + '&layer=mapnik&marker=' + f(lat) + ',' + f(lon),
       open: 'https://www.openstreetmap.org/?mlat=' + f(lat) + '&mlon=' + f(lon) + '#map=' + zoom + '/' + f(lat) + '/' + f(lon) };
   }
-  if (d.type === 'web') { const u = httpsUrl(d.url); return u ? { kind: 'frame', title, src: u.href, open: u.href } : null; }
-  if (d.type === 'image') { const u = httpsUrl(d.url); return u ? { kind: 'image', title, src: u.href, open: u.href } : null; }
+  // Pagini și imagini arbitrare: nu se încarcă automat; monitorul arată adresa și butonul de deschidere explicită.
+  if (d.type === 'web' || d.type === 'image') { const u = httpsUrl(d.url); return u ? { kind: 'link', title, open: u.href } : null; }
   if (d.type === 'text' && typeof d.text === 'string') return { kind: 'text', title, text: d.text.slice(0, 200000) };
   return null;
 }
@@ -142,7 +141,7 @@ async function rpc(method, params = {}) {
 }
 function note(text, cls = 'note') { const n = el('div', 'msg ' + cls, text); $('log').append(n); scroll(); return n; }
 function scroll() { const log = $('log'); if (log.scrollHeight - log.scrollTop - log.clientHeight < 200) log.scrollTop = log.scrollHeight; }
-function link(ok, text) { $('link').className = 'link ' + (ok ? 'ok' : 'bad'); $('link').title = text; }
+function link(ok, text) { $('link').className = 'link ' + (ok ? 'ok' : 'bad'); $('link').title = text; robotState(); }
 
 // ---------- istoric ----------
 async function loadThreads(more = false) {
@@ -220,8 +219,8 @@ function openMonitor(view) {
   const open = $('screen-open'); open.hidden = !view.open; if (view.open) open.href = view.open;
   if (view.kind === 'frame') { const f = el('iframe'); f.src = view.src; f.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media'; f.allowFullscreen = true;
     f.referrerPolicy = 'no-referrer'; f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation'); body.append(f); }
-  if (view.kind === 'video') { const v = el('video'); v.src = view.src; v.controls = true; v.autoplay = true; v.playsInline = true; body.append(v); }
-  if (view.kind === 'image') { const i = el('img'); i.src = view.src; i.alt = view.title || ''; body.append(i); }
+  if (view.kind === 'link') { const c = el('div', 'screen-link'); c.append(el('p', 'note', 'Sursă externă; se deschide doar la cererea ta, în filă nouă:'), el('div', 'path', view.open));
+    const a = el('a', 'wide', 'Deschide în filă nouă ↗'); a.href = view.open; a.target = '_blank'; a.rel = 'noopener noreferrer'; c.append(a); body.append(c); }
   if (view.kind === 'text') { const t = el('div', 'screen-text'); t.innerHTML = markdown(view.text); body.append(t); }
   $('screen').hidden = false; $('screen-close').focus();
 }
@@ -274,7 +273,14 @@ async function loadOlder() {
   } catch (e) { note(e.message, 'err'); } finally { $('older').disabled = false; }
 }
 function newThread() { current = null; resetLog(); markCurrent(); $('title').textContent = 'Conversație nouă'; $('thread-menu-wrap').hidden = true; busy(false); showApprovals(); }
-function busy(on) { $('send').disabled = sending; $('stop').hidden = !on; $('send').title = on ? 'Trimite în timpul rulării (steer)' : 'Trimite'; }
+// Roboțelul DOTS: mereu vizibil deasupra paginii, mutabil, arată starea reală a lucrului.
+function robotState() {
+  const r = $('dots'); if (!r) return;
+  const [state, text] = !$('link').classList.contains('ok') ? ['off', 'Deconectat'] : waiting.size ? ['wait', 'Așteaptă aprobarea ta']
+    : sending ? ['busy', 'Trimite'] : active() ? ['busy', 'Lucrează'] : ['idle', 'Pregătit'];
+  r.dataset.state = state; $('dots-state').textContent = text;
+}
+function busy(on) { $('send').disabled = sending; queueMicrotask(robotState); $('stop').hidden = !on; $('send').title = on ? 'Trimite în timpul rulării (steer)' : 'Trimite'; }
 
 // Textul și imaginile rămân în compozitor până când app-server confirmă cererea.
 async function send(text) {
@@ -314,7 +320,7 @@ const DECISIONS = {
 const waiting = new Map();   // cererile serverului care așteaptă răspuns, pe conversații
 function approval(req) { waiting.set('req-' + JSON.stringify(req.id), req); showApprovals(); }
 function resolved(key) { waiting.delete(key); document.getElementById(key)?.remove(); showApprovals(); }
-function showApprovals() {
+function showApprovals() { queueMicrotask(robotState);
   const busyThreads = new Set([...waiting.values()].map(r => r.params?.threadId).filter(Boolean));
   for (const b of $('threads').children) b.classList.toggle('wait', busyThreads.has(b.dataset.id));
   for (const n of [...$('approvals').children]) if (!waiting.has(n.id) || (waiting.get(n.id).params?.threadId && waiting.get(n.id).params.threadId !== current)) n.remove();
@@ -554,6 +560,21 @@ $('input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftK
 $('composer').onsubmit = e => { e.preventDefault(); send($('input').value.trim()); };
 $('stop').onclick = () => { if (current && active()) rpc('turn/interrupt', { threadId: current, turnId: active() }).catch(e => note(e.message, 'err')); };
 $('older').onclick = loadOlder;
+(function robot() {
+  const r = $('dots'); let drag = null, moved = false;
+  const place = (x, y) => { const w = r.offsetWidth, h = r.offsetHeight;
+    x = Math.min(Math.max(x, 4), innerWidth - w - 4); y = Math.min(Math.max(y, 4), innerHeight - h - 4);
+    r.style.left = x + 'px'; r.style.top = y + 'px'; return [x, y]; };
+  let pos = null; try { pos = JSON.parse(localStorage.getItem('kelion-dots-pos') || 'null'); } catch {}
+  place(...(Array.isArray(pos) ? pos : [innerWidth - 150, 70]));
+  r.addEventListener('pointerdown', e => { drag = [e.clientX - r.offsetLeft, e.clientY - r.offsetTop]; moved = false; r.setPointerCapture(e.pointerId); });
+  r.addEventListener('pointermove', e => { if (!drag) return; moved = true; place(e.clientX - drag[0], e.clientY - drag[1]); });
+  r.addEventListener('pointerup', () => { if (!drag) return; drag = null;
+    if (moved) { try { localStorage.setItem('kelion-dots-pos', JSON.stringify([r.offsetLeft, r.offsetTop])); } catch {} }
+    else { closeSide(); $('input').focus(); } });
+  addEventListener('resize', () => place(r.offsetLeft, r.offsetTop));
+  robotState();
+})();
 $('locate').onclick = geolocate;
 $('screen-close').onclick = closeMonitor;
 $('screen-full').onclick = () => $('screen').classList.toggle('full');

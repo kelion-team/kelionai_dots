@@ -115,3 +115,16 @@ dl.tree{display:grid;grid-template-columns:max-content 1fr;gap:2px 10px}
 label.wide{display:block;padding:7px 12px;border-radius:10px;cursor:pointer}
 @media (max-width:1000px){.screen{position:fixed;inset:0;max-width:none;z-index:9;border:0}}
 a.icon{color:inherit;text-decoration:none}
+
+/* Roboțelul DOTS: deasupra oricărei pagini (inclusiv monitorul), mutabil */
+.dots{position:fixed;z-index:30;display:flex;flex-direction:column;align-items:center;gap:2px;touch-action:none;cursor:grab;user-select:none}
+.dots:active{cursor:grabbing}
+.dots img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 10px #0009);pointer-events:none}
+.dots-pill{display:grid;justify-items:center;background:#000c;border:1px solid var(--line);border-radius:12px;padding:2px 10px;font-size:12px;line-height:1.3}
+.dots-pill small{color:var(--mute)}
+.dots[data-state=busy] img{animation:dots-bob 1.2s ease-in-out infinite}
+.dots[data-state=wait] .dots-pill{border-color:var(--warn)}.dots[data-state=wait] small{color:var(--warn)}
+.dots[data-state=off] small{color:var(--err)}
+@keyframes dots-bob{50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.dots[data-state=busy] img{animation:none}}
+.screen-link{display:grid;gap:10px;justify-items:center;text-align:center}

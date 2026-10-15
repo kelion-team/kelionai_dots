@@ -11,11 +11,14 @@
     <nav id="threads" class="threads" aria-label="Istoric"></nav>
     <button id="more-threads" class="ghost" type="button" hidden>Mai multe</button>
     <div class="side-foot">
+      <button class="nav" data-panel="kelion" type="button">Magistrala Kelion</button>
+      <button class="nav" data-panel="files" type="button">Fișiere</button>
       <button class="nav" data-panel="skills" type="button">Skills</button>
       <button class="nav" data-panel="plugins" type="button">Pluginuri</button>
       <button class="nav" data-panel="apps" type="button">Aplicații</button>
       <button class="nav" data-panel="mcp" type="button">Servere MCP</button>
       <button class="nav" data-panel="account" type="button">Cont și limite</button>
+      <button class="nav" data-panel="capabilities" type="button">Capabilități</button>
       <button class="nav" data-panel="functions" type="button">Funcții</button>
       <div class="me"><span id="who"></span><button id="logout" class="ghost small" type="button">Ieșire</button></div>
     </div>
@@ -38,6 +41,7 @@
       <textarea id="input" rows="1" placeholder="Trimite un mesaj" aria-label="Mesaj"></textarea>
       <div class="tools">
         <label class="icon" title="Adaugă imagine (masca trimite doar imagini, ca localImage)" aria-label="Adaugă imagine">＋<input id="file" type="file" accept="image/*" multiple hidden></label>
+        <button id="locate" class="icon" type="button" title="Adaugă locația GPS în mesaj (cu permisiune)" aria-label="Locație">⌖</button>
         <select id="model" aria-label="Model"></select>
         <select id="effort" aria-label="Efort de raționament"></select>
         <select id="approval" aria-label="Aprobări" title="Politica de aprobare"><option value="">Aprobări: implicit</option><option value="untrusted">untrusted</option><option value="on-request">on-request</option><option value="never">never</option></select>
@@ -47,7 +51,14 @@
         <button id="send" class="round" type="submit" aria-label="Trimite">↑</button>
       </div>
     </form>
-  </main>
+ </main>
+  <aside id="screen" class="screen" aria-label="Monitor" hidden>
+    <header class="bar"><span class="screen-icon" aria-hidden="true">🖥</span><h2 id="screen-title">Monitor</h2><span class="spacer"></span>
+      <a id="screen-open" class="icon" target="_blank" rel="noopener noreferrer" title="Deschide în filă nouă" aria-label="Deschide în filă nouă" hidden>↗</a>
+      <button id="screen-full" class="icon" type="button" title="Pe tot ecranul" aria-label="Pe tot ecranul">⤢</button>
+      <button id="screen-close" class="icon" type="button" title="Închide monitorul" aria-label="Închide monitorul">✕</button></header>
+    <div id="screen-body" class="screen-body"></div>
+  </aside>
   <div id="panel" class="panel" hidden><div class="panel-box"><header class="bar"><h2 id="panel-title"></h2><span class="spacer"></span><button id="panel-close" class="icon" type="button" aria-label="Închide">✕</button></header><div id="panel-body" class="panel-body"></div></div></div>
 </div>
 </body></html>

@@ -70,6 +70,54 @@ export function sendFailure(error) {
   return 'uncertain';                                                // rețea, 502/504, timp depășit
 }
 
+// ---------- monitorul mare ----------
+// Codex deschide monitorul răspunzând cu un bloc ```kelion-monitor {json}```; instrucțiunea e trimisă ca
+// developerInstructions (câmp din schema thread/start și thread/resume).
+export const MONITOR_INSTRUCTIONS = [
+  'Interfața KelionAI are un monitor mare pentru orice conținut care cere o vizualizare mare (film, video, meteo, hartă, pagină web, imagine, tabel, document, cod lung).',
+  'Când utilizatorul cere să vadă sau să pornească ceva de acest fel, adaugă în răspuns exact un bloc de cod cu limbajul kelion-monitor care conține un singur obiect JSON:',
+  '{"action":"open","type":"video|map|web|image|text","title":"…","url":"https://…","lat":0,"lon":0,"zoom":12,"text":"markdown"}.',
+  'video: url YouTube sau fișier video https; map: lat, lon, zoom (OpenStreetMap); web: url https; image: url https; text: markdown în câmpul text (ex. prognoza meteo căutată pe web, tabele).',
+  'Când utilizatorul cere închiderea monitorului, răspunde cu blocul kelion-monitor {"action":"close"}. Nu inventa URL-uri: folosește doar adrese găsite sau date de utilizator.',
+].join(' ');
+
+export function monitorDirective(text) {
+  const all = [...String(text || '').matchAll(/```kelion-monitor\s*\n([\s\S]*?)```/g)];
+  if (!all.length) return null;
+  try { const d = JSON.parse(all[all.length - 1][1]); return d && typeof d === 'object' && !Array.isArray(d) ? d : null; } catch { return null; }
+}
+
+const httpsUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' ? x : null; } catch { return null; } };
+// Ce afișează monitorul pentru o directivă; null = directivă invalidă (nu se deschide nimic).
+export function monitorView(d) {
+  if (!d) return null;
+  if (d.action === 'close') return { kind: 'close' };
+  if (d.action !== 'open') return null;
+  const title = typeof d.title === 'string' ? d.title.slice(0, 200) : '';
+  if (d.type === 'video') {
+    const u = httpsUrl(d.url); if (!u) return null;
+    const host = u.hostname.replace(/^www\.|^m\./, '');
+    let id = null;
+    if (host === 'youtu.be') id = u.pathname.slice(1);
+    else if (host === 'youtube.com' || host === 'youtube-nocookie.com') id = u.searchParams.get('v') || (/^\/(?:embed|shorts|live)\/([^/]+)/.exec(u.pathname) || [])[1];
+    if (id) return /^[A-Za-z0-9_-]{11}$/.test(id) ? { kind: 'frame', title, src: 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1', open: u.href } : null;
+    if (/\.(mp4|webm|ogg|m4v)$/i.test(u.pathname)) return { kind: 'video', title, src: u.href, open: u.href };
+    return { kind: 'frame', title, src: u.href, open: u.href };
+  }
+  if (d.type === 'map') {
+    const lat = Number(d.lat), lon = Number(d.lon), zoom = Math.min(Math.max(Number(d.zoom) || 12, 2), 18);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) return null;
+    const span = 360 / 2 ** zoom, f = n => n.toFixed(5);
+    const bbox = [f(lon - span), f(lat - span / 2), f(lon + span), f(lat + span / 2)].join(',');
+    return { kind: 'frame', title, src: 'https://www.openstreetmap.org/export/embed.html?bbox=' + bbox + '&layer=mapnik&marker=' + f(lat) + ',' + f(lon),
+      open: 'https://www.openstreetmap.org/?mlat=' + f(lat) + '&mlon=' + f(lon) + '#map=' + zoom + '/' + f(lat) + '/' + f(lon) };
+  }
+  if (d.type === 'web') { const u = httpsUrl(d.url); return u ? { kind: 'frame', title, src: u.href, open: u.href } : null; }
+  if (d.type === 'image') { const u = httpsUrl(d.url); return u ? { kind: 'image', title, src: u.href, open: u.href } : null; }
+  if (d.type === 'text' && typeof d.text === 'string') return { kind: 'text', title, text: d.text.slice(0, 200000) };
+  return null;
+}
+
 if (typeof document !== 'undefined') {
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
@@ -124,7 +172,7 @@ function render(item, turnId, before = null) {
   switch (item.type) {
     case 'userMessage': node.className = 'msg me'; node.textContent = inputText(item.content);
       for (const part of item.content || []) if (part.type === 'localImage') showImage(node, part.path); break;
-    case 'agentMessage': node.className = 'msg bot'; node.innerHTML = markdown(item.text); node.dataset.raw = item.text || ''; break;
+    case 'agentMessage': node.className = 'msg bot'; showAgent(node, item.text || ''); break;
     case 'reasoning': { node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', 'Raționament'));
       const body = el('div', 'reason'); body.textContent = (item.summary || []).join('\n\n'); d.append(body); node.append(d); break; }
     case 'plan': node.className = 'msg tool'; node.append(el('strong', '', 'Plan')); node.append(el('pre', '', item.text)); break;
@@ -152,6 +200,32 @@ function render(item, turnId, before = null) {
   }
   scroll(); return node;
 }
+// Mesajul agentului: blocul kelion-monitor apare ca buton, nu ca JSON; orice răspuns se poate deschide mare (⛶).
+function showAgent(node, raw) {
+  node.dataset.raw = raw;
+  const d = monitorDirective(raw), view = monitorView(d);
+  node.innerHTML = markdown(raw.replace(/```kelion-monitor\s*\n[\s\S]*?(```|$)/g, ''));
+  const bar = el('div', 'msg-tools');
+  if (view && view.kind !== 'close') { const b = el('button', 'ghost small', '🖥 ' + (view.title || 'Deschide pe monitor')); b.type = 'button'; b.onclick = () => openMonitor(view); bar.append(b); }
+  const big = el('button', 'ghost small', '⛶ Vizualizare mare'); big.type = 'button'; big.title = 'Deschide acest răspuns pe monitor';
+  big.onclick = () => openMonitor({ kind: 'text', title: 'Răspuns Kelion', text: raw.replace(/```kelion-monitor\s*\n[\s\S]*?(```|$)/g, '') }); bar.append(big);
+  node.append(bar);
+}
+// Monitorul mare: X sau Escape îl închide; directiva {"action":"close"} venită în chat îl închide la fel.
+function openMonitor(view) {
+  if (!view) return;
+  if (view.kind === 'close') { closeMonitor(); return; }
+  const body = $('screen-body'); body.replaceChildren();
+  $('screen-title').textContent = view.title || 'Monitor';
+  const open = $('screen-open'); open.hidden = !view.open; if (view.open) open.href = view.open;
+  if (view.kind === 'frame') { const f = el('iframe'); f.src = view.src; f.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media'; f.allowFullscreen = true;
+    f.referrerPolicy = 'no-referrer'; f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation'); body.append(f); }
+  if (view.kind === 'video') { const v = el('video'); v.src = view.src; v.controls = true; v.autoplay = true; v.playsInline = true; body.append(v); }
+  if (view.kind === 'image') { const i = el('img'); i.src = view.src; i.alt = view.title || ''; body.append(i); }
+  if (view.kind === 'text') { const t = el('div', 'screen-text'); t.innerHTML = markdown(view.text); body.append(t); }
+  $('screen').hidden = false; $('screen-close').focus();
+}
+function closeMonitor() { $('screen').hidden = true; $('screen').classList.remove('full'); $('screen-body').replaceChildren(); }
 async function showImage(node, path) {
   try { const r = await rpc('fs/readFile', { path }); const img = el('img', 'pic'); img.alt = path.split('/').pop();
     img.src = URL.createObjectURL(new Blob([Uint8Array.from(atob(r.dataBase64), c => c.charCodeAt(0))])); node.append(img); }
@@ -179,7 +253,7 @@ async function showTurn(turn, before = null) {
   if (turn.error) { const n = el('div', 'msg err', 'Eroare: ' + turn.error.message); if (before) $('log').insertBefore(n, before); else $('log').append(n); }
 }
 async function openThread(id) {
-  const r = await rpc('thread/resume', { threadId: id });
+  const r = await rpc('thread/resume', { threadId: id, developerInstructions: MONITOR_INSTRUCTIONS });
   current = id; resetLog(); markCurrent();
   $('title').textContent = r.thread.name || r.thread.preview || 'Conversație'; $('thread-menu-wrap').hidden = false;
   if (r.model) selectModel(r.model, r.reasoningEffort);
@@ -212,7 +286,7 @@ async function send(text) {
   const done = () => { if ($('input').value.trim() === text) { $('input').value = ''; fit(); } chips = chips.filter(c => !input.some(i => i.path === c.path)); drawChips(); };
   try {
     if (!current) {
-      const params = {}; if ($('model').value) params.model = $('model').value;
+      const params = { developerInstructions: MONITOR_INSTRUCTIONS }; if ($('model').value) params.model = $('model').value;
       if ($('approval').value) params.approvalPolicy = $('approval').value; if ($('sandbox').value) params.sandbox = $('sandbox').value;
       const r = await rpc('thread/start', params); current = r.thread.id; $('thread-menu-wrap').hidden = false; showApprovals(); loadThreads().catch(() => {});
     }
@@ -282,9 +356,11 @@ function onEvent(ev) {
     case 'turn/started': seenTurns.add(p.turn.id); turnState.started(p.turn.id); busy(Boolean(active())); break;
     case 'turn/completed': turnState.completed(p.turn.id); busy(Boolean(active()));
       if (p.turn.error) note('Eroare: ' + p.turn.error.message, 'err'); if (p.turn.status === 'interrupted') note('Oprit.', 'note'); loadThreads().catch(() => {}); break;
-    case 'item/started': case 'item/completed': render(p.item, p.turnId); break;
+    case 'item/started': case 'item/completed': render(p.item, p.turnId);
+      if (ev.method === 'item/completed' && p.item?.type === 'agentMessage') { const v = monitorView(monitorDirective(p.item.text)); if (v) openMonitor(v); }
+      break;
     case 'item/agentMessage/delta': { let n = items.get(p.itemId); if (!n) n = render({ type: 'agentMessage', id: p.itemId, text: '' }, p.turnId);
-      n.dataset.raw = (n.dataset.raw || '') + p.delta; n.innerHTML = markdown(n.dataset.raw); scroll(); break; }
+      showAgent(n, (n.dataset.raw || '') + p.delta); scroll(); break; }
     case 'item/reasoning/summaryTextDelta': { const n = items.get(p.itemId)?.querySelector('.reason'); if (n) n.textContent += p.delta; break; }
     case 'item/commandExecution/outputDelta': { const n = items.get(p.itemId)?.querySelector('.out'); if (n) { n.textContent += p.delta; scroll(); } break; }
     case 'turn/plan/updated': { const n = note('', 'tool'); n.append(el('strong', '', 'Plan')); const ol = el('ol'); for (const s of p.plan || []) ol.append(el('li', s.status, s.step + ' · ' + s.status)); n.append(ol); break; }
@@ -331,12 +407,93 @@ const PANELS = {
     const out = {};
     for (const [k, m] of [['cont', 'account/read'], ['limite', 'account/rateLimits/read'], ['utilizare', 'account/usage/read']]) { try { out[k] = await rpc(m, m === 'account/read' ? {} : null); } catch (e) { out[k] = 'Eroare: ' + e.message; } }
     return out; }],
+  kelion: ['Magistrala Kelion', () => kelionPanel()],
+  files: ['Fișiere', () => filesPanel()],
+  capabilities: ['Capabilități', () => capabilitiesPanel()],
   functions: ['Funcții', async () => ({ 'permise (din schema app-server)': methods.allowed, 'blocate, cu motivul': methods.blocked, sursa: methods.source })],
 };
 async function openPanel(kind) {
   const [title, load] = PANELS[kind]; $('panel-title').textContent = title; $('panel-title').dataset.kind = kind;
   $('panel-body').replaceChildren(el('p', 'note', 'Se încarcă…')); $('panel').hidden = false; closeSide();
-  try { $('panel-body').replaceChildren(value(await load())); } catch (e) { $('panel-body').replaceChildren(el('p', 'err', e.message)); }
+  try { const out = await load(); $('panel-body').replaceChildren(out instanceof Node ? out : value(out)); } catch (e) { $('panel-body').replaceChildren(el('p', 'err', e.message)); }
+}
+
+// --- funcțiile frontendului KelionDOTS live, păstrate în mască ---
+const TERMINAL = new Set(['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile']);
+let taskPoll = null;
+async function kelionPanel() {
+  const box = el('div', 'kpanel');
+  const form = el('form', 'ktask'); const ta = el('textarea'); ta.rows = 3; ta.maxLength = 100000; ta.placeholder = 'Sarcină pentru Kelion (magistrala: Kelion alege canalul)';
+  const go = el('button', '', 'Trimite la Kelion'); go.type = 'submit'; form.append(ta, go);
+  form.onsubmit = async e => { e.preventDefault(); const task = ta.value.trim(); if (!task) return; go.disabled = true;
+    try { const r = await api('/api/tasks', { task, input_mode: 'text' }); ta.value = ''; await showTask(r.task_id); }
+    catch (err) { box.append(el('p', 'err', err.message + ' Verifică istoricul înainte de retrimitere.')); } finally { go.disabled = false; } };
+  const list = el('div', 'klist'); const detail = el('div', 'kdetail'); detail.id = 'kdetail';
+  for (const t of (await api('/api/tasks')).tasks || []) {
+    const b = el('button', 'thread', t.task_id.slice(0, 18) + ' · ' + new Date(t.created).toLocaleString('ro-RO') + ' · ' + t.delivery); b.type = 'button';
+    b.onclick = () => showTask(t.task_id).catch(err => detail.replaceChildren(el('p', 'err', err.message))); list.append(b);
+  }
+  if (!list.childElementCount) list.append(el('p', 'note', 'Nicio sarcină în istoricul magistralei.'));
+  box.append(form, detail, el('h3', '', 'Istoric magistrală'), list); return box;
+}
+async function showTask(id) {
+  clearTimeout(taskPoll);
+  const r = await api('/api/tasks/' + id), d = $('kdetail'); if (!d) return;
+  d.replaceChildren(el('strong', '', r.task_id + ' · ' + r.state));
+  if (r.task) d.append(el('pre', '', r.task));
+  const steps = el('ol'); for (const s of r.progress || []) steps.append(el('li', '', [s.profile || s.surface, s.status, s.detail || s.reason, Number.isFinite(s.duration_ms) ? s.duration_ms + ' ms' : ''].filter(Boolean).join(' · ')));
+  if (steps.childElementCount) d.append(steps);
+  if (r.result_retrieved && r.output) { const o = el('div', 'msg bot'); o.innerHTML = markdown(r.output); const big = el('button', 'ghost small', '⛶ Vizualizare mare'); big.type = 'button'; big.onclick = () => openMonitor({ kind: 'text', title: r.task_id, text: r.output }); d.append(o, big); }
+  if (r.failure || r.block_reason) d.append(el('p', 'err', String(r.failure || r.block_reason).slice(0, 1000)));
+  if (!TERMINAL.has(r.state)) taskPoll = setTimeout(() => showTask(id).catch(() => {}), 3500);
+}
+const uploads = [];
+async function filesPanel() {
+  const box = el('div', 'kpanel');
+  box.append(el('p', 'note', 'Stocare pe server prin /api/attachments: fragmente de 2 MiB, maximum 512 MiB. Stocarea nu înseamnă analiză AI.'));
+  const pick = el('label', 'wide', '＋ Încarcă fișiere'); const inp = el('input'); inp.type = 'file'; inp.multiple = true; inp.hidden = true; pick.append(inp);
+  inp.onchange = () => { uploadFiles([...inp.files]); inp.value = ''; }; box.append(pick);
+  if (!uploads.length) box.append(el('p', 'note', 'Nicio încărcare în această sesiune. Lista completă a fișierelor nu este expusă prin API.'));
+  for (const u of uploads) box.append(el('div', 'path', u.name + ' · ' + u.status + (u.sha ? ' · SHA256 ' + u.sha : '')));
+  return box;
+}
+async function uploadFiles(files) {
+  for (const file of files) {
+    if (file.size < 1 || file.size > 512 * 1024 * 1024) { note('Dimensiunea fișierului nu este acceptată: ' + file.name, 'err'); continue; }
+    const item = { name: file.name, status: 'Se încarcă', sha: '' }; uploads.push(item); openPanel('files');
+    try {
+      const meta = await api('/api/attachments', { filename: file.name, size: file.size });
+      if (!/^att-[a-f0-9]{32}$/.test(meta.id) || meta.received !== 0) throw Error('Răspuns inițial de încărcare invalid.');
+      let offset = 0;
+      while (offset < file.size) {
+        const chunk = file.slice(offset, Math.min(file.size, offset + 2 * 1024 * 1024));
+        const response = await fetch('/api/attachments/' + meta.id + '/chunk', { method: 'POST', credentials: 'same-origin', redirect: 'error', headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf, 'X-Upload-Offset': String(offset) }, body: chunk });
+        const data = await response.json().catch(() => ({ error: 'Răspuns invalid' }));
+        if (!response.ok) throw Error(data.error || 'Fragment respins (' + response.status + ').');
+        if (data.received !== offset + chunk.size) throw Error('Confirmarea fragmentului nu corespunde.');
+        offset = data.received; item.status = Math.round(100 * offset / file.size) + '%'; if ($('panel-title').dataset.kind === 'files') openPanel('files');
+      }
+      const finished = await api('/api/attachments/' + meta.id + '/complete', {});
+      if (finished.id !== meta.id || finished.state !== 'stored' || finished.analyzed !== false || !finished.sha256) throw Error('Starea finală a fișierului nu este confirmată.');
+      item.status = 'Stocat, neanalizat'; item.sha = finished.sha256;
+    } catch (e) { item.status = 'Eroare: ' + e.message; }
+    if ($('panel-title').dataset.kind === 'files') openPanel('files');
+  }
+}
+async function capabilitiesPanel() {
+  const out = {};
+  try { out['configurare'] = await api('/api/config'); } catch (e) { out['configurare'] = 'Eroare: ' + e.message; }
+  try { out['legătura Codex'] = await api('/api/app/health'); } catch (e) { out['legătura Codex'] = 'Eroare: ' + e.message; }
+  try { out['dispozitiv (local, fără telemetrie)'] = await (await import('/device-capabilities.js')).inspectDevice(); } catch (e) { out['dispozitiv (local, fără telemetrie)'] = 'Indisponibil: ' + e.message; }
+  out['apel vocal DOTS'] = 'neintegrat în pagină: vocea este apelul Kelion DOTS din aplicația DOTS';
+  out['analiza camerei'] = 'neintegrată: nu există endpoint pentru cadre';
+  return out;
+}
+function geolocate() {
+  if (!navigator.geolocation) { note('GPS indisponibil în acest browser.', 'err'); return; }
+  navigator.geolocation.getCurrentPosition(pos => { const { latitude, longitude, accuracy } = pos.coords;
+    $('input').value = ($('input').value.trim() + '\nLocație GPS autorizată: ' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '; precizie ' + Math.round(accuracy) + ' m.').trim(); fit(); },
+  error => note('Locația nu a fost acordată: ' + error.message, 'err'), { enableHighAccuracy: true, timeout: 14000, maximumAge: 0 });
 }
 
 // ---------- acțiuni pe conversație ----------
@@ -397,6 +554,10 @@ $('input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftK
 $('composer').onsubmit = e => { e.preventDefault(); send($('input').value.trim()); };
 $('stop').onclick = () => { if (current && active()) rpc('turn/interrupt', { threadId: current, turnId: active() }).catch(e => note(e.message, 'err')); };
 $('older').onclick = loadOlder;
+$('locate').onclick = geolocate;
+$('screen-close').onclick = closeMonitor;
+$('screen-full').onclick = () => $('screen').classList.toggle('full');
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('screen').hidden) closeMonitor(); });
 $('model').onchange = () => efforts();
 $('file').onchange = e => { attach([...e.target.files]); e.target.value = ''; };
 $('new-thread').onclick = () => { newThread(); closeSide(); };
@@ -407,7 +568,7 @@ $('more-threads').onclick = () => loadThreads(true).catch(e => note(e.message, '
 $('thread-menu-open').onclick = () => { $('thread-menu').hidden = !$('thread-menu').hidden; };
 for (const b of $('thread-menu').querySelectorAll('button')) b.onclick = () => threadAction(b.dataset.act);
 for (const b of document.querySelectorAll('.nav')) b.onclick = () => openPanel(b.dataset.panel);
-$('panel-close').onclick = () => { $('panel').hidden = true; $('panel-title').dataset.kind = ''; };
+$('panel-close').onclick = () => { $('panel').hidden = true; $('panel-title').dataset.kind = ''; clearTimeout(taskPoll); };
 $('side-open').onclick = () => document.body.classList.add('side-on');
 $('side-close').onclick = closeSide;
 $('signin').onclick = login;

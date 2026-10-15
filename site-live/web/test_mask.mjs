@@ -1,7 +1,7 @@
 // Teste pentru logica măștii (fără browser): node --test site-live/web/test_mask.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TurnState, olderTurns, turnItems, sendFailure, markdown } from './app.js';
+import { TurnState, olderTurns, turnItems, sendFailure, markdown, monitorDirective, monitorView } from './app.js';
 
 test('turn/completed înaintea răspunsului HTTP turn/start nu repune turnul activ', () => {
   const s = new TurnState();
@@ -59,4 +59,27 @@ test('eșec sigur față de trimitere incertă', () => {
 test('markdown escapează HTML și permite doar linkuri http(s)', () => {
   assert.ok(!markdown('<img src=x onerror=1>').includes('<img'));
   assert.ok(!markdown('[a](javascript:alert(1))').includes('href'));
+});
+
+test('monitor: directiva din răspuns, ultima câștigă; JSON invalid ignorat', () => {
+  const t = 'Iată harta.\n```kelion-monitor\n{"action":"open","type":"map","lat":44.43,"lon":26.1,"zoom":12,"title":"București"}\n```';
+  assert.equal(monitorDirective(t).type, 'map');
+  assert.equal(monitorDirective('```kelion-monitor\n{x}\n```'), null);
+  assert.equal(monitorDirective('fără bloc'), null);
+});
+
+test('monitor: vizualizări sigure pentru video, hartă, web, imagine, text, închidere', () => {
+  const yt = monitorView({ action: 'open', type: 'video', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
+  assert.equal(yt.src, 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1');
+  assert.equal(monitorView({ action: 'open', type: 'video', url: 'https://youtu.be/dQw4w9WgXcQ' }).kind, 'frame');
+  assert.equal(monitorView({ action: 'open', type: 'video', url: 'https://cdn.example.com/a.mp4' }).kind, 'video');
+  assert.equal(monitorView({ action: 'open', type: 'video', url: 'http://insecure.example.com/a.mp4' }), null);
+  assert.equal(monitorView({ action: 'open', type: 'web', url: 'javascript:alert(1)' }), null);
+  const map = monitorView({ action: 'open', type: 'map', lat: 44.43, lon: 26.1, zoom: 12 });
+  assert.match(map.src, /^https:\/\/www\.openstreetmap\.org\/export\/embed\.html\?bbox=/);
+  assert.equal(monitorView({ action: 'open', type: 'map', lat: 'x', lon: 1 }), null);
+  assert.equal(monitorView({ action: 'open', type: 'image', url: 'https://example.com/a.png' }).kind, 'image');
+  assert.equal(monitorView({ action: 'open', type: 'text', text: '# Meteo' }).kind, 'text');
+  assert.deepEqual(monitorView({ action: 'close' }), { kind: 'close' });
+  assert.equal(monitorView({ action: 'open', type: 'html', text: '<script>' }), null);
 });

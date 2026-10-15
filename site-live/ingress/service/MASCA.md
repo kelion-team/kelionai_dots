@@ -39,7 +39,24 @@ e-mailul de credite, `command/exec*` și `thread/shellCommand`, `fs/remove`, `fs
 instalarea de pluginuri/marketplace, OAuth MCP nou, `feedback/upload`, Windows. Se activează doar prin
 `"enable": [...]` în `/etc/kelion-mask/config.json`, cu decizia lui Adrian.
 
-Vocea nu trece prin mască: vocea este apelul Kelion DOTS din aplicația DOTS.
+## Monitorul mare (în dreapta, ca panoul calculatorului din ChatGPT)
+
+La cerere („pornește filmul…”, „arată meteo”, „arată harta…”, orice cere vizualizare mare), Codex răspunde cu un
+bloc ```kelion-monitor {json}``` (instrucțiunea e trimisă ca `developerInstructions` la `thread/start` și
+`thread/resume`). Tipuri: video (YouTube prin youtube-nocookie sau fișier video https), map (OpenStreetMap),
+web (pagină https, în iframe izolat; unele site-uri refuză încadrarea, de aceea există și „deschide în filă nouă”),
+image, text (markdown, ex. prognoza meteo căutată pe web). Se închide cu X, cu Escape sau cerând în chat
+(Codex răspunde cu `{"action":"close"}`). Orice răspuns are și butonul „⛶ Vizualizare mare”. Pe ecrane sub
+1000 px monitorul ocupă tot ecranul. CSP: frame-src, img-src și media-src permit https.
+
+## Funcțiile frontendului KelionDOTS live, păstrate în mască
+
+Magistrala Kelion (`/api/tasks`: trimitere, istoric, stare, pași, rezultat), Fișiere (`/api/attachments`, fragmente
+de 2 MiB, max 512 MiB, stare și SHA256, fără analiză AI), Locație GPS (cu permisiune, adăugată în mesaj),
+Capabilități (`/device-capabilities.js`, `voice_health`, legătura Codex).
+
+Vocea nu trece prin mască: vocea este apelul Kelion DOTS din aplicația DOTS. Apelul DOTS nu poate comanda
+pagina (deschide/închide monitorul) până nu există un canal autorizat între ele; din chatul măștii funcționează.
 
 ## Instalare pe kelion-nou
 

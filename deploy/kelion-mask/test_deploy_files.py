@@ -1,4 +1,5 @@
 import unittest,tempfile,pathlib,hashlib,json,os
+from unittest.mock import patch
 import deploy_files as d
 
 def sha(b):return hashlib.sha256(b).hexdigest()
@@ -33,4 +34,19 @@ class DeployTests(unittest.TestCase):
  def test_existing_backup_refused(self):
   self.back.mkdir()
   with self.assertRaises(FileExistsError):d.apply(self.live,self.src,self.m,self.back)
+ def test_partial_apply_can_be_rolled_back(self):
+  (self.live/'second.js').write_bytes(b'old2');(self.src/'second.js').write_bytes(b'new2')
+  self.m.append({'path':'second.js','source_sha256':sha(b'new2'),'expected_current_sha256':sha(b'old2')})
+  original=d.atomic
+  def fail_second(path,data,*args,**kwargs):
+   if path==self.live/'second.js':raise OSError('Injected write failure')
+   return original(path,data,*args,**kwargs)
+  with patch.object(d,'atomic',side_effect=fail_second):
+   with self.assertRaises(OSError):d.apply(self.live,self.src,self.m,self.back)
+  self.assertEqual((self.live/'app.js').read_bytes(),b'new')
+  self.assertEqual((self.live/'second.js').read_bytes(),b'old2')
+  self.assertEqual(json.loads((self.back/'transaction.json').read_text())['state'],'failed_reconcile_before_retry')
+  d.rollback(self.live,self.back)
+  self.assertEqual((self.live/'app.js').read_bytes(),b'old')
+  self.assertEqual((self.live/'second.js').read_bytes(),b'old2')
 if __name__=='__main__':unittest.main()

@@ -44,7 +44,10 @@ test('turn sumar: elementele complete vin din thread/items/list, toate paginile'
 });
 
 test('eșec sigur față de trimitere incertă', () => {
-  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32000 } })), 'failed');
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32000 } })), 'uncertain');   // conexiune întreruptă
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32001 } })), 'uncertain');   // timp depășit în punte
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32003 } })), 'failed');      // blocat înainte de trimitere
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32600 } })), 'failed');      // refuz explicit app-server
   assert.equal(sendFailure(Object.assign(Error('x'), { status: 400 })), 'failed');
   assert.equal(sendFailure(Object.assign(Error('x'), { status: 502 })), 'uncertain');
   assert.equal(sendFailure(new TypeError('Failed to fetch')), 'uncertain');

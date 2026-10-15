@@ -1,121 +1,130 @@
-:root{font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#ececec;background:#212121;color-scheme:dark}
+:root{--bg:#212121;--side:#171717;--panel:#2a2a2a;--line:#3a3a3a;--text:#ececec;--mute:#9b9b9b;--accent:#4f7cff;--me:#303030;--err:#ff8a80;--warn:#ffd27a;--ok:#4cd964;
+  --logo:url('/dots-robot.png')}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;background:#212121}
-main{height:100dvh;display:flex;flex-direction:column;margin-left:52px}
-body:has(#workspace[hidden]) main{margin-left:0}
-body:has(#workspace[hidden]) .rail{display:none}
-.rail{position:fixed;inset:0 auto 0 0;width:52px;background:#171717;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;z-index:10}
-.rail .spacer{flex:1}.rail-logo{width:32px;height:32px;border-radius:8px;background:#a5f0d2;color:#142920;font-weight:800;display:grid;place-items:center;margin-bottom:8px}
-.railbtn{display:grid;place-items:center;text-decoration:none;width:40px;height:40px;padding:0;border-radius:10px;background:none;font-size:20px;color:#cfcfcf}.railbtn:hover{background:#2f2f2f}
-.avatar{width:32px;height:32px;padding:0;border-radius:50%;background:#7b5cd6;color:#fff;font-size:12px;display:grid;place-items:center}.avatar:hover{outline:2px solid #9b86ff}
-h1,h2,h3,p{margin:0}
-button{font:inherit;cursor:pointer;border:0;color:#ececec;background:#303030;border-radius:999px;padding:8px 16px}
-button:disabled{opacity:.4;cursor:default}
-button.ghost{background:#303030}button.small{padding:4px 12px;font-size:13px}
-select{font:inherit;background:#303030;color:#ececec;border:0;border-radius:8px;padding:4px 8px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--accent);border:0;border-radius:10px;padding:7px 12px;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+button.ghost{background:transparent;border:1px solid var(--line)}
+button.small{padding:3px 9px;font-size:13px}
+.icon{background:transparent;border:0;padding:6px 9px;border-radius:8px;cursor:pointer;font-size:18px;line-height:1}
+.icon:hover{background:#ffffff14}
+.spacer{flex:1}
+.logo{display:inline-block;width:26px;height:26px;background:var(--logo) center/contain no-repeat}
+.logo.big{width:72px;height:72px}
 [hidden]{display:none!important}
-/* Antet: ca în ChatGPT — subtil, apel și meniu în dreapta. */
-.top{display:flex;align-items:center;gap:8px;padding:10px 16px;flex:none;position:relative}
-.brand{font-weight:600;color:#cfcfcf}.spacer{flex:1}
-.account{display:flex;align-items:center;gap:6px}
-.iconbtn{background:none;width:40px;height:40px;padding:0;font-size:20px;line-height:40px;color:#cfcfcf;border-radius:999px}
-.iconbtn:hover:not(:disabled){background:#2f2f2f}
-.menu{position:fixed;left:60px;bottom:12px;z-index:30;background:#2f2f2f;border:1px solid #3d3d3d;border-radius:14px;padding:6px;min-width:220px;display:flex;flex-direction:column;box-shadow:0 10px 30px #0008}
-.menu button{background:none;text-align:left;border-radius:8px;padding:9px 12px}.menu button:hover{background:#3a3a3a}
-.menu-email{font-size:12px;color:#9b9b9b;padding:6px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.menu-row{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font-size:15px}
-#status{flex:none;font-size:13px;color:#9b9b9b;text-align:center;min-height:1.3em}
-#status:empty{display:none}
-#login{flex:none;display:flex;justify-content:center;padding:20px}
-#google{min-height:44px}#google svg{width:18px!important;height:18px!important}
-body:has(#workspace:not([hidden])) #login{display:none}
-body:has(#workspace[hidden]) .account{display:none}
-/* Coloana centrală ca în ChatGPT. */
-#workspace{flex:1;min-height:0;width:100%;max-width:800px;margin:0 auto;padding:0 16px 14px;display:flex;flex-direction:column;gap:10px;position:relative}
-.persona{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px}
-.persona .kelion{width:58px;height:62px}
-.pill{background:#2f2f2f;border-radius:12px;padding:3px 12px;text-align:center;line-height:1.25}
-.pill strong{display:block;font-size:15px}.kstate{font-size:13px;color:#b4b4b4}
-/* Monitorul de sub roboțel: pași + rezultate (cod, linkuri, documente). Fără chat. */
-.screen{flex:1;min-height:0;overflow:auto;background:#171717;border:1px solid #2f2f2f;border-radius:16px;padding:10px 14px}
-.monitor{list-style:none;margin:0;padding:0;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9b9b9b}
-.monitor li{overflow-wrap:anywhere}.monitor .state{color:#ececec}.monitor .running{color:#ffd479}.monitor .running::before{content:'● ';animation:pulse 1.2s infinite}
-.monitor .done{color:#7ee2b8}.monitor .bad{color:#ff8f8f}.monitor .idle{font-style:italic}
-.results{display:flex;flex-direction:column;gap:8px}.results:not(:empty){margin-top:10px}
-.results pre{margin:0;background:#0d0d0d;border-radius:10px;padding:10px;overflow:auto;font-size:13px;white-space:pre}
-.results a{color:#8ab4ff;overflow-wrap:anywhere}
-.results h4{margin:0;font-size:12px;color:#9b9b9b;text-transform:uppercase;letter-spacing:.5px}
-/* Conversația scrisă, jos, deasupra rândului de scris. */
-.conv{flex:none;max-height:26dvh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:2px 0}.conv:empty{display:none}
-.row{display:flex;align-items:center;gap:6px}
-.msg{max-width:85%;padding:9px 16px;border-radius:20px;white-space:pre-wrap;overflow-wrap:anywhere}
-.msg.me{align-self:flex-end;background:#6f86ad;color:#fff}
-.msg.ai{align-self:flex-start;background:#2f2f2f}
-.msg.wait{color:#b4b4b4;font-style:italic}.msg.bad{color:#ff9a9a}
-/* Rândul de scris: pastilă ca „Trimite un mesaj”. */
-.composer{flex:none;background:#2f2f2f;border-radius:28px;padding:6px 8px}
-.composer textarea{flex:1;resize:none;border:0;outline:0;background:none;color:#ececec;font:inherit;line-height:22px;padding:9px 6px;height:40px;max-height:30dvh;min-width:0}
-.composer textarea::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.composer textarea::placeholder{color:#9b9b9b}
-.plus{font-size:24px}
-.sendbtn{width:40px;height:40px;padding:0;font-size:20px;background:#ececec;color:#212121}
-.sendbtn:disabled{background:#676767;color:#2f2f2f;opacity:1}
-/* Apel vocal: card ca în ChatGPT, în locul monitorului. */
-.call-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0}
-.call-title{font-size:20px;font-weight:600}
-.voice{font-size:13px;color:#b4b4b4;text-align:center}
-.call-actions{display:flex;gap:28px}.call-actions span{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:#cfcfcf}
-.round{width:58px;height:58px;padding:0;border-radius:50%;font-size:20px;background:#3a3a3a}
-.round.end{background:#e5484d;color:#fff;transform:rotate(135deg)}
-.screen:has(.call-card:not([hidden])) .monitor,.screen:has(.call-card:not([hidden])) .results{display:none}
-.msg.heard{align-self:flex-end;background:#3a3a3a;color:#cfcfcf;font-style:italic}
-/* T + becul de sub el: aprins cât traducerea e activă. */
-.tbtn{position:relative;display:flex}
-.tkey{font-weight:700;font-size:17px;background:none;border:1px solid #4a4a4a}
-.led{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:#4a4a4a;display:block}
-#translate[aria-pressed=true]+.led{background:#7ee2b8;box-shadow:0 0 8px #7ee2b8}
-.duplex{width:40px;height:40px;padding:0;background:#7b85f0;color:#fff}.duplex:hover:not(:disabled){background:#8e97ff}
-/* Panouri Istoric / Setări. */
-.panel{background:#2f2f2f;border:1px solid #3d3d3d;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0}
-.list{position:absolute;z-index:15;inset:118px auto 14px 0;width:min(360px,calc(100% - 32px));box-shadow:0 10px 40px #0009}
-.panel-head{display:flex;align-items:center;gap:6px}.panel-head h2{flex:1;font-size:14px;color:#b4b4b4;text-transform:uppercase;letter-spacing:.5px}
-#tasks{overflow:auto;min-height:0;flex:1}
-#tasks button{display:block;width:100%;text-align:left;background:#3a3a3a;border-radius:10px;font-size:12px;padding:8px 10px;margin:0 0 6px;overflow-wrap:anywhere}
-.settings-body{overflow:auto;min-height:0;display:flex;flex-direction:column;gap:6px}
-.settings-body h3{margin:10px 0 2px;font-size:12px;color:#b4b4b4;text-transform:uppercase;letter-spacing:.5px}
-.settings-body a{display:block;background:#3a3a3a;color:#ececec;text-decoration:none;border-radius:10px;padding:8px 10px;font-size:14px}
-.settings-body a:hover{background:#454545}.settings-body a::after{content:' ↗';color:#9b9b9b}
-.note{font-size:13px;color:#b4b4b4}
-@media (max-width:700px){.plus{display:none}main{margin-left:44px}.rail{width:44px}#workspace{padding:0 10px 10px}.conv{max-height:30dvh}.msg{max-width:92%}}
-.kelion{position:relative;width:76px;height:82px;flex:none}
-.bot{width:100%;height:100%;overflow:visible}
-.bot .c{fill:#6f7ff0}.bot .screen{fill:#1d2540}.bot .eye{fill:none;stroke:#8fd3ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.bot .eye.small{stroke-width:2.5}
-.bot .mouth,.bot .tag{fill:#8fd3ff}
-.ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid #a5f0d2;opacity:0;pointer-events:none}
-.body-g{transform-origin:60px 118px;animation:bob 3.2s ease-in-out infinite}
-@keyframes bob{50%{transform:translateY(-3px)}}
-.face{animation:blink 4.5s infinite;transform-origin:60px 52px}
-@keyframes blink{0%,94%,100%{transform:scaleY(1)}96%{transform:scaleY(.1)}}
-.kelion[data-state=listening] .ring,.kelion[data-state=starting] .ring{animation:pulse 1.2s ease-out infinite}
-@keyframes pulse{0%{opacity:.8;transform:scale(.85)}100%{opacity:0;transform:scale(1.15)}}
-.kelion[data-state=waiting] .face,.kelion[data-state=submitting] .face{animation:look 1.6s ease-in-out infinite}
-@keyframes look{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
-.kelion[data-state=speaking] .mouth{animation:talk .28s ease-in-out infinite alternate;transform-origin:65px 58px}
-@keyframes talk{from{transform:scaleY(.6)}to{transform:scaleY(3)}}
-.kelion[data-state=speaking] .arm.r{animation:wave .6s ease-in-out infinite alternate;transform-origin:85px 86px}
-@keyframes wave{to{transform:rotate(-25deg)}}
-.kelion[data-state=error] .c{fill:#c86f7f}
-@media (prefers-reduced-motion:reduce){.kelion *{animation:none!important}}
-/* Toate ecranele: telefon, tabletă, laptop; zone sigure (notch, bara de jos). */
-#workspace{padding-bottom:max(14px,env(safe-area-inset-bottom))}
-.attach{position:absolute;left:16px;bottom:78px;top:auto;right:auto}
-#cam-video{width:100%;max-height:40dvh;border-radius:12px;background:#000;object-fit:contain}
-.results img{max-width:100%;max-height:40dvh;border-radius:10px;align-self:flex-start}
-@media (min-width:701px) and (max-width:1100px){#workspace{max-width:900px}.screen{min-height:30dvh}}
-@media (min-width:1101px){#workspace{max-width:880px}}
-@media (max-height:520px) and (orientation:landscape){.persona .kelion{width:40px;height:44px}.persona{flex-direction:row;gap:8px}.top{padding:4px 12px}.conv{max-height:30dvh}}
-@media (max-width:700px){.attach{left:8px;right:8px;bottom:72px}.composer{border-radius:22px}}
-/* Roboțelul e permanent: nimic nu-l acoperă sau ascunde (panouri, meniuri, apel, traducere, cameră). */
-.persona{position:relative;z-index:25}
-@media (max-height:520px) and (orientation:landscape){.list{top:56px}}
+
+.gate{min-height:100%;display:grid;place-items:center;padding:16px}
+.gate-box{text-align:center;display:grid;gap:12px;justify-items:center;max-width:420px}
+.gate h1{margin:0;font-size:26px}
+#status{color:var(--mute);margin:0}
+
+.app{display:flex;height:100dvh;overflow:hidden}
+.side{width:270px;flex:none;background:var(--side);display:flex;flex-direction:column;gap:8px;padding:10px}
+.side-head{display:flex;align-items:center;gap:8px;padding:4px 4px 6px}
+.side-head strong{flex:1}
+.wide{width:100%;text-align:left;background:transparent;border:1px solid var(--line)}
+.wide:hover{background:#ffffff10}
+#search{width:100%;background:#ffffff0d;border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.toggle{font-size:13px;color:var(--mute);display:flex;gap:6px;align-items:center;padding:0 4px}
+.threads{flex:1;overflow:auto;display:flex;flex-direction:column;gap:1px;min-height:0}
+.thread{background:transparent;text-align:left;border-radius:8px;padding:7px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.thread:hover{background:#ffffff10}.thread.on{background:#ffffff1c}
+.side-foot{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:2px}
+.nav{background:transparent;text-align:left;padding:6px 10px}
+.nav:hover{background:#ffffff10}
+.me{display:flex;align-items:center;gap:8px;padding:6px 4px 2px;font-size:13px;color:var(--mute)}
+.me span{flex:1;overflow:hidden;text-overflow:ellipsis}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #ffffff0d}
+.bar h2{margin:0;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link{font-size:14px;color:var(--mute)}.link.ok{color:var(--ok)}.link.bad{color:var(--err)}
+.menu-wrap{position:relative}
+.menu{position:absolute;top:100%;left:0;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;display:grid;min-width:200px;box-shadow:0 8px 30px #0008}
+.menu button{background:transparent;text-align:left}
+.menu button:hover{background:#ffffff14}.menu .danger{color:var(--err)}
+
+.log{flex:1;overflow:auto;padding:20px max(16px,calc(50% - 380px));display:flex;flex-direction:column;gap:14px}
+.empty{margin:auto;text-align:center;color:var(--mute);font-size:22px}
+.msg{max-width:100%;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:var(--me);border-radius:18px;padding:9px 15px;max-width:80%;white-space:pre-wrap}
+.msg.bot p{margin:0 0 .6em}.msg.bot p:last-child{margin:0}
+.msg pre,.tree pre{background:#0d0d0d;border-radius:10px;padding:10px;overflow:auto;font-size:13px;white-space:pre-wrap}
+.msg code{background:#ffffff14;border-radius:5px;padding:1px 5px;font-size:13px}.msg pre code{background:none;padding:0}
+.msg.tool{color:var(--mute);font-size:14px;border-left:2px solid var(--line);padding-left:10px}
+.msg.tool summary{cursor:pointer}
+.msg.note{color:var(--mute);font-size:13px;text-align:center}
+.msg.err,.err{color:var(--err)}.msg.warn{color:var(--warn);font-size:14px}
+.msg a{color:#8ab4ff}
+.path{font-family:ui-monospace,monospace;font-size:13px}
+.pic{display:block;max-width:min(100%,420px);border-radius:12px;margin-top:6px}
+.res{display:block;color:#8ab4ff}
+
+.approvals{padding:0 max(16px,calc(50% - 380px));display:grid;gap:8px}
+.card{background:var(--panel);border:1px solid #4f7cff66;border-radius:14px;padding:12px;display:grid;gap:8px;max-height:40vh;overflow:auto}
+.card .row{display:flex;gap:8px;flex-wrap:wrap}
+.card .q{display:grid;gap:4px}.card input{background:#ffffff0d;border:1px solid var(--line);border-radius:8px;padding:6px}
+
+.composer{margin:8px max(16px,calc(50% - 380px)) 16px;background:var(--panel);border-radius:24px;padding:10px 12px 8px;display:grid;gap:6px}
+.composer textarea{background:transparent;border:0;resize:none;outline:none;max-height:220px;padding:4px}
+.tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tools select{background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:13px;max-width:160px}
+.tools select option{background:var(--panel)}
+.tools label.icon{display:inline-grid;place-items:center}
+.round{width:34px;height:34px;border-radius:50%;padding:0;font-size:17px;background:var(--text);color:#111}
+.round.stop{background:var(--text)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips:empty{display:none}
+.chip{background:#ffffff14;border-radius:999px;padding:2px 10px;font-size:13px;cursor:pointer}
+
+.panel{position:fixed;inset:0;background:#0009;display:grid;place-items:center;z-index:10;padding:16px}
+.panel-box{background:var(--bg);border:1px solid var(--line);border-radius:16px;width:min(900px,100%);max-height:90dvh;display:flex;flex-direction:column}
+.panel-body{overflow:auto;padding:14px 16px}
+.tree{margin:0;padding-left:16px;font-size:13px}
+dl.tree{display:grid;grid-template-columns:max-content 1fr;gap:2px 10px}
+.tree dt{color:var(--mute)}.tree dd{margin:0;overflow-wrap:anywhere}
+.nil{color:#666}
+
+.only-mobile{display:none}
+@media (max-width:760px){
+  .only-mobile{display:inline-block}
+  .side{position:fixed;inset:0 auto 0 0;z-index:8;width:min(300px,85vw);transform:translateX(-100%);transition:transform .2s}
+  body.side-on .side{transform:none;box-shadow:0 0 40px #000a}
+  .msg.me{max-width:90%}
+  .tools select{max-width:120px}
+  dl.tree{grid-template-columns:1fr}.tree dd{padding-left:10px}
+  .panel{padding:8px}
+}
+.thread.wait::after{content:" ●";color:var(--warn)}
+.older{align-self:center}
+
+/* Monitorul mare: panou în dreapta (ca panoul calculatorului din ChatGPT), extensibil pe tot ecranul */
+.screen{flex:0 0 56%;max-width:56%;display:flex;flex-direction:column;background:var(--side);border-left:1px solid var(--line);min-width:0}
+.screen.full{position:fixed;inset:0;max-width:none;z-index:9;border:0}
+.screen-body{flex:1;display:grid;place-items:center;overflow:auto;padding:12px;min-height:0}
+.screen-body iframe,.screen-body video{width:100%;height:100%;border:0;border-radius:12px;background:#000}
+.screen-body img{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
+.screen-text{align-self:start;width:100%;max-width:900px;font-size:17px}
+.screen-text pre{background:#0d0d0d;border-radius:10px;padding:10px;overflow:auto}
+.screen-text table{border-collapse:collapse}.screen-text td,.screen-text th{border:1px solid var(--line);padding:4px 8px}
+.msg-tools{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.kpanel{display:grid;gap:10px}.ktask{display:grid;gap:6px}
+.ktask textarea{background:#ffffff0d;border:1px solid var(--line);border-radius:10px;padding:8px;resize:vertical}
+.klist{display:grid;gap:2px}.kdetail pre{white-space:pre-wrap}
+label.wide{display:block;padding:7px 12px;border-radius:10px;cursor:pointer}
+@media (max-width:1000px){.screen{position:fixed;inset:0;max-width:none;z-index:9;border:0}}
+a.icon{color:inherit;text-decoration:none}
+
+/* Roboțelul DOTS: deasupra oricărei pagini (inclusiv monitorul), mutabil */
+.dots{position:fixed;z-index:30;display:flex;flex-direction:column;align-items:center;gap:2px;touch-action:none;cursor:grab;user-select:none}
+.dots:active{cursor:grabbing}
+.dots img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 10px #0009);pointer-events:none}
+.dots-pill{display:grid;justify-items:center;background:#000c;border:1px solid var(--line);border-radius:12px;padding:2px 10px;font-size:12px;line-height:1.3}
+.dots-pill small{color:var(--mute)}
+.dots[data-state=busy] img{animation:dots-bob 1.2s ease-in-out infinite}
+.dots[data-state=wait] .dots-pill{border-color:var(--warn)}.dots[data-state=wait] small{color:var(--warn)}
+.dots[data-state=off] small{color:var(--err)}
+@keyframes dots-bob{50%{transform:translateY(-5px)}}
+@media (prefers-reduced-motion:reduce){.dots[data-state=busy] img{animation:none}}
+.screen-link{display:grid;gap:10px;justify-items:center;text-align:center}

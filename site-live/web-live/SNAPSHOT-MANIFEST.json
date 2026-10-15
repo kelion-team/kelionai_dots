@@ -1,0 +1,55 @@
+{
+  "source": "kelion-nou",
+  "captured_utc": "2026-10-15T06:48:00Z",
+  "frontend_current_target": "/opt/kelion-app/web-v1/frontend-releases/versions/v-e9d4eba350c0a97661566dfc",
+  "files": {
+    "server.mjs": {
+      "bytes": 19263,
+      "sha256": "efe5d90daa78d43fd673185ece2318380271a0d3c61c763e66c2f1da4d9178c7"
+    },
+    "auth.mjs": {
+      "bytes": 3436,
+      "sha256": "f2671c13ae822298e8e38ec535342182a869dc950c330929533fda1015a2c20b"
+    },
+    "attachments.mjs": {
+      "bytes": 4351,
+      "sha256": "1ac3a8b04ca00fb183c269ac78d9d3c7b9aaf5130423f87e48babc3fc26aa57c"
+    },
+    "device-capabilities.js": {
+      "bytes": 2016,
+      "sha256": "5d0618d24ae4082eca8c4c527a85b5d849e0960d565f6df64eca228a9d627630"
+    },
+    "dots-workspace.css": {
+      "bytes": 3918,
+      "sha256": "590975a68ac28587c47ce1d8fdec9bc02b4403e4b290827dd7097e7d759e3548"
+    },
+    "dots-robot.png": {
+      "bytes": 45560,
+      "sha256": "9e2e8c1a9f043d791a82784811688ee3f0c7da4304b0b33b7ba85890fabe69e2"
+    },
+    "index.html": {
+      "bytes": 9014,
+      "sha256": "dbe3830239c56c8f29b631f9d857967a12b4869a44a8ac7343e0c2f9325db5d7"
+    },
+    "app.js": {
+      "bytes": 20723,
+      "sha256": "bccd883b268386a8313b11331109cbe55bfb0b59e51fb572b2215bbaebf75cdc"
+    },
+    "style.css": {
+      "bytes": 15854,
+      "sha256": "ad7e669b1eb8617552b30faaa9114fdbcac6d51a0da28f9850ba3fa6499235e8"
+    },
+    "frontend-releases/current/app.js": {
+      "bytes": 20723,
+      "sha256": "bccd883b268386a8313b11331109cbe55bfb0b59e51fb572b2215bbaebf75cdc"
+    },
+    "frontend-releases/current/style.css": {
+      "bytes": 15854,
+      "sha256": "ad7e669b1eb8617552b30faaa9114fdbcac6d51a0da28f9850ba3fa6499235e8"
+    },
+    "frontend-releases/current/index.html": {
+      "bytes": 9014,
+      "sha256": "dbe3830239c56c8f29b631f9d857967a12b4869a44a8ac7343e0c2f9325db5d7"
+    }
+  }
+}

@@ -1,528 +1,606 @@
 'use strict';
-// Alege vocea română după genul selectat. Numele vocilor diferă între browsere;
-// dacă nu există o voce de genul cerut, se folosește vocea română disponibilă cu ton ajustat.
-const VOICE_NAMES = { masculin: /emil|andrei|bogdan|male|masculin|bărbat/i, feminin: /ioana|alina|carmen|female|feminin|femeie/i };
-export function pickVoice(voices, gender) {
-  const ro = voices.filter(v => v.lang.toLowerCase().startsWith('ro'));
-  const wanted = gender === 'masculin' ? 'masculin' : 'feminin', other = wanted === 'masculin' ? 'feminin' : 'masculin';
-  const exact = ro.find(v => VOICE_NAMES[wanted].test(v.name));
-  if (exact) return { voice: exact, pitch: 1 };
-  const neutral = ro.find(v => !VOICE_NAMES[other].test(v.name)) || ro[0];
-  return { voice: neutral, pitch: wanted === 'masculin' ? 0.75 : 1.1 };
-}
-// Browser conversation controller. Recognition/synthesis events, not timers, delimit audio.
-export class VoiceConversation {
-  constructor({ Recognition, synthesis, Utterance, request, onState = () => {}, onTranscript = () => {}, onResult = () => {}, pollMs = 2000, waitMs = 1800000, echoDelayMs = 400, voiceGender = () => 'feminin' }) {
-    Object.assign(this, { Recognition, synthesis, Utterance, request, onState, onTranscript, onResult, pollMs, waitMs, echoDelayMs, voiceGender });
-    this.active = false; this.generation = 0; this.state = 'idle';
-  }
-  notify(state, message) { this.state = state; this.onState({ state, message, active: this.active, taskId: this.taskId }); }
-  current(generation) { return this.active && this.generation === generation; }
-  start() {
-    if (this.active) return;
-    if (!this.Recognition || !this.synthesis || !this.Utterance) { this.notify('error', 'Conversația vocală nu este disponibilă în acest browser.'); return; }
-    this.active = true; this.taskId = null; const generation = ++this.generation;
-    this.abort = new AbortController(); this.listen(generation);
-  }
-  stop(message = 'Conversația s-a încheiat. Cererile deja trimise rămân în istoric.') {
-    this.active = false; this.generation++; this.abort?.abort();
-    if (this.recognition) { const mic = this.recognition; this.recognition = null; mic.onresult = mic.onerror = mic.onend = mic.onstart = null; try { mic.abort(); } catch {} }
-    this.cancelSpeech?.(); this.cancelSpeech = null; this.synthesis?.cancel();
-    this.notify('idle', message);
-  }
-  interrupt() {
-    if (!this.active || this.state !== 'speaking') return;
-    this.stop('Redare întreruptă.');
-    this.active = true; const generation = ++this.generation; this.abort = new AbortController();
-    this.notify('starting', 'Redare întreruptă; se reia ascultarea.');
-    this.delay(this.echoDelayMs).then(() => { if (this.current(generation)) this.listen(generation); }).catch(() => {});
-  }
-  fail(message) { this.stop(message); this.notify('error', message); }
-  delay(ms) {
-    const signal = this.abort.signal;
-    return new Promise((resolve, reject) => {
-      const cancel = () => { clearTimeout(timer); signal.removeEventListener('abort', cancel); reject(new Error('Conversație oprită')); };
-      const timer = setTimeout(() => { signal.removeEventListener('abort', cancel); resolve(); }, ms);
-      signal.addEventListener('abort', cancel, { once: true }); if (signal.aborted) cancel();
-    });
-  }
-  listen(generation) {
-    if (!this.current(generation)) return;
-    const mic = new this.Recognition(); this.recognition = mic;
-    mic.lang = 'ro-RO'; mic.continuous = false; mic.interimResults = false; mic.maxAlternatives = 1;
-    let consumed = false;
-    this.notify('starting', 'Permite microfonul pentru a începe.');
-    mic.onstart = () => { if (this.current(generation) && !consumed) this.notify('listening', 'Ascult. Fraza finală va fi trimisă automat.'); };
-    mic.onerror = event => {
-      if (!this.current(generation) || consumed) return;
-      if (['no-speech', 'aborted'].includes(event.error)) return;  // apel permanent: tăcerea nu închide apelul
-      const messages = { 'not-allowed': 'Microfon refuzat. Permite microfonul în browser, apoi apasă Pornește conversația.',
-        'service-not-allowed': 'Serviciul de recunoaștere este blocat de browser.', 'audio-capture': 'Microfon indisponibil. Verifică dispozitivul și permisiunea.',
-        network: 'Recunoașterea vocală nu are conexiune. Verifică rețeaua și reîncearcă.', 'no-speech': 'Nu am detectat vorbire. Apasă Pornește conversația pentru a relua.' };
-      this.fail(messages[event.error] || 'Recunoașterea s-a oprit: ' + event.error + '. Poți relua din buton.');
-    };
-    // Apel permanent: când browserul închide ascultarea fără frază, se reia (eveniment, nu temporizator de așteptare).
-    mic.onend = () => { if (this.current(generation) && !consumed) this.delay(300).then(() => { if (this.current(generation)) this.listen(generation); }).catch(() => {}); };
-    mic.onresult = event => {
-      if (!this.current(generation) || consumed) return;
-      const final = Array.from(event.results).filter(item => item.isFinal).map(item => item[0].transcript).join(' ').trim();
-      if (!final) return;
-      consumed = true; this.onTranscript(final); this.notify('submitting', 'Opresc microfonul înainte de a trimite transcrierea.');
-      // Require recognition's real end event before dispatch/speech to prevent speaker echo capture.
-      const ended = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Microfonul nu a confirmat oprirea. Repornește conversația.')), 3000);
-        mic.onend = () => { clearTimeout(timeout); if (this.recognition === mic) this.recognition = null; resolve(); };
-        mic.onerror = () => {}; mic.onresult = null;
-        try { mic.abort(); } catch { clearTimeout(timeout); reject(new Error('Microfonul nu poate fi oprit.')); }
-      });
-      this.turn(final, generation, ended);
-    };
-    try { mic.start(); } catch { this.fail('Browserul nu a putut porni microfonul. Verifică permisiunea și reîncearcă.'); }
-  }
-  async turn(transcript, generation, ended) {
-    try {
-      await ended; if (!this.current(generation)) return;
-      let result;
-      try { result = await this.request('/api/tasks', { task: transcript, input_mode: 'voice_transcript' }); }
-      catch (error) {
-        if (!error.taskId) throw error;
-        result = { task_id: error.taskId, state: 'submission_uncertain_readback_required' };
-      }
-      if (!this.current(generation)) return;
-      if (!/^web-[a-f0-9]{32}$/.test(result.task_id)) throw new Error('API-ul nu a returnat un identificator valid de cerere.');
-      this.taskId = result.task_id; const taskId = this.taskId, deadline = Date.now() + this.waitMs;
-      try { const ack = new this.Utterance('Mă gândesc.'); ack.lang = 'ro-RO'; this.synthesis.speak(ack); } catch {}
-      while (this.current(generation)) {
-        if (result.task_id !== taskId) throw new Error('Răspunsul API nu corespunde cererii vocale.');
-        this.onResult(result);
-        if (result.state === 'result_received' && result.result_retrieved === true && typeof result.output === 'string' && result.output.trim()) break;
-        if (['failed', 'blocked_runtime', 'interrupted_requires_reconcile'].includes(result.state)) throw new Error('Cererea ' + taskId + ': ' + (result.failure || result.block_reason || result.state) + '. Consultă istoricul.');
-        if (Date.now() >= deadline) throw new Error('Răspunsul întârzie. Cererea ' + taskId + ' rămâne în istoric; nu a fost retrimisă.');
-        this.notify('waiting', 'Cerere ' + taskId + ' · stare API: ' + result.state + '. Aștept răspunsul; microfon oprit.');
-        await this.delay(this.pollMs); if (!this.current(generation)) return;
-        result = await this.request('/api/tasks/' + taskId, undefined, { signal: this.abort.signal });
-      }
-      if (!this.current(generation)) return;
-      await this.speak(result.output, generation);
-      if (!this.current(generation)) return;
-      this.notify('starting', 'Răspuns redat. Se reia ascultarea.');
-      await this.delay(this.echoDelayMs); this.listen(generation);
-    } catch (error) {
-      // Cererea a eșuat sau s-a blocat: raportez real (pe monitor și aici), apelul rămâne deschis și ascultă mai departe.
-      if (!this.current(generation)) return;
-      this.notify('error', (error.message || 'Cererea nu a primit răspuns.') + ' Ascult în continuare.');
-      try { await this.delay(1500); } catch { return; }
-      if (this.current(generation)) this.listen(generation);
+// Masca KelionAI peste Codex app-server de pe kelion-nou. Fiecare acțiune de aici e o operație din schema
+// app-server (orchestration/app-server-schema), trimisă prin puntea locală; nimic nu se simulează în pagină.
+
+// Markdown minimal și sigur (text escapat; linkuri doar http/https).
+export function markdown(text) {
+  const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const inline = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>');
+  const out = [], lines = String(text ?? '').split('\n');
+  let list = null, para = [];
+  const flush = () => { if (para.length) { out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; } if (list) { out.push('</' + list + '>'); list = null; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
+      flush(); const code = [];
+      while (++i < lines.length && !/^```/.test(lines[i])) code.push(lines[i]);
+      out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>'); continue;
     }
+    const h = /^(#{1,4})\s+(.*)$/.exec(line), li = /^\s*(?:[-*]|(\d+)\.)\s+(.*)$/.exec(line);
+    if (h) { flush(); out.push('<h' + (h[1].length + 2) + '>' + inline(h[2]) + '</h' + (h[1].length + 2) + '>'); }
+    else if (li) { if (para.length) { const l = list; list = null; flush(); list = l; } const kind = li[1] ? 'ol' : 'ul'; if (list !== kind) { if (list) out.push('</' + list + '>'); out.push('<' + kind + '>'); list = kind; } out.push('<li>' + inline(li[2]) + '</li>'); }
+    else if (!line.trim()) flush();
+    else { if (list) { out.push('</' + list + '>'); list = null; } para.push(line); }
   }
-  async speak(output, generation) {
-    // Bound spoken duration while retaining the full actual response in the text panel.
-    let remaining = output.slice(0, 12000);
-    this.notify('speaking', output.length > 12000 ? 'Redau primele 12.000 de caractere; răspunsul complet rămâne în text.' : 'Se pregătește redarea răspunsului.');
-    while (remaining && this.current(generation)) {
-      let cut = Math.min(700, remaining.length); if (cut < remaining.length) { const space = remaining.lastIndexOf(' ', cut); if (space > 350) cut = space; }
-      const text = remaining.slice(0, cut); remaining = remaining.slice(cut).trimStart();
-      const utterance = new this.Utterance(text); utterance.lang = 'ro-RO';
-      const pick = pickVoice(this.synthesis.getVoices(), this.voiceGender());
-      if (pick.voice) utterance.voice = pick.voice;
-      utterance.pitch = pick.pitch;
-      await new Promise((resolve, reject) => {
-        let settled = false;
-        const finish = error => { if (settled) return; settled = true; clearTimeout(timeout); this.cancelSpeech = null; utterance.onend = utterance.onerror = utterance.onstart = null; error ? reject(error) : resolve(); };
-        const timeout = setTimeout(() => finish(new Error('Redarea vocală nu s-a încheiat. Verifică sunetul browserului și reîncearcă.')), 90000);
-        this.cancelSpeech = () => finish(new Error('Redare întreruptă'));
-        utterance.onstart = () => { if (this.current(generation)) this.notify('speaking', 'Browserul redă răspunsul. Microfonul este oprit.'); };
-        utterance.onend = () => finish();
-        utterance.onerror = event => finish(new Error('Redarea audio a eșuat: ' + event.error + '. Verifică sunetul browserului; răspunsul rămâne în text.'));
-        try { this.synthesis.speak(utterance); } catch { finish(new Error('Browserul nu poate reda vocea.')); }
-      });
-    }
-  }
+  flush(); return out.join('');
 }
 
-// Detector de vorbire (VAD) pe nivelul sunetului: începutul și sfârșitul fiecărei fraze, prag adaptat la zgomot.
-export function createVad({ minThreshold = 0.012, factor = 3, silenceMs = 900, minSpeechMs = 350, maxMs = 30000 } = {}) {
-  let noise = 0.008, speaking = false, start = 0, lastVoice = 0;
-  return function step(rms, t) {
-    const threshold = Math.max(minThreshold, noise * factor);
-    if (!speaking) {
-      if (rms > threshold) { speaking = true; start = lastVoice = t; return 'start'; }
-      noise = noise * 0.95 + rms * 0.05; return null;
-    }
-    if (rms > threshold) lastVoice = t;
-    if (t - lastVoice > silenceMs || t - start > maxMs) { speaking = false; return lastVoice - start >= minSpeechMs ? 'end' : 'discard'; }
-    return null;
-  };
+// Text afișabil dintr-un UserInput (schema: text, image, localImage, audio, localAudio, ...).
+export function inputText(content) {
+  return (content || []).map(part => part.type === 'text' ? part.text : part.type === 'localImage' ? '🖼 ' + part.path.split('/').pop()
+    : part.type === 'image' ? '🖼 imagine' : '[' + part.type + ']').join('\n');
 }
-// Voce prin serviciul DOTS de pe server: frază → /api/voice/stt → magistrală (Kelion alege canalul) → /api/voice/tts → redare.
-// Full duplex prin întrerupere: dacă vorbești peste răspuns, redarea se oprește și fraza nouă e preluată.
-export class ServerVoice {
-  constructor({ media, AudioCtx, Recorder, stt, tts, request, play, onState = () => {}, onTranscript = () => {}, onResult = () => {}, pollMs = 1500, waitMs = 600000, vad = createVad() }) {
-    Object.assign(this, { media, AudioCtx, Recorder, stt, tts, request, play, onState, onTranscript, onResult, pollMs, waitMs, vad });
-    this.active = false; this.state = 'idle'; this.queue = Promise.resolve();
+
+// Starea turnului activ: un turn deja încheiat nu mai poate redeveni activ, indiferent dacă
+// notificarea turn/completed ajunge înaintea răspunsului HTTP la turn/start.
+export class TurnState {
+  constructor() { this.active = null; this.done = new Set(); }
+  started(id) { if (id && !this.done.has(id)) this.active = id; return this.active; }
+  completed(id) { this.done.add(id); if (this.active === id) this.active = null; return this.active; }
+  reset() { this.active = null; this.done.clear(); }
+}
+
+// Pagini de turnuri mai vechi: thread/turns/list cu cursorul înapoi și sortDirection "desc" (schema app-server).
+// Prima pagină include turnul-ancoră deja afișat; turnurile văzute se sar. Rezultatul e în ordine cronologică.
+export async function olderTurns(rpc, threadId, cursor, seen, limit = 20) {
+  const r = await rpc('thread/turns/list', { threadId, cursor, sortDirection: 'desc', itemsView: 'full', limit });
+  const turns = (r.data || []).filter(t => !seen.has(t.id)).reverse();
+  return { turns, cursor: r.nextCursor || null };
+}
+
+// Elementele complete ale unui turn încărcat doar sumar: thread/items/list, toate paginile.
+export async function turnItems(rpc, threadId, turn) {
+  if (!turn.itemsView || turn.itemsView === 'full') return turn.items || [];
+  const out = []; let cursor = null;
+  do {
+    const r = await rpc('thread/items/list', { threadId, turnId: turn.id, sortDirection: 'asc', ...(cursor ? { cursor } : {}) });
+    out.push(...(r.data || [])); cursor = r.nextCursor || null;
+  } while (cursor);
+  return out;
+}
+
+// Eșec sigur (cererea sigur nu a ajuns) față de trimitere incertă (poate a ajuns): fără retrimitere automată.
+export function sendFailure(error) {
+  // Erorile punții poartă data.source = "kelion-mask-bridge": disconnected/timeout → cererea poate fi ajuns
+  // la app-server (incert); restul (unavailable, blocked, unknown_method) → sigur netrimisă.
+  // O eroare fără acest marcaj vine de la app-server, care a primit și a refuzat cererea → netrimis.
+  if (error?.rpc) { const d = error.rpc.data; return d?.source === 'kelion-mask-bridge' && ['disconnected', 'timeout'].includes(d.reason) ? 'uncertain' : 'failed'; }
+  if (error?.status && error.status >= 400 && error.status < 500) return 'failed';
+  return 'uncertain';                                                // rețea, 502/504, timp depășit
+}
+
+// ---------- monitorul mare ----------
+// Codex deschide monitorul răspunzând cu un bloc ```kelion-monitor {json}```; instrucțiunea e trimisă ca
+// developerInstructions (câmp din schema thread/start și thread/resume).
+export const MONITOR_INSTRUCTIONS = [
+  'Interfața KelionAI are un monitor mare pentru orice conținut care cere o vizualizare mare (film, video, meteo, hartă, pagină web, imagine, tabel, document, cod lung).',
+  'Când utilizatorul cere să vadă sau să pornească ceva de acest fel, adaugă în răspuns exact un bloc de cod cu limbajul kelion-monitor care conține un singur obiect JSON:',
+  '{"action":"open","type":"video|map|web|image|text","title":"…","url":"https://…","lat":0,"lon":0,"zoom":12,"text":"markdown"}.',
+  'video: url YouTube sau fișier video https; map: lat, lon, zoom (OpenStreetMap); web: url https; image: url https; text: markdown în câmpul text (ex. prognoza meteo căutată pe web, tabele).',
+  'Când utilizatorul cere închiderea monitorului, răspunde cu blocul kelion-monitor {"action":"close"}. Nu inventa URL-uri: folosește doar adrese găsite sau date de utilizator.',
+].join(' ');
+
+export function monitorDirective(text) {
+  const all = [...String(text || '').matchAll(/```kelion-monitor\s*\n([\s\S]*?)```/g)];
+  if (!all.length) return null;
+  try { const d = JSON.parse(all[all.length - 1][1]); return d && typeof d === 'object' && !Array.isArray(d) ? d : null; } catch { return null; }
+}
+
+const httpsUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' ? x : null; } catch { return null; } };
+// Ce afișează monitorul pentru o directivă; null = directivă invalidă (nu se deschide nimic).
+export function monitorView(d) {
+  if (!d) return null;
+  if (d.action === 'close') return { kind: 'close' };
+  if (d.action !== 'open') return null;
+  const title = typeof d.title === 'string' ? d.title.slice(0, 200) : '';
+  if (d.type === 'video') {
+    const u = httpsUrl(d.url); if (!u) return null;
+    const host = u.hostname.replace(/^www\.|^m\./, '');
+    let id = null;
+    if (host === 'youtu.be') id = u.pathname.slice(1);
+    else if (host === 'youtube.com' || host === 'youtube-nocookie.com') id = u.searchParams.get('v') || (/^\/(?:embed|shorts|live)\/([^/]+)/.exec(u.pathname) || [])[1];
+    if (id) return /^[A-Za-z0-9_-]{11}$/.test(id) ? { kind: 'frame', title, src: 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1', open: u.href } : null;
+    return { kind: 'link', title, open: u.href };   // alte surse: doar deschidere explicită, în filă nouă
   }
-  notify(state, message) { this.state = state; this.onState({ state, message, active: this.active }); }
-  async start() {
-    if (this.active) return;
-    if (!this.media?.getUserMedia || !this.AudioCtx || !this.Recorder) { this.notify('error', 'Browserul nu oferă microfon pentru vocea Kelion.'); return; }
-    this.active = true; this.notify('starting', 'Pornesc microfonul…');
-    try { this.stream = await this.media.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-    catch { this.active = false; this.notify('error', 'Microfon refuzat sau indisponibil. Permite microfonul și reîncearcă.'); return; }
-    if (!this.active) { this.stream.getTracks().forEach(t => t.stop()); return; }
-    this.ctx = new this.AudioCtx(); const source = this.ctx.createMediaStreamSource(this.stream);
-    this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; source.connect(this.analyser);
-    const buf = new Float32Array(this.analyser.fftSize);
-    this.timer = setInterval(() => {
-      this.analyser.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v;
-      this.onLevel(Math.sqrt(sum / buf.length), performance.now());
-    }, 40);
-    this.notify('listening', 'Te ascult. Vorbește când vrei; poți întrerupe răspunsul vorbind.');
+  if (d.type === 'map') {
+    const lat = Number(d.lat), lon = Number(d.lon), zoom = Math.min(Math.max(Number(d.zoom) || 12, 2), 18);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 85 || Math.abs(lon) > 180) return null;
+    const span = 360 / 2 ** zoom, f = n => n.toFixed(5);
+    const bbox = [f(lon - span), f(lat - span / 2), f(lon + span), f(lat + span / 2)].join(',');
+    return { kind: 'frame', title, src: 'https://www.openstreetmap.org/export/embed.html?bbox=' + bbox + '&layer=mapnik&marker=' + f(lat) + ',' + f(lon),
+      open: 'https://www.openstreetmap.org/?mlat=' + f(lat) + '&mlon=' + f(lon) + '#map=' + zoom + '/' + f(lat) + '/' + f(lon) };
   }
-  onLevel(rms, t) {
-    const event = this.vad(rms, t);
-    if (event === 'start') {
-      this.stopPlayback();  // vorbești peste răspuns: îl opresc
-      this.chunks = []; this.recorder = new this.Recorder(this.stream);
-      this.recorder.ondataavailable = e => { if (e.data?.size) this.chunks.push(e.data); };
-      this.recorder.start(); this.notify('listening', 'Te aud…');
-    } else if (event === 'end' || event === 'discard') {
-      const rec = this.recorder, chunks = this.chunks; this.recorder = null; if (!rec) return;
-      rec.onstop = () => { if (event === 'end' && this.active && chunks.length) { const blob = new Blob(chunks, { type: rec.mimeType || chunks[0].type || 'audio/webm' }); this.queue = this.queue.then(() => this.turn(blob)).catch(() => {}); } };
-      try { rec.stop(); } catch {}
-    }
-  }
-  stopPlayback() { if (this.playing) { try { this.playing.stop(); } catch {} this.playing = null; } }
-  async turn(blob) {
-    if (!this.active) return;
-    try {
-      this.notify('submitting', 'Transcriu pe server…');
-      const text = (await this.stt(blob)).trim(); if (!this.active) return;
-      if (!text) { this.notify('listening', 'Nu am înțeles; te ascult.'); return; }
-      this.onTranscript(text); this.notify('waiting', 'Kelion lucrează pe canalul ales…');
-      // Fără tăcere: o confirmare scurtă imediat, până vine răspunsul (vorbitul o întrerupe ca pe orice răspuns).
-      if (!this.ack) this.ack = this.tts('Mă gândesc.').catch(() => null);
-      this.ack.then(b => { if (b && this.active && this.state === 'waiting' && !this.playing) this.playing = this.play(b, () => { this.playing = null; }); });
-      let result = await this.request('/api/tasks', { task: text, input_mode: 'voice_transcript' });
-      const id = result.task_id, deadline = Date.now() + this.waitMs;
-      while (this.active) {
-        this.onResult(result);
-        if (result.state === 'result_received' && result.output) break;
-        if (['blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'].includes(result.state)) { this.notify('error', 'Cererea nu a primit răspuns: ' + (result.block_reason || result.failure || result.state) + ' Ascult în continuare.'); return; }
-        if (Date.now() > deadline) { this.notify('error', 'Răspunsul întârzie; cererea rămâne în istoric. Ascult în continuare.'); return; }
-        await new Promise(r => setTimeout(r, this.pollMs)); if (!this.active) return;
-        result = await this.request('/api/tasks/' + id);
-      }
-      if (!this.active) return;
-      this.notify('speaking', 'Kelion îți răspunde (vorbește ca să întrerupi).');
-      const audio = await this.tts(result.output.slice(0, 1500)); if (!this.active) return;
-      this.playing = this.play(audio, () => { this.playing = null; if (this.active) this.notify('listening', 'Te ascult.'); });
-    } catch (error) { if (this.active) this.notify('error', (error.message || 'Vocea a întâmpinat o eroare.') + ' Ascult în continuare.'); }
-  }
-  interrupt() { this.stopPlayback(); if (this.active) this.notify('listening', 'Te ascult.'); }
-  stop(message = 'Conversația s-a încheiat.') {
-    this.active = false; clearInterval(this.timer); this.stopPlayback();
-    try { this.recorder?.stop(); } catch {} this.recorder = null;
-    this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
-    try { this.ctx?.close(); } catch {} this.ctx = null;
-    this.notify('idle', message);
-  }
+  // Pagini și imagini arbitrare: nu se încarcă automat; monitorul arată adresa și butonul de deschidere explicită.
+  if (d.type === 'web' || d.type === 'image') { const u = httpsUrl(d.url); return u ? { kind: 'link', title, open: u.href } : null; }
+  if (d.type === 'text' && typeof d.text === 'string') return { kind: 'text', title, text: d.text.slice(0, 200000) };
+  return null;
 }
 
 if (typeof document !== 'undefined') {
 const $ = id => document.getElementById(id);
-let csrf, voiceInput = false, dictation;
-async function api(path, data, options = {}) {
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+let csrf = '', methods = { allowed: [], blocked: {}, uploads_dir: '' }, models = [], since = 0, polling = false;
+let current = null, nextCursor = null, chips = [], olderCursor = null, sending = false;
+const turnState = new TurnState(), seenTurns = new Set();
+const active = () => turnState.active;
+const items = new Map();   // itemId -> elementul randat
+
+async function api(path, data) {
   const response = await fetch(path, { method: data === undefined ? 'GET' : 'POST', credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
-    ...(data === undefined ? {} : { body: JSON.stringify(data) }), ...options });
-  const result = await response.json();
-  if (!response.ok) { const error = Error(result.error || 'Cererea a eșuat'); error.taskId = result.task_id; throw error; }
+    headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) }, ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(Error(result.error || 'Cererea a eșuat (' + response.status + ')'), { status: response.status });
   return result;
 }
-function status(message) { $('status').textContent = message; }
-const TERMINAL = ['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile'];
-const SURFACES = { chat: 'Codex (chat) · cota Codex/Work', codex: 'Codex · cota Codex/Work', work: 'Work (agentul Kelion) · cota Codex/Work', magentic: 'Microsoft Magentic' };
-const STEP_STATUS = { running: 'lucrează', completed: 'gata', insufficient: 'insuficient → escaladez', needs_code: 'trece la Codex', needs_tools: 'trece la Work', failed: 'eșuat → escaladez', unavailable: 'indisponibil → următoarea' };
-const STATE_TEXT = { awaiting_kelion: 'Cererea a ajuns la Kelion, în coadă', running_magistrala: 'Kelion rutează cererea pe magistrală', result_received: 'Răspuns primit', blocked: 'Blocat' };
-// Monitorul de sub roboțel: pașii reali raportați de magistrală (suprafață, raționament, stare, durată).
-function renderMonitor(result) {
-  const items = [];
-  const add = (text, cls = '') => { const li = document.createElement('li'); li.textContent = text; if (cls) li.className = cls; items.push(li); };
-  add(new Date().toLocaleTimeString() + ' · ' + (STATE_TEXT[result.state] || 'Stare: ' + result.state), 'state');
-  for (const step of result.progress || []) {
-    const at = step.at ? new Date(step.at * 1000).toLocaleTimeString() + ' · ' : '';
-    add(at + (step.profile ? step.profile.replace('dots_', 'DOTS ') + ' · ' : '') + (SURFACES[step.surface] || step.surface || '?') + (step.effort ? ' · raționament ' + step.effort : '') + ' · '
-      + (STEP_STATUS[step.status] || step.status) + (Number.isFinite(step.duration_ms) ? ' · ' + (step.duration_ms / 1000).toFixed(1) + ' s' : '') + (step.detail ? ' · ' + step.detail : ''),
-      step.status === 'running' ? 'running' : step.status === 'completed' ? 'done' : 'step');
+// params === null: metoda nu are parametri în schemă (ex. account/rateLimits/read).
+async function rpc(method, params = {}) {
+  const r = await api('/api/app/rpc', params === null ? { method } : { method, params });
+  if (r.error) { const e = Error(r.error.message || 'Eroare app-server'); e.rpc = r.error; throw e; }
+  return r.result;
+}
+function note(text, cls = 'note') { const n = el('div', 'msg ' + cls, text); $('log').append(n); scroll(); return n; }
+function scroll() { const log = $('log'); if (log.scrollHeight - log.scrollTop - log.clientHeight < 200) log.scrollTop = log.scrollHeight; }
+function link(ok, text) { $('link').className = 'link ' + (ok ? 'ok' : 'bad'); $('link').title = text; robotState(); }
+
+// ---------- istoric ----------
+async function loadThreads(more = false) {
+  const params = { limit: 40, sortKey: 'updated_at', sortDirection: 'desc', archived: $('archived').checked };
+  if ($('search').value.trim()) params.searchTerm = $('search').value.trim();
+  if (more && nextCursor) params.cursor = nextCursor;
+  const r = await rpc('thread/list', params);
+  nextCursor = r.nextCursor || null; $('more-threads').hidden = !nextCursor;
+  if (!more) $('threads').replaceChildren();
+  for (const t of r.data || []) {
+    const b = el('button', 'thread' + (t.id === current ? ' on' : ''), t.name || t.preview || 'Conversație fără titlu');
+    b.dataset.id = t.id; b.title = new Date((t.updatedAt || t.createdAt) * 1000).toLocaleString();
+    b.onclick = () => { openThread(t.id).catch(e => note(e.message, 'err')); closeSide(); };
+    $('threads').append(b);
   }
-  if (result.block_reason || result.failure) add('Motiv: ' + (result.block_reason || result.failure), 'bad');
-  $('monitor').replaceChildren(...items); $('monitor').scrollTop = $('monitor').scrollHeight;
+  showApprovals();
 }
-// Conversația scrisă (jos): mesajele tale și răspunsurile lui Kelion, separat de monitor.
-const answered = new Set();
-function bubble(cls, text) {
-  // Rândul de scris arată doar ultimul schimb: un mesaj nou de la tine (sau o frază auzită) curăță schimbul anterior.
-  if (cls === 'me' || cls === 'heard') $('conv').replaceChildren();
-  const p = document.createElement('p'); p.className = 'msg ' + cls; p.textContent = text;
-  $('conv').querySelector('.hint')?.remove(); $('conv').append(p); $('conv').scrollTop = $('conv').scrollHeight; return p;
+function markCurrent() { for (const b of $('threads').children) b.classList.toggle('on', b.dataset.id === current); }
+
+// ---------- randarea elementelor (ThreadItem) ----------
+function render(item, turnId, before = null) {
+  let node = items.get(item.id);
+  const fresh = !node;
+  if (fresh) { node = el('div', 'msg item-' + item.type); node.dataset.turn = turnId || ''; items.set(item.id, node);
+    if (before) $('log').insertBefore(node, before); else $('log').append(node); $('empty').hidden = true; }
+  node.replaceChildren();
+  switch (item.type) {
+    case 'userMessage': node.className = 'msg me'; node.textContent = inputText(item.content);
+      for (const part of item.content || []) if (part.type === 'localImage') showImage(node, part.path); break;
+    case 'agentMessage': node.className = 'msg bot'; showAgent(node, item.text || ''); break;
+    case 'reasoning': { node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', 'Raționament'));
+      const body = el('div', 'reason'); body.textContent = (item.summary || []).join('\n\n'); d.append(body); node.append(d); break; }
+    case 'plan': node.className = 'msg tool'; node.append(el('strong', '', 'Plan')); node.append(el('pre', '', item.text)); break;
+    case 'commandExecution': { node.className = 'msg tool'; const d = el('details'); d.open = item.status === 'inProgress';
+      d.append(el('summary', '', '⌘ ' + item.command + ' · ' + item.status + (item.exitCode != null ? ' · cod ' + item.exitCode : '')));
+      const out = el('pre', 'out', item.aggregatedOutput || ''); d.append(out); node.append(d); break; }
+    case 'fileChange': { node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', '✎ Fișiere modificate (' + (item.changes || []).length + ') · ' + item.status));
+      for (const c of item.changes || []) { d.append(el('div', 'path', (c.kind?.type ? c.kind.type + ' ' : '') + c.path)); d.append(el('pre', 'diff', c.diff)); }
+      node.append(d); break; }
+    case 'mcpToolCall': { node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', '⚙ ' + item.server + ' · ' + item.tool + ' · ' + item.status));
+      d.append(value({ arguments: item.arguments, result: item.result, error: item.error })); node.append(d); break; }
+    case 'dynamicToolCall': case 'functionCallOutput': case 'collabAgentToolCall': case 'subAgentActivity': {
+      node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', '⚙ ' + item.type + (item.tool ? ' · ' + item.tool : '') + (item.status ? ' · ' + item.status : '')));
+      d.append(value(item)); node.append(d); break; }
+    case 'webSearch': { node.className = 'msg tool'; const d = el('details'); d.append(el('summary', '', '🔎 Căutare web: ' + (item.query || '')));
+      for (const r of item.results || []) { const a = el('a', 'res', r.title || r.url); if (/^https?:\/\//.test(r.url || '')) { a.href = r.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; } d.append(a); }
+      node.append(d); break; }
+    case 'imageView': node.className = 'msg tool'; node.append(el('div', 'path', '🖼 ' + item.path)); showImage(node, item.path); break;
+    case 'imageGeneration': node.className = 'msg bot'; node.append(el('div', 'path', '🎨 ' + (item.revisedPrompt || 'Imagine generată') + ' · ' + item.status));
+      if (item.savedPath) showImage(node, item.savedPath); if (item.failure) node.append(el('div', 'err', JSON.stringify(item.failure))); break;
+    case 'contextCompaction': node.className = 'msg note'; node.textContent = 'Context compactat.'; break;
+    case 'enteredReviewMode': case 'exitedReviewMode': node.className = 'msg note'; node.textContent = item.type === 'enteredReviewMode' ? 'Revizie pornită.' : 'Revizie încheiată.'; break;
+    case 'sleep': node.className = 'msg note'; node.textContent = 'Așteptare ' + Math.round((item.durationMs || 0) / 1000) + ' s'; break;
+    default: node.className = 'msg tool'; { const d = el('details'); d.append(el('summary', '', item.type)); d.append(value(item)); node.append(d); }
+  }
+  scroll(); return node;
 }
-// Monitorul arată rezultatele lucrului (blocuri de cod, linkuri); chatul primește textul.
-function splitOutput(output) {
-  const code = [], links = [];
-  const text = output.replace(/```([\w+-]*)\n?([\s\S]*?)```/g, (_, lang, body) => { code.push({ lang, body }); return '[' + (lang || 'cod') + ' pe monitor]'; });
-  for (const m of output.matchAll(/https?:\/\/[^\s)<>"']+/g)) if (!links.includes(m[0])) links.push(m[0]);
-  return { text: text.trim(), code, links };
+// Mesajul agentului: blocul kelion-monitor apare ca buton, nu ca JSON; orice răspuns se poate deschide mare (⛶).
+function showAgent(node, raw) {
+  node.dataset.raw = raw;
+  const d = monitorDirective(raw), view = monitorView(d);
+  node.innerHTML = markdown(raw.replace(/```kelion-monitor\s*\n[\s\S]*?(```|$)/g, ''));
+  const bar = el('div', 'msg-tools');
+  if (view && view.kind !== 'close') { const b = el('button', 'ghost small', '🖥 ' + (view.title || 'Deschide pe monitor')); b.type = 'button'; b.onclick = () => openMonitor(view); bar.append(b); }
+  const big = el('button', 'ghost small', '⛶ Vizualizare mare'); big.type = 'button'; big.title = 'Deschide acest răspuns pe monitor';
+  big.onclick = () => openMonitor({ kind: 'text', title: 'Răspuns Kelion', text: raw.replace(/```kelion-monitor\s*\n[\s\S]*?(```|$)/g, '') }); bar.append(big);
+  node.append(bar);
 }
-function renderResults(result, parts) {
-  const box = $('results'); box.replaceChildren();
-  if (!parts || (!parts.code.length && !parts.links.length)) return;
-  const h = document.createElement('h4'); h.textContent = 'Rezultat · ' + result.task_id.slice(0, 12); box.append(h);
-  for (const c of parts.code) { const pre = document.createElement('pre'); pre.textContent = c.body; if (c.lang) pre.dataset.lang = c.lang; box.append(pre); }
-  for (const url of parts.links.slice(0, 10)) { const a = document.createElement('a'); a.href = url; a.textContent = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; box.append(a); }
+// Monitorul mare: X sau Escape îl închide; directiva {"action":"close"} venită în chat îl închide la fel.
+function openMonitor(view) {
+  if (!view) return;
+  if (view.kind === 'close') { closeMonitor(); return; }
+  const body = $('screen-body'); body.replaceChildren();
+  $('screen-title').textContent = view.title || 'Monitor';
+  const open = $('screen-open'); open.hidden = !view.open; if (view.open) open.href = view.open;
+  if (view.kind === 'frame') { const f = el('iframe'); f.src = view.src; f.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media'; f.allowFullscreen = true;
+    f.referrerPolicy = 'no-referrer'; f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation'); body.append(f); }
+  if (view.kind === 'link') { const c = el('div', 'screen-link'); c.append(el('p', 'note', 'Sursă externă; se deschide doar la cererea ta, în filă nouă:'), el('div', 'path', view.open));
+    const a = el('a', 'wide', 'Deschide în filă nouă ↗'); a.href = view.open; a.target = '_blank'; a.rel = 'noopener noreferrer'; c.append(a); body.append(c); }
+  if (view.kind === 'text') { const t = el('div', 'screen-text'); t.innerHTML = markdown(view.text); body.append(t); }
+  $('screen').hidden = false; $('screen-close').focus();
 }
-// Starea lucrului pe server (pentru raportare pe monitor).
-let workRoute = 'unknown';
-function routeNote(text) { const li = document.createElement('li'); li.className = 'state'; li.textContent = new Date().toLocaleTimeString() + ' · ' + text; $('monitor').prepend(li); }
-function showResult(result) {
-  if (result.state === 'result_received' && result.output) workRoute = 'ok';
-  else if (TERMINAL.includes(result.state)) workRoute = 'blocked';
-  renderMonitor(result);
-  if (result.output) renderResults(result, splitOutput(result.output));
-  if (answered.has(result.task_id)) return;
-  if (result.output) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai', splitOutput(result.output).text || 'Rezultatul e pe monitor.'); }
-  else if (TERMINAL.includes(result.state)) { answered.add(result.task_id); document.getElementById('wait-' + result.task_id)?.remove(); bubble('ai bad', 'Nu am putut răspunde. Motivul e pe monitor.'); }
-  else if (!document.getElementById('wait-' + result.task_id)) { bubble('ai wait', 'Gândire…').id = 'wait-' + result.task_id; }
+function closeMonitor() { $('screen').hidden = true; $('screen').classList.remove('full'); $('screen-body').replaceChildren(); }
+async function showImage(node, path) {
+  try { const r = await rpc('fs/readFile', { path }); const img = el('img', 'pic'); img.alt = path.split('/').pop();
+    img.src = URL.createObjectURL(new Blob([Uint8Array.from(atob(r.dataBase64), c => c.charCodeAt(0))])); node.append(img); }
+  catch (e) { node.append(el('div', 'err', 'Imaginea nu poate fi citită: ' + e.message)); }
 }
-function asked(text) { if (text) bubble('me', text); }
-async function tasks() {
-  const result = await api('/api/tasks'); $('tasks').replaceChildren();
-  if (!result.tasks.length) $('tasks').textContent = 'Nu ai încă cereri.';
-  for (const task of result.tasks) {
-    const button = document.createElement('button');
-    button.textContent = task.task_id + ' · ' + new Date(task.created).toLocaleString() + ' · ' + task.delivery;
-    button.onclick = async () => { $('history').hidden = true; answered.delete(task.task_id); try { following++; const r = await api('/api/tasks/' + task.task_id); showResult(r); if (!TERMINAL.includes(r.state)) follow(r.task_id); } catch (e) { status(e.message); } };
-    $('tasks').append(button);
+// Valori din răspunsuri afișate fidel, fără câmpuri inventate.
+function value(v, depth = 0) {
+  if (v === null || v === undefined) return el('span', 'nil', '—');
+  if (typeof v !== 'object') return el('span', 'val', String(v));
+  if (depth > 5) return el('pre', 'val', JSON.stringify(v, null, 1));
+  const box = el(Array.isArray(v) ? 'ol' : 'dl', 'tree');
+  for (const [k, x] of Object.entries(v)) {
+    if (Array.isArray(v)) { const li = el('li'); li.append(value(x, depth + 1)); box.append(li); }
+    else { box.append(el('dt', '', k)); const dd = el('dd'); dd.append(value(x, depth + 1)); box.append(dd); }
+  }
+  return box;
+}
+
+// ---------- conversație ----------
+function resetLog() { items.clear(); seenTurns.clear(); turnState.reset(); olderCursor = null; $('log').replaceChildren($('older'), $('empty')); $('older').hidden = true; $('empty').hidden = false; }
+async function showTurn(turn, before = null) {
+  seenTurns.add(turn.id);
+  for (const item of await turnItems(rpc, current, turn)) render(item, turn.id, before);
+  if (turn.status === 'inProgress') turnState.started(turn.id); else turnState.completed(turn.id);
+  if (turn.error) { const n = el('div', 'msg err', 'Eroare: ' + turn.error.message); if (before) $('log').insertBefore(n, before); else $('log').append(n); }
+}
+async function openThread(id) {
+  const r = await rpc('thread/resume', { threadId: id, developerInstructions: MONITOR_INSTRUCTIONS });
+  current = id; resetLog(); markCurrent();
+  $('title').textContent = r.thread.name || r.thread.preview || 'Conversație'; $('thread-menu-wrap').hidden = false;
+  if (r.model) selectModel(r.model, r.reasoningEffort);
+  for (const turn of r.thread.turns || []) await showTurn(turn);
+  olderCursor = r.turnsBackwardsCursor || null; $('older').hidden = !olderCursor;
+  busy(Boolean(active())); $('log').scrollTop = $('log').scrollHeight; showApprovals();
+}
+async function loadOlder() {
+  if (!current || !olderCursor) return;
+  $('older').disabled = true;
+  try {
+    const thread = current, anchor = $('older').nextElementSibling, height = $('log').scrollHeight;
+    const page = await olderTurns(rpc, thread, olderCursor, seenTurns);
+    if (thread !== current) return;
+    for (const turn of page.turns) await showTurn(turn, anchor);
+    olderCursor = page.cursor; $('older').hidden = !olderCursor;
+    $('log').scrollTop += $('log').scrollHeight - height;
+  } catch (e) { note(e.message, 'err'); } finally { $('older').disabled = false; }
+}
+function newThread() { current = null; resetLog(); markCurrent(); $('title').textContent = 'Conversație nouă'; $('thread-menu-wrap').hidden = true; busy(false); showApprovals(); }
+// Roboțelul DOTS: mereu vizibil deasupra paginii, mutabil, arată starea reală a lucrului.
+function robotState() {
+  const r = $('dots'); if (!r) return;
+  const [state, text] = !$('link').classList.contains('ok') ? ['off', 'Deconectat'] : waiting.size ? ['wait', 'Așteaptă aprobarea ta']
+    : sending ? ['busy', 'Trimite'] : active() ? ['busy', 'Lucrează'] : ['idle', 'Pregătit'];
+  r.dataset.state = state; $('dots-state').textContent = text;
+}
+function busy(on) { $('send').disabled = sending; queueMicrotask(robotState); $('stop').hidden = !on; $('send').title = on ? 'Trimite în timpul rulării (steer)' : 'Trimite'; }
+
+// Textul și imaginile rămân în compozitor până când app-server confirmă cererea.
+async function send(text) {
+  const input = [];
+  if (text) input.push({ type: 'text', text, text_elements: [] });
+  for (const c of chips) input.push({ type: 'localImage', path: c.path });
+  if (!input.length || sending) return;
+  sending = true; busy(Boolean(active()));
+  const done = () => { if ($('input').value.trim() === text) { $('input').value = ''; fit(); } chips = chips.filter(c => !input.some(i => i.path === c.path)); drawChips(); };
+  try {
+    if (!current) {
+      const params = { developerInstructions: MONITOR_INSTRUCTIONS }; if ($('model').value) params.model = $('model').value;
+      if ($('approval').value) params.approvalPolicy = $('approval').value; if ($('sandbox').value) params.sandbox = $('sandbox').value;
+      const r = await rpc('thread/start', params); current = r.thread.id; $('thread-menu-wrap').hidden = false; showApprovals(); loadThreads().catch(() => {});
+    }
+    if (active()) { await rpc('turn/steer', { threadId: current, expectedTurnId: active(), input }); done(); return; }
+    const params = { threadId: current, input };
+    if ($('model').value) params.model = $('model').value; if ($('effort').value) params.effort = $('effort').value;
+    if ($('approval').value) params.approvalPolicy = $('approval').value;
+    const r = await rpc('turn/start', params); done();
+    if (r.turn.status === 'inProgress') turnState.started(r.turn.id); else turnState.completed(r.turn.id);
+    seenTurns.add(r.turn.id);
+    for (const item of r.turn.items || []) render(item, r.turn.id);
+  } catch (e) {
+    if (sendFailure(e) === 'failed') note('Netrimis: ' + e.message + '. Mesajul a rămas în compozitor.', 'err');
+    else note('Trimitere incertă (' + e.message + '): poate a ajuns la Codex. Verifică conversația înainte să retrimiți; nu retrimit automat.', 'warn');
+  } finally { sending = false; busy(Boolean(active())); }
+}
+
+// ---------- aprobări și întrebări cerute de server (ServerRequest) ----------
+const DECISIONS = {
+  'item/commandExecution/requestApproval': [['accept', 'Aprobă'], ['acceptForSession', 'Aprobă pentru sesiune'], ['decline', 'Refuză'], ['cancel', 'Refuză și oprește']],
+  'item/fileChange/requestApproval': [['accept', 'Aprobă'], ['acceptForSession', 'Aprobă pentru sesiune'], ['decline', 'Refuză'], ['cancel', 'Refuză și oprește']],
+  execCommandApproval: [['approved', 'Aprobă'], ['approved_for_session', 'Aprobă pentru sesiune'], ['denied', 'Refuză'], ['abort', 'Refuză și oprește']],
+  applyPatchApproval: [['approved', 'Aprobă'], ['approved_for_session', 'Aprobă pentru sesiune'], ['denied', 'Refuză'], ['abort', 'Refuză și oprește']],
+};
+const waiting = new Map();   // cererile serverului care așteaptă răspuns, pe conversații
+function approval(req) { waiting.set('req-' + JSON.stringify(req.id), req); showApprovals(); }
+function resolved(key) { waiting.delete(key); document.getElementById(key)?.remove(); showApprovals(); }
+function showApprovals() { queueMicrotask(robotState);
+  const busyThreads = new Set([...waiting.values()].map(r => r.params?.threadId).filter(Boolean));
+  for (const b of $('threads').children) b.classList.toggle('wait', busyThreads.has(b.dataset.id));
+  for (const n of [...$('approvals').children]) if (!waiting.has(n.id) || (waiting.get(n.id).params?.threadId && waiting.get(n.id).params.threadId !== current)) n.remove();
+  for (const req of waiting.values()) if (!req.params?.threadId || req.params.threadId === current) card(req);
+}
+function card(req) {
+  const key = 'req-' + JSON.stringify(req.id);
+  if (document.getElementById(key)) return;
+  const box = el('div', 'card'); box.id = key;
+  box.append(el('strong', '', 'Cerere de la Codex: ' + req.method)); box.append(value(req.params));
+  const row = el('div', 'row');
+  const answer = async payload => { row.querySelectorAll('button').forEach(b => b.disabled = true);
+    try { await api('/api/app/respond', { id: req.id, ...payload }); resolved(key); } catch (e) { if (e.status === 404) { resolved(key); return; } box.append(el('div', 'err', e.message)); row.querySelectorAll('button').forEach(b => b.disabled = false); } };
+  if (DECISIONS[req.method]) for (const [decision, label] of DECISIONS[req.method]) { const b = el('button', decision.startsWith('accept') || decision.startsWith('approved') ? '' : 'ghost', label); b.type = 'button'; b.onclick = () => answer({ result: { decision } }); row.append(b); }
+  else if (req.method === 'item/tool/requestUserInput') {
+    const fields = {};
+    for (const q of req.params.questions || []) { const l = el('label', 'q', q.question || q.header || q.id); const i = el('input'); if (q.isSecret) i.type = 'password'; fields[q.id] = i; l.append(i); box.append(l); }
+    const b = el('button', '', 'Trimite răspunsul'); b.type = 'button'; b.onclick = () => answer({ result: { answers: Object.fromEntries(Object.entries(fields).map(([k, i]) => [k, { answers: [i.value] }])) } }); row.append(b);
+  } else if (req.method === 'mcpServer/elicitation/request') {
+    for (const action of ['accept', 'decline', 'cancel']) { const b = el('button', action === 'accept' ? '' : 'ghost', { accept: 'Acceptă', decline: 'Refuză', cancel: 'Anulează' }[action]); b.type = 'button'; b.onclick = () => answer({ result: { action, content: null } }); row.append(b); }
+  } else {
+    const b = el('button', 'ghost', 'Refuză (nesuportat în mască)'); b.type = 'button'; b.onclick = () => answer({ error: { code: -32601, message: 'Nesuportat în masca KelionAI' } }); row.append(b);
+  }
+  box.append(row); $('approvals').append(box);
+}
+
+// ---------- evenimente (ServerNotification) ----------
+function onEvent(ev) {
+  const p = ev.params || {};
+  if (ev.kind === 'bridge') { link(ev.method === 'bridge/connected', ev.method === 'bridge/connected' ? 'Conectat la Codex de pe kelion-nou' : 'Legătura cu Codex s-a întrerupt: ' + (p.reason || '')); return; }
+  if (ev.kind === 'request') { approval(ev); return; }
+  if (ev.method === 'serverRequest/resolved') { resolved('req-' + JSON.stringify(p.requestId)); return; }
+  if (['thread/started', 'thread/archived', 'thread/unarchived', 'thread/deleted', 'thread/name/updated'].includes(ev.method)) {
+    loadThreads().catch(() => {}); if (ev.method === 'thread/name/updated' && p.threadId === current) $('title').textContent = p.threadName || $('title').textContent; return; }
+  if (['warning', 'configWarning', 'deprecationNotice', 'guardianWarning'].includes(ev.method)) { note('⚠ ' + (p.message || p.summary || JSON.stringify(p)), 'warn'); return; }
+  if (ev.method === 'account/rateLimits/updated' && $('panel-title').dataset.kind === 'account') { openPanel('account'); return; }
+  if (p.threadId && p.threadId !== current) return;
+  switch (ev.method) {
+    case 'turn/started': seenTurns.add(p.turn.id); turnState.started(p.turn.id); busy(Boolean(active())); break;
+    case 'turn/completed': turnState.completed(p.turn.id); busy(Boolean(active()));
+      if (p.turn.error) note('Eroare: ' + p.turn.error.message, 'err'); if (p.turn.status === 'interrupted') note('Oprit.', 'note'); loadThreads().catch(() => {}); break;
+    case 'item/started': case 'item/completed': render(p.item, p.turnId);
+      if (ev.method === 'item/completed' && p.item?.type === 'agentMessage') { const v = monitorView(monitorDirective(p.item.text)); if (v) openMonitor(v); }
+      break;
+    case 'item/agentMessage/delta': { let n = items.get(p.itemId); if (!n) n = render({ type: 'agentMessage', id: p.itemId, text: '' }, p.turnId);
+      showAgent(n, (n.dataset.raw || '') + p.delta); scroll(); break; }
+    case 'item/reasoning/summaryTextDelta': { const n = items.get(p.itemId)?.querySelector('.reason'); if (n) n.textContent += p.delta; break; }
+    case 'item/commandExecution/outputDelta': { const n = items.get(p.itemId)?.querySelector('.out'); if (n) { n.textContent += p.delta; scroll(); } break; }
+    case 'turn/plan/updated': { const n = note('', 'tool'); n.append(el('strong', '', 'Plan')); const ol = el('ol'); for (const s of p.plan || []) ol.append(el('li', s.status, s.step + ' · ' + s.status)); n.append(ol); break; }
+    case 'error': note('Eroare: ' + (p.error?.message || '') + (p.willRetry ? ' · se reîncearcă' : ''), 'err'); break;
+    case 'model/rerouted': note('Model redirecționat: ' + JSON.stringify(p), 'warn'); break;
+    case 'thread/compacted': note('Context compactat.', 'note'); break;
+    case 'thread/status/changed': if (p.status?.type === 'systemError') note('Eroare de sistem în conversație.', 'err'); break;
   }
 }
-// La deschidere: ultimele cereri apar în conversație (mesajul tău + răspunsul), monitorul arată ultima cerere.
-async function loadConversation() {
-  const list = (await api('/api/tasks')).tasks.slice(0, 1);
-  let last;
-  for (const t of list) {
-    try { last = await api('/api/tasks/' + t.task_id); } catch { continue; }
-    const tr = last.task && /^Traduce în [^.]+\. Răspunde doar cu traducerea, fără alt text:\n/.exec(last.task);
-    if (tr) bubble('heard', '🎧 ' + last.task.slice(tr[0].length)); else if (last.task) bubble('me', last.task);
-    showResult(last);
+async function poll() {
+  if (polling) return; polling = true;
+  while (csrf) {
+    try {
+      const r = await api('/api/app/events', { since });
+      if (r.reset && current) openThread(current).catch(() => {});
+      for (const ev of r.events) onEvent(ev);
+      since = r.last;
+    } catch (e) { link(false, e.message); await new Promise(res => setTimeout(res, 3000)); }
   }
-  if (last && !TERMINAL.includes(last.state)) follow(last.task_id);
+  polling = false;
 }
+
+// ---------- modele și efort (model/list) ----------
+async function loadModels() {
+  models = []; let cursor;
+  do { const r = await rpc('model/list', cursor ? { cursor } : {}); models.push(...(r.data || [])); cursor = r.nextCursor; } while (cursor);
+  $('model').replaceChildren(...models.map(m => { const o = el('option', '', m.displayName || m.id); o.value = m.model || m.id; o.title = m.description || ''; if (m.isDefault) o.selected = true; return o; }));
+  efforts();
+}
+function efforts(selected) {
+  const m = models.find(x => (x.model || x.id) === $('model').value);
+  $('effort').replaceChildren(...(m?.supportedReasoningEfforts || []).map(e => { const o = el('option', '', 'Efort: ' + e.reasoningEffort); o.value = e.reasoningEffort; o.title = e.description || '';
+    if ((selected || m.defaultReasoningEffort) === e.reasoningEffort) o.selected = true; return o; }));
+}
+function selectModel(model, effort) { if ([...$('model').options].some(o => o.value === model)) { $('model').value = model; efforts(effort); } }
+
+// ---------- panouri ----------
+const PANELS = {
+  skills: ['Skills', () => rpc('skills/list', {})],
+  plugins: ['Pluginuri', () => rpc('plugin/list', {})],
+  apps: ['Aplicații', () => rpc('app/list', {})],
+  mcp: ['Servere MCP', () => rpc('mcpServerStatus/list', { detail: 'toolsAndAuthOnly' })],
+  account: ['Cont și limite', async () => {
+    const out = {};
+    for (const [k, m] of [['cont', 'account/read'], ['limite', 'account/rateLimits/read'], ['utilizare', 'account/usage/read']]) { try { out[k] = await rpc(m, m === 'account/read' ? {} : null); } catch (e) { out[k] = 'Eroare: ' + e.message; } }
+    return out; }],
+  kelion: ['Magistrala Kelion', () => kelionPanel()],
+  files: ['Fișiere', () => filesPanel()],
+  capabilities: ['Capabilități', () => capabilitiesPanel()],
+  functions: ['Funcții', async () => ({ 'permise (din schema app-server)': methods.allowed, 'blocate, cu motivul': methods.blocked, sursa: methods.source })],
+};
+async function openPanel(kind) {
+  const [title, load] = PANELS[kind]; $('panel-title').textContent = title; $('panel-title').dataset.kind = kind;
+  $('panel-body').replaceChildren(el('p', 'note', 'Se încarcă…')); $('panel').hidden = false; closeSide();
+  try { const out = await load(); $('panel-body').replaceChildren(out instanceof Node ? out : value(out)); } catch (e) { $('panel-body').replaceChildren(el('p', 'err', e.message)); }
+}
+
+// --- funcțiile frontendului KelionDOTS live, păstrate în mască ---
+const TERMINAL = new Set(['result_received', 'blocked', 'failed', 'blocked_runtime', 'interrupted_requires_reconcile']);
+let taskPoll = null;
+async function kelionPanel() {
+  const box = el('div', 'kpanel');
+  const form = el('form', 'ktask'); const ta = el('textarea'); ta.rows = 3; ta.maxLength = 100000; ta.placeholder = 'Sarcină pentru Kelion (magistrala: Kelion alege canalul)';
+  const go = el('button', '', 'Trimite la Kelion'); go.type = 'submit'; form.append(ta, go);
+  form.onsubmit = async e => { e.preventDefault(); const task = ta.value.trim(); if (!task) return; go.disabled = true;
+    try { const r = await api('/api/tasks', { task, input_mode: 'text' }); ta.value = ''; await showTask(r.task_id); }
+    catch (err) { box.append(el('p', 'err', err.message + ' Verifică istoricul înainte de retrimitere.')); } finally { go.disabled = false; } };
+  const list = el('div', 'klist'); const detail = el('div', 'kdetail'); detail.id = 'kdetail';
+  for (const t of (await api('/api/tasks')).tasks || []) {
+    const b = el('button', 'thread', t.task_id.slice(0, 18) + ' · ' + new Date(t.created).toLocaleString('ro-RO') + ' · ' + t.delivery); b.type = 'button';
+    b.onclick = () => showTask(t.task_id).catch(err => detail.replaceChildren(el('p', 'err', err.message))); list.append(b);
+  }
+  if (!list.childElementCount) list.append(el('p', 'note', 'Nicio sarcină în istoricul magistralei.'));
+  box.append(form, detail, el('h3', '', 'Istoric magistrală'), list); return box;
+}
+async function showTask(id) {
+  clearTimeout(taskPoll);
+  const r = await api('/api/tasks/' + id), d = $('kdetail'); if (!d) return;
+  d.replaceChildren(el('strong', '', r.task_id + ' · ' + r.state));
+  if (r.task) d.append(el('pre', '', r.task));
+  const steps = el('ol'); for (const s of r.progress || []) steps.append(el('li', '', [s.profile || s.surface, s.status, s.detail || s.reason, Number.isFinite(s.duration_ms) ? s.duration_ms + ' ms' : ''].filter(Boolean).join(' · ')));
+  if (steps.childElementCount) d.append(steps);
+  if (r.result_retrieved && r.output) { const o = el('div', 'msg bot'); o.innerHTML = markdown(r.output); const big = el('button', 'ghost small', '⛶ Vizualizare mare'); big.type = 'button'; big.onclick = () => openMonitor({ kind: 'text', title: r.task_id, text: r.output }); d.append(o, big); }
+  if (r.failure || r.block_reason) d.append(el('p', 'err', String(r.failure || r.block_reason).slice(0, 1000)));
+  if (!TERMINAL.has(r.state)) taskPoll = setTimeout(() => showTask(id).catch(() => {}), 3500);
+}
+const uploads = [];
+async function filesPanel() {
+  const box = el('div', 'kpanel');
+  box.append(el('p', 'note', 'Stocare pe server prin /api/attachments: fragmente de 2 MiB, maximum 512 MiB. Stocarea nu înseamnă analiză AI.'));
+  const pick = el('label', 'wide', '＋ Încarcă fișiere'); const inp = el('input'); inp.type = 'file'; inp.multiple = true; inp.hidden = true; pick.append(inp);
+  inp.onchange = () => { uploadFiles([...inp.files]); inp.value = ''; }; box.append(pick);
+  if (!uploads.length) box.append(el('p', 'note', 'Nicio încărcare în această sesiune. Lista completă a fișierelor nu este expusă prin API.'));
+  for (const u of uploads) box.append(el('div', 'path', u.name + ' · ' + u.status + (u.sha ? ' · SHA256 ' + u.sha : '')));
+  return box;
+}
+async function uploadFiles(files) {
+  for (const file of files) {
+    if (file.size < 1 || file.size > 512 * 1024 * 1024) { note('Dimensiunea fișierului nu este acceptată: ' + file.name, 'err'); continue; }
+    const item = { name: file.name, status: 'Se încarcă', sha: '' }; uploads.push(item); openPanel('files');
+    try {
+      const meta = await api('/api/attachments', { filename: file.name, size: file.size });
+      if (!/^att-[a-f0-9]{32}$/.test(meta.id) || meta.received !== 0) throw Error('Răspuns inițial de încărcare invalid.');
+      let offset = 0;
+      while (offset < file.size) {
+        const chunk = file.slice(offset, Math.min(file.size, offset + 2 * 1024 * 1024));
+        const response = await fetch('/api/attachments/' + meta.id + '/chunk', { method: 'POST', credentials: 'same-origin', redirect: 'error', headers: { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': csrf, 'X-Upload-Offset': String(offset) }, body: chunk });
+        const data = await response.json().catch(() => ({ error: 'Răspuns invalid' }));
+        if (!response.ok) throw Error(data.error || 'Fragment respins (' + response.status + ').');
+        if (data.received !== offset + chunk.size) throw Error('Confirmarea fragmentului nu corespunde.');
+        offset = data.received; item.status = Math.round(100 * offset / file.size) + '%'; if ($('panel-title').dataset.kind === 'files') openPanel('files');
+      }
+      const finished = await api('/api/attachments/' + meta.id + '/complete', {});
+      if (finished.id !== meta.id || finished.state !== 'stored' || finished.analyzed !== false || !finished.sha256) throw Error('Starea finală a fișierului nu este confirmată.');
+      item.status = 'Stocat, neanalizat'; item.sha = finished.sha256;
+    } catch (e) { item.status = 'Eroare: ' + e.message; }
+    if ($('panel-title').dataset.kind === 'files') openPanel('files');
+  }
+}
+async function capabilitiesPanel() {
+  const out = {};
+  try { out['configurare'] = await api('/api/config'); } catch (e) { out['configurare'] = 'Eroare: ' + e.message; }
+  try { out['legătura Codex'] = await api('/api/app/health'); } catch (e) { out['legătura Codex'] = 'Eroare: ' + e.message; }
+  try { out['dispozitiv (local, fără telemetrie)'] = await (await import('/device-capabilities.js')).inspectDevice(); } catch (e) { out['dispozitiv (local, fără telemetrie)'] = 'Indisponibil: ' + e.message; }
+  out['apel vocal DOTS'] = 'neintegrat în pagină: vocea este apelul Kelion DOTS din aplicația DOTS';
+  out['analiza camerei'] = 'neintegrată: nu există endpoint pentru cadre';
+  return out;
+}
+function geolocate() {
+  if (!navigator.geolocation) { note('GPS indisponibil în acest browser.', 'err'); return; }
+  navigator.geolocation.getCurrentPosition(pos => { const { latitude, longitude, accuracy } = pos.coords;
+    $('input').value = ($('input').value.trim() + '\nLocație GPS autorizată: ' + latitude.toFixed(6) + ', ' + longitude.toFixed(6) + '; precizie ' + Math.round(accuracy) + ' m.').trim(); fit(); },
+  error => note('Locația nu a fost acordată: ' + error.message, 'err'), { enableHighAccuracy: true, timeout: 14000, maximumAge: 0 });
+}
+
+// ---------- acțiuni pe conversație ----------
+async function threadAction(act) {
+  $('thread-menu').hidden = true; if (!current) return;
+  try {
+    if (act === 'rename') { const name = prompt('Nume nou', $('title').textContent); if (name && name.trim()) { await rpc('thread/name/set', { threadId: current, name: name.trim() }); $('title').textContent = name.trim(); } }
+    if (act === 'fork') { const r = await rpc('thread/fork', { threadId: current }); await openThread(r.thread.id); }
+    if (act === 'archive') { await rpc('thread/archive', { threadId: current }); newThread(); }
+    if (act === 'unarchive') await rpc('thread/unarchive', { threadId: current });
+    if (act === 'compact') await rpc('thread/compact/start', { threadId: current });
+    if (act === 'delete' && confirm('Ștergi definitiv conversația?')) { await rpc('thread/delete', { threadId: current }); newThread(); }
+    loadThreads().catch(() => {});
+  } catch (e) { note(e.message, 'err'); }
+}
+
+// ---------- imagini (fs/writeFile în directorul de încărcări al punții) ----------
+function drawChips() { $('chips').replaceChildren(...chips.map((c, i) => { const s = el('span', 'chip', '🖼 ' + c.name + ' ✕'); s.onclick = () => { chips.splice(i, 1); drawChips(); }; return s; })); }
+async function attach(files) {
+  for (const file of files) {
+    if (file.size > 8 * 1024 * 1024) { note(file.name + ': imaginea depășește 8 MB.', 'err'); continue; }
+    try {
+      const dir = methods.uploads_dir; await rpc('fs/createDirectory', { path: dir, recursive: true });
+      const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+      const path = dir + '/' + Date.now() + '-' + Math.random().toString(16).slice(2, 8) + (/\.[a-z0-9]{1,5}$/i.exec(file.name)?.[0] || '.png').toLowerCase();
+      await rpc('fs/writeFile', { path, dataBase64: data }); chips.push({ path, name: file.name }); drawChips();
+    } catch (e) { note(file.name + ': ' + e.message, 'err'); }
+  }
+}
+
+// ---------- autentificare (Google, doar contul permis) ----------
+function status(text) { $('status').textContent = text; }
 async function signedIn(user) {
-  csrf = user.csrf; $('account').textContent = user.email; $('avatar').textContent = (user.email || '?').slice(0, 2).toUpperCase(); $('workspace').hidden = false;
-  $('signin').hidden = true; $('google').replaceChildren(); status(''); await tasks(); await loadConversation().catch(e => status(e.message));
+  csrf = user.csrf; $('who').textContent = user.email; $('gate').hidden = true; $('app').hidden = false;
+  // Pornim de la ultimul eveniment: istoricul vine din thread/resume, cererile în așteptare din /pending.
+  try { const h = await api('/api/app/health'); since = h.last_event || 0; link(h.connected, h.connected ? 'Conectat la Codex de pe kelion-nou' : 'Codex indisponibil: ' + (h.last_error || '')); } catch (e) { link(false, e.message); }
+  poll();
+  try { methods = await api('/api/app/methods'); } catch (e) { note(e.message, 'err'); }
+  await Promise.all([loadModels().catch(e => note('Modele: ' + e.message, 'err')), loadThreads().catch(e => note('Istoric: ' + e.message, 'err'))]);
+  for (const p of (await api('/api/app/pending').catch(() => ({}))).requests || []) approval(p);
 }
 async function login() {
   $('signin').disabled = true;
   try {
-    const config = await api('/api/config');
-    const { nonce } = await api('/auth/nonce', {});
-    if (!window.google?.accounts?.id) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script'); script.src = 'https://accounts.google.com/gsi/client';
-        script.onload = resolve; script.onerror = () => reject(Error('Biblioteca Google nu a putut fi încărcată.')); document.head.append(script);
-      });
-    }
+    const config = await api('/api/config'); const { nonce } = await api('/auth/nonce', {});
+    if (!window.google?.accounts?.id) await new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = resolve; s.onerror = () => reject(Error('Biblioteca Google nu a putut fi încărcată.')); document.head.append(s); });
     google.accounts.id.initialize({ client_id: config.clientId, nonce, ux_mode: 'popup', auto_select: false,
-      callback: async response => { try { await signedIn(await api('/auth/google', { credential: response.credential })); }
-        catch (e) { status(e.message + ' Repornește conectarea.'); $('signin').hidden = false; $('google').replaceChildren(); } } });
-    $('google').replaceChildren(); google.accounts.id.renderButton($('google'), { type: 'standard', theme: 'outline', size: 'large' });
-    status('Alege contul Google autorizat.');
+      callback: async response => { try { await signedIn(await api('/auth/google', { credential: response.credential })); } catch (e) { status(e.message + ' Repornește conectarea.'); $('signin').hidden = false; $('google').replaceChildren(); } } });
+    $('google').replaceChildren(); google.accounts.id.renderButton($('google'), { type: 'standard', theme: 'filled_black', size: 'large' }); status('Alege contul Google autorizat.');
   } catch (e) { status(e.message); } finally { $('signin').disabled = false; }
 }
+
+// ---------- legături UI ----------
+const fit = () => { const t = $('input'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; };
+const closeSide = () => document.body.classList.remove('side-on');
+$('input').addEventListener('input', fit);
+$('input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('composer').requestSubmit(); } });
+$('composer').onsubmit = e => { e.preventDefault(); send($('input').value.trim()); };
+$('stop').onclick = () => { if (current && active()) rpc('turn/interrupt', { threadId: current, turnId: active() }).catch(e => note(e.message, 'err')); };
+$('older').onclick = loadOlder;
+(function robot() {
+  const r = $('dots'); let drag = null, moved = false;
+  const place = (x, y) => { const w = r.offsetWidth, h = r.offsetHeight;
+    x = Math.min(Math.max(x, 4), innerWidth - w - 4); y = Math.min(Math.max(y, 4), innerHeight - h - 4);
+    r.style.left = x + 'px'; r.style.top = y + 'px'; return [x, y]; };
+  let pos = null; try { pos = JSON.parse(localStorage.getItem('kelion-dots-pos') || 'null'); } catch {}
+  place(...(Array.isArray(pos) ? pos : [innerWidth - 150, 70]));
+  r.addEventListener('pointerdown', e => { drag = [e.clientX - r.offsetLeft, e.clientY - r.offsetTop]; moved = false; r.setPointerCapture(e.pointerId); });
+  r.addEventListener('pointermove', e => { if (!drag) return; moved = true; place(e.clientX - drag[0], e.clientY - drag[1]); });
+  r.addEventListener('pointerup', () => { if (!drag) return; drag = null;
+    if (moved) { try { localStorage.setItem('kelion-dots-pos', JSON.stringify([r.offsetLeft, r.offsetTop])); } catch {} }
+    else { closeSide(); $('input').focus(); } });
+  addEventListener('resize', () => place(r.offsetLeft, r.offsetTop));
+  robotState();
+})();
+$('locate').onclick = geolocate;
+$('screen-close').onclick = closeMonitor;
+$('screen-full').onclick = () => $('screen').classList.toggle('full');
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('screen').hidden) closeMonitor(); });
+$('model').onchange = () => efforts();
+$('file').onchange = e => { attach([...e.target.files]); e.target.value = ''; };
+$('new-thread').onclick = () => { newThread(); closeSide(); };
+$('new-top').onclick = () => newThread();
+let searchTimer; $('search').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadThreads().catch(e => note(e.message, 'err')), 300); };
+$('archived').onchange = () => loadThreads().catch(e => note(e.message, 'err'));
+$('more-threads').onclick = () => loadThreads(true).catch(e => note(e.message, 'err'));
+$('thread-menu-open').onclick = () => { $('thread-menu').hidden = !$('thread-menu').hidden; };
+for (const b of $('thread-menu').querySelectorAll('button')) b.onclick = () => threadAction(b.dataset.act);
+for (const b of document.querySelectorAll('.nav')) b.onclick = () => openPanel(b.dataset.panel);
+$('panel-close').onclick = () => { $('panel').hidden = true; $('panel-title').dataset.kind = ''; clearTimeout(taskPoll); };
+$('side-open').onclick = () => document.body.classList.add('side-on');
+$('side-close').onclick = closeSide;
 $('signin').onclick = login;
-$('logout').onclick = async () => { conversation.stop(); dictation?.abort(); try { await api('/auth/logout', {}); location.reload(); } catch (e) { status(e.message); } };
-$('history-open').onclick = () => { closeMenu(); $('history').hidden = false; tasks().catch(e => status(e.message)); };
-// Avatarul (ca în ChatGPT) deschide meniul contului: email, Voce, Limba ta, Ieșire.
-const closeMenu = () => { $('menu').hidden = true; $('avatar').setAttribute('aria-expanded', 'false'); };
-$('avatar').onclick = () => { const open = $('menu').hidden; $('menu').hidden = !open; $('avatar').setAttribute('aria-expanded', String(open)); };
-$('plus').onclick = () => { closeMenu(); $('attach').hidden = !$('attach').hidden; };
-document.addEventListener('click', e => { if (!$('attach').hidden && !e.target.closest('#attach, #plus')) $('attach').hidden = true; });
-// GPS: locația se pune în mesaj, tu decizi dacă o trimiți.
-$('geo').onclick = () => {
-  $('attach').hidden = true;
-  if (!navigator.geolocation) { status('Browserul nu oferă locație.'); return; }
-  status('Cer locația (permite accesul în browser)…');
-  navigator.geolocation.getCurrentPosition(pos => {
-    const { latitude: la, longitude: lo, accuracy } = pos.coords;
-    const line = '📍 Locația mea: ' + la.toFixed(5) + ', ' + lo.toFixed(5) + ' (±' + Math.round(accuracy) + ' m) https://maps.google.com/?q=' + la.toFixed(5) + ',' + lo.toFixed(5);
-    $('task').value = ($('task').value ? $('task').value + '\n' : '') + line; $('task').focus(); status('');
-  }, err => status('Locația nu a fost primită: ' + (err.code === 1 ? 'acces refuzat' : err.message)), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-};
-// Camera față/spate: previzualizare pe monitor, poza rămâne pe monitor.
-const cam = { stream: null, facing: 'user' };
-function camStop() { cam.stream?.getTracks().forEach(t => t.stop()); cam.stream = null; $('cam-video').srcObject = null; $('cam-card').hidden = true; }
-async function camStart(facing) {
-  $('attach').hidden = true; camStop(); cam.facing = facing;
-  if (!navigator.mediaDevices?.getUserMedia) { status('Browserul nu oferă acces la cameră.'); return; }
-  try {
-    cam.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false });
-    $('cam-video').srcObject = cam.stream; $('cam-card').hidden = false; status('');
-  } catch (e) { status('Camera nu a pornit: ' + (e.name === 'NotAllowedError' ? 'acces refuzat' : e.message)); }
-}
-$('cam-front').onclick = () => camStart('user');
-$('cam-back').onclick = () => camStart('environment');
-$('cam-flip').onclick = () => camStart(cam.facing === 'user' ? 'environment' : 'user');
-$('cam-close').onclick = camStop;
-$('cam-shot').onclick = () => {
-  const v = $('cam-video'); if (!v.videoWidth) return;
-  const canvas = document.createElement('canvas'); const scale = Math.min(1, 1280 / v.videoWidth);
-  canvas.width = Math.round(v.videoWidth * scale); canvas.height = Math.round(v.videoHeight * scale);
-  canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
-  const img = document.createElement('img'); img.src = canvas.toDataURL('image/jpeg', 0.85); img.alt = 'Poză de la cameră';
-  const h = document.createElement('h4'); h.textContent = 'Poză · ' + new Date().toLocaleTimeString();
-  camStop(); $('results').replaceChildren(h, img);
-  status('Poza e pe monitor. Trimiterea pozelor către Kelion se activează după ce serverul primește imagini.');
-};
-document.addEventListener('click', e => { if (!$('menu').hidden && !e.target.closest('#menu, #avatar, #plus')) closeMenu(); });
-$('history-close').onclick = () => { $('history').hidden = true; };
-$('refresh').onclick = () => tasks().catch(e => status(e.message));
-$('task').addEventListener('input', () => { voiceInput = false; });
-$('task').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('chat').requestSubmit(); } });
-let following = 0;
-async function follow(taskId) {
-  const mine = ++following; kelionState('waiting');
-  for (let i = 0; i < 900 && mine === following; i++) {
-    await new Promise(resolve => setTimeout(resolve, 2000)); if (mine !== following) return;
-    let result; try { result = await api('/api/tasks/' + taskId); } catch (e) { status(e.message); continue; }
-    if (mine !== following) return;
-    showResult(result);
-    if (TERMINAL.includes(result.state)) { kelionState(result.state === 'result_received' ? 'idle' : 'error'); tasks().catch(() => {}); return; }
-  }
-}
-$('chat').onsubmit = async event => {
-  event.preventDefault(); $('send').disabled = true;
-  const text = $('task').value; asked(text);
-  try { const result = await api('/api/tasks', { task: text, input_mode: voiceInput ? 'voice_transcript' : 'text' }); showResult(result); $('task').value = ''; voiceInput = false; status('Cerere trimisă. Monitorul arată progresul în timp real.'); follow(result.task_id); }
-  catch (e) { status(e.message + (e.taskId ? ' ID: ' + e.taskId : '')); }
-  finally { $('send').disabled = false; await tasks().catch(e => status(e.message)); }
-};
-const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const KELION_LABELS = { idle: 'Pregătit', starting: 'Pornesc microfonul…', listening: 'Te ascult…', submitting: 'Am înțeles, trimit…', waiting: 'Gândire', speaking: 'Vorbesc…', error: 'Ceva nu a mers' };
-const CALL_TITLES = { starting: 'Se apelează…', listening: 'Te ascult…', submitting: 'Trimit…', waiting: 'Gândire…', speaking: 'Kelion vorbește', error: 'Apel oprit' };
-function kelionState(state) { const k = document.getElementById('kelion'); if (k) k.dataset.state = state in KELION_LABELS ? state : 'idle'; const l = document.getElementById('kelion-state'); if (l) l.textContent = KELION_LABELS[state] || KELION_LABELS.idle; }
-const GENDER_KEY = 'kelion-voice-gender';
-try { const saved = localStorage.getItem(GENDER_KEY); if (saved === 'masculin' || saved === 'feminin') $('voice-gender').value = saved; } catch {}
-$('voice-gender').onchange = () => { try { localStorage.setItem(GENDER_KEY, $('voice-gender').value); } catch {} };
-const browserVoice = new VoiceConversation({ Recognition, synthesis: window.speechSynthesis, Utterance: window.SpeechSynthesisUtterance, request: api, voiceGender: () => $('voice-gender').value,
-  onState: ({ state, message, active }) => { kelionState(state); $('call-status').textContent = message; $('call-start').disabled = active; $('call-end').disabled = !active; $('call-card').hidden = !active; $('call-title').textContent = CALL_TITLES[state] || 'Apel cu Kelion';
-    $('call-interrupt').disabled = state !== 'speaking'; $('send').disabled = active; $('task').disabled = active; },
-  onTranscript: text => { $('voice-transcript').textContent = ''; asked(text); },
-  onResult: result => { showResult(result); if (result.state === 'result_received') tasks().catch(() => {}); },
-});
-// Vocea prin serviciul DOTS de pe server (când e instalat): aceleași afișări, ruta audio rămâne în aplicație.
-const pickMime = () => ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
-const serverVoice = new ServerVoice({
-  media: navigator.mediaDevices, AudioCtx: window.AudioContext || window.webkitAudioContext,
-  Recorder: window.MediaRecorder ? function (stream) { const m = pickMime(); return new MediaRecorder(stream, m ? { mimeType: m } : undefined); } : null,
-  request: api,
-  stt: async blob => {
-    const r = await fetch('/api/voice/stt', { method: 'POST', credentials: 'same-origin', body: blob,
-      headers: { 'Content-Type': blob.type || 'audio/webm', 'X-CSRF-Token': csrf, 'X-Kelion-Lang': $('user-lang').value.slice(0, 2) } });
-    const j = await r.json().catch(() => ({})); if (!r.ok) throw Error(j.error || 'Transcrierea a eșuat'); return j.text || '';
-  },
-  tts: async text => {
-    const r = await fetch('/api/voice/tts', { method: 'POST', credentials: 'same-origin', body: JSON.stringify({ text, lang: $('user-lang').value.slice(0, 2) }),
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf } });
-    if (!r.ok) { const j = await r.json().catch(() => ({})); throw Error(j.error || 'Sinteza vocală a eșuat'); } return r.blob();
-  },
-  play: (blob, onEnd) => {
-    const url = URL.createObjectURL(blob), el = new Audio(url), done = () => { URL.revokeObjectURL(url); onEnd(); };
-    el.onended = done; el.onerror = done; el.play().catch(done);
-    return { stop() { el.onended = el.onerror = null; el.pause(); URL.revokeObjectURL(url); } };
-  },
-  onState: browserVoice.onState, onTranscript: browserVoice.onTranscript, onResult: browserVoice.onResult,
-});
-// Un singur microfon: ruta audio e mereu în aplicație; serverul DOTS dacă e instalat, altfel recunoașterea din browser.
-const conversation = {
-  impl: browserVoice,
-  get active() { return this.impl.active; },
-  start() { return this.impl.start(); }, stop(message) { return this.impl.stop(message); }, interrupt() { return this.impl.interrupt(); },
-};
-if (Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance) {
-  $('call-start').disabled = false; $('call-status').textContent = 'Pregătit. Pornește conversația când dorești să folosești microfonul.';
-} else $('call-status').textContent = 'Conversația vocală nu este disponibilă: browserul trebuie să ofere recunoaștere și redare vocală. Poți folosi chatul text.';
-// Ascultă și traduce: ce aude microfonul (în limba aleasă) apare tradus în limba ta, doar scris, fără voce.
-const LANG_KEY = 'kelion-lang', SRC_KEY = 'kelion-src-lang';
-const langName = code => $('user-lang').querySelector('option[value="' + code + '"]')?.textContent || code;
-try {
-  const saved = localStorage.getItem(LANG_KEY), nav = navigator.language || 'ro-RO';
-  const guess = [...$('user-lang').options].find(o => o.value === saved) || [...$('user-lang').options].find(o => o.value.slice(0, 2) === nav.slice(0, 2));
-  if (guess) $('user-lang').value = guess.value;
-  const src = localStorage.getItem(SRC_KEY); if (src) $('src-lang').value = src; else $('src-lang').value = $('user-lang').value === 'en-US' ? 'ro-RO' : 'en-US';
-} catch {}
-$('user-lang').onchange = () => { try { localStorage.setItem(LANG_KEY, $('user-lang').value); } catch {} };
-async function translateResult(taskId) {
-  for (let i = 0; i < 150; i++) {
-    await new Promise(r => setTimeout(r, 2000));
-    let r; try { r = await api('/api/tasks/' + taskId); } catch { continue; }
-    showResult(r); if (TERMINAL.includes(r.state)) return;
-  }
-}
-const translator = { active: false, mic: null };
-function translatorStop(message) {
-  translator.active = false; const mic = translator.mic; translator.mic = null;
-  if (mic) { mic.onresult = mic.onend = mic.onerror = null; try { mic.abort(); } catch {} }
-  $('tr-card').hidden = true; $('translate').setAttribute('aria-pressed', 'false'); if (message) status(message);
-}
-function translatorListen() {
-  if (!translator.active) return;
-  const mic = new Recognition(); translator.mic = mic;
-  mic.lang = $('src-lang').value; mic.continuous = true; mic.interimResults = false;
-  mic.onresult = async event => {
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (!event.results[i].isFinal) continue;
-      const heard = event.results[i][0].transcript.trim(); if (!heard) continue;
-      bubble('heard', '🎧 ' + heard);
-      try {
-        const r = await api('/api/tasks', { task: 'Traduce în ' + langName($('user-lang').value) + '. Răspunde doar cu traducerea, fără alt text:\n' + heard, input_mode: 'voice_transcript' });
-        showResult(r); translateResult(r.task_id);
-      } catch (e) { status(e.message); }
-    }
-  };
-  mic.onerror = event => { if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error)) translatorStop('Microfon indisponibil sau refuzat pentru traducere.'); };
-  mic.onend = () => { if (translator.active && translator.mic === mic) translatorListen(); };  // repornește la evenimentul de oprire al browserului
-  try { mic.start(); $('tr-status').textContent = 'Ascult ' + langName($('src-lang').value) + ' → scriu în ' + langName($('user-lang').value) + '. Fără voce.'; }
-  catch { translatorStop('Browserul nu a putut porni microfonul.'); }
-}
-$('src-lang').onchange = () => { try { localStorage.setItem(SRC_KEY, $('src-lang').value); } catch {} if (translator.active) { const mic = translator.mic; translator.mic = null; if (mic) { mic.onend = null; try { mic.abort(); } catch {} } translatorListen(); } };
-$('tr-stop').onclick = () => translatorStop();
-if (Recognition) {
-  $('translate-wrap').hidden = false;
-  // T: oprește chatul full duplex și pornește traducerea (becul se aprinde); a doua apăsare stinge becul și repornește full duplex.
-  $('translate').onclick = () => {
-    if (!csrf) { status('Conectează-te întâi.'); return; }
-    if (translator.active) { translatorStop(); conversation.start(); return; }
-    if (conversation.active) conversation.stop('Chatul vocal e oprit cât traduc.');
-    translator.active = true; $('tr-card').hidden = false; $('translate').setAttribute('aria-pressed', 'true'); translatorListen();
-  };
-}
-$('call-start').onclick = () => {
-  // Microfonul deschide doar ruta audio, în aplicație. Canalul (chat/codex/work/magentic) îl alege Kelion în spate, pe magistrală.
-  following++; if (translator.active) translatorStop();
-  if (!csrf) { status('Conectează-te înainte să pornești conversația vocală.'); return; }
-  routeNote('Voce: ascult în aplicație; Kelion alege canalul pentru fiecare cerere.');
-  conversation.start();
-};
-$('call-end').onclick = () => conversation.stop();
-$('call-interrupt').onclick = () => conversation.interrupt();
-window.addEventListener('pagehide', () => { camStop(); translatorStop(); conversation.stop(); dictation?.abort(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && conversation.active) conversation.stop('Conversația s-a oprit deoarece pagina nu mai este vizibilă.'); });
+$('logout').onclick = async () => { try { await api('/auth/logout', {}); } finally { location.reload(); } };
 
 (async () => {
   try {
     const config = await api('/api/config');
-    if (!config.ready) { status('Configurare lipsă: ' + config.missing.join(', ') + '. Conectarea și trimiterea sunt dezactivate.'); return; }
-    if (config.voice) { conversation.impl = serverVoice; $('call-start').disabled = false; $('call-status').textContent = 'Voce prin serviciul DOTS de pe server.'; }
-    try { await signedIn(await api('/api/session')); } catch { $('signin').hidden = false; status('Conectează-te cu un cont Google autorizat.'); }
+    if (!config.ready) { status('Configurare lipsă: ' + config.missing.join(', ') + '.'); return; }
+    if (!config.mask) status('Puntea către Codex nu e configurată pe server (KELION_MASK_TOKEN).');
+    try { await signedIn(await api('/api/session')); } catch { $('signin').hidden = false; status('Conectează-te cu contul Google autorizat.'); }
   } catch (e) { status(e.message); }
 })();
 }

@@ -1,0 +1,32 @@
+
+/* DOTS professional operations workspace — original Kelion robot artwork */
+:root { --dots-border:#293958; --dots-accent:#97a7ff; }
+body {background: radial-gradient(circle at 42% -30%,#182747 0%,#0b1221 54%,#090f1a 100%);}
+.dots-identity {display:flex;align-items:center;gap:16px;min-height:98px;padding:4px 8px 16px;}
+.dots-avatar {height:80px;width:80px;flex:0 0 80px;display:grid;place-items:center;border-radius:24px;background:linear-gradient(145deg,#283b69,#131e34);border:1px solid #43558b;box-shadow:0 16px 40px #02091777;}
+.dots-avatar img{display:block;width:75px;height:75px;object-fit:contain;image-rendering:auto}
+.dots-identity-copy{min-width:0;flex:1}.dots-eyebrow{font-size:10px;letter-spacing:.22em;font-weight:700;color:#a2b3ed;margin:0 0 4px}
+.dots-identity-copy h1{margin:0;font-size:clamp(19px,2.3vw,29px);line-height:1.15;font-weight:680;letter-spacing:-.045em;color:#eef2ff}
+.dots-identity-copy p:last-child{margin:7px 0 0;font-size:12px;color:#8799bb;max-width:700px}
+.dots-state{display:flex;align-items:center;gap:8px;border:1px solid #314362;background:#121e32;color:#b8c7e1;padding:10px 13px;border-radius:99px;white-space:nowrap;font-size:11px}
+.dots-live-dot{height:7px;width:7px;border-radius:50%;background:#8795b5}
+.dots-state[data-online="true"] .dots-live-dot{background:#35d7aa;box-shadow:0 0 0 4px #2cbe9a20}
+main{min-height:calc(100dvh - 45px);height:calc(100dvh - 45px);overflow:hidden;padding:12px 20px 14px;display:flex;flex-direction:column;max-width:none}
+.monitor-card{flex:1;min-height:160px;display:flex;flex-direction:column;border-color:var(--dots-border);background:linear-gradient(155deg,#121c30,#11192a)}
+.monitor-body{flex:1;min-height:0;height:auto;overflow:auto}
+.empty-state {min-height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.empty-state h2{font-size:20px}.empty-state p{max-width:420px;text-align:center}
+.conversation-section{margin:8px 0 4px;flex:0 0 auto}
+.conversation-log{min-height:44px;max-height:44px;height:44px;display:flex;align-items:center;padding:0 12px;background:#101a2c;border:1px solid #243654;border-radius:12px;overflow:hidden}
+.conversation-log .message{padding:0;line-height:1.5;overflow:hidden;max-width:100%;width:100%;border:0;background:none}
+.conversation-log .message-body{white-space:nowrap;display:block;overflow:hidden;text-overflow:ellipsis}
+.composer-area{padding:0;flex:0 0 auto;position:relative}
+.composer{border-color:#3c5076;box-shadow:0 10px 30px #0004}
+.composer-toolbar{gap:12px}.composer-tools{flex:1;gap:6px}
+.composer-toolbar .monitor-toolbar{order:1;margin-left:0;gap:5px;flex:0 1 auto}
+.composer-toolbar .monitor-tab{font-size:12px;color:#b6c5e0}
+.composer-toolbar .monitor-actions .icon-button{width:32px}
+#status:empty{display:none}.status-message{min-height:0;max-height:48px;overflow:hidden}
+.topbar{height:43px;min-height:43px}.app-footer,.composer-meta{display:none!important}
+@media(max-width:800px){main{padding:7px 10px 8px;height:calc(100dvh - 55px)}.dots-identity{min-height:82px;gap:10px;padding:4px 2px 10px}.dots-avatar{height:62px;width:62px;flex-basis:62px;border-radius:18px}.dots-avatar img{height:60px;width:60px}.dots-state{padding:6px;font-size:0}.dots-state .dots-live-dot{height:8px;width:8px}.dots-identity-copy p:last-child{font-size:10px}.composer-toolbar{row-gap:5px}.composer-tools{flex-basis:100%;justify-content:space-between}.composer-toolbar .monitor-toolbar{margin-left:0}.monitor-tab{padding:0 7px}.conversation-log{height:40px;min-height:40px;max-height:40px}}
+@media(max-width:440px){.dots-eyebrow{font-size:8px}.dots-identity-copy h1{font-size:18px}.dots-identity-copy p:last-child{font-size:9px}.dots-avatar{width:52px;height:52px;flex-basis:52px}.dots-avatar img{width:51px;height:51px}.dots-identity{min-height:65px}.composer-tools{gap:0}.composer-toolbar .monitor-toolbar{gap:0}.composer-toolbar .monitor-tab{padding:0 5px}}

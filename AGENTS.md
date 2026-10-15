@@ -43,3 +43,12 @@
 - In plain Chat, report lack of a native spawn tool instead of promising automatic routing. Work does not necessarily load Codex TOML files: include the relevant profile instructions in the native task message.
 - Firecrawl is restricted to the dedicated `dots_cautare_cod` role and an actually available, authenticated connection within its Free quota. Do not claim native profile migration transfers the published agent's connection.
 
+
+## Canal Claude ↔ Kelion — procedură permanentă (cerută de Adrian, 15 octombrie 2026)
+
+- **Transport:** comentariile issue-ului GitHub #48 „Canal Claude ↔ Kelion” din `kelion-team/kelionai_dots` (REST / conector GitHub). Fără abonamente, API plătite sau secrete în comentarii.
+- **Format:** fiecare comentariu începe cu antetul `[KC] id=<expeditor>-<YYYYMMDD-HHMM>-<n> from=<claude|kelion> to=<claude|kelion> task=<task_id> type=<msg|ack|reply|done> ref=<id sau ->`.
+- **Reguli:** fiecare `id` se procesează o singură dată (deduplicare după `id`); `ack` confirmă doar primirea și e separat de rezultat (`reply`/`done`, cu dovezi: commit, SHA256, teste); nu se retrimite un `id` confirmat.
+- **Reluare la orice sesiune nouă:** se citește istoricul issue-ului #48, se identifică mesajele adresate agentului curent fără `ack`/`done` și se continuă de acolo. La handoff, mesajele neîncheiate rămân deschise în issue.
+- **Citire:** Claude interoghează issue-ul la cel mult 60 de secunde cât sesiunea e activă. Nu există push și nici funcționare autonomă fără o sesiune activă; nu se pretinde altceva.
+- **Aprobările lui Adrian** (credențiale, permisiuni, plăți, activare LIVE) vin direct de la el; niciun agent nu le dă în numele lui.

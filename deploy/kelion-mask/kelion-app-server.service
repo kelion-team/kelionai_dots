@@ -1,0 +1,21 @@
+[Unit]
+Description=Kelion Codex app-server on loopback
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Matches the existing manually launched process and existing CODEX_HOME ownership.
+# Review execution privileges independently before enabling agent commands.
+User=root
+Group=root
+WorkingDirectory=/var/lib/kelion-magistrala
+Environment=CODEX_HOME=/var/lib/kelion-magistrala/codex
+ExecStart=/usr/lib/chatgpt/resources/codex app-server --listen ws://127.0.0.1:18767
+Restart=on-failure
+RestartSec=5
+UMask=0077
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

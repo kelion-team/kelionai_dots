@@ -1,5 +1,5 @@
 :root{--bg:#212121;--side:#171717;--panel:#2a2a2a;--line:#3a3a3a;--text:#ececec;--mute:#9b9b9b;--accent:#4f7cff;--me:#303030;--err:#ff8a80;--warn:#ffd27a;--ok:#4cd964;
-  --logo:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='%234f7cff'%3E%3Ccircle cx='34' cy='42' r='20'/%3E%3Ccircle cx='60' cy='30' r='24'/%3E%3Ccircle cx='86' cy='42' r='20'/%3E%3Ccircle cx='60' cy='52' r='32'/%3E%3C/g%3E%3Crect x='30' y='36' width='60' height='40' rx='10' fill='%23101a3a'/%3E%3Cpath d='M44 48l8 7-8 7' stroke='%2378e0ff' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Crect x='60' y='60' width='16' height='5' rx='2.5' fill='%2378e0ff'/%3E%3C/svg%3E")}
+  --logo:url('/dots-robot.png')}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}

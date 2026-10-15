@@ -78,6 +78,12 @@ class RpcError(Exception):
         return {"code": self.code, "message": self.message, **({"data": self.data} if self.data is not None else {})}
 
 
+def bridge_error(code, message, reason):
+    """Eroare produsă de punte (nu de app-server). reason: unavailable/blocked/unknown_method = cererea sigur
+    nu a plecat; disconnected/timeout = cererea poate fi ajuns la app-server (rezultat incert)."""
+    return RpcError(code, message, {"source": "kelion-mask-bridge", "reason": reason})
+
+
 class WebSocket:
     """Client WebSocket minimal (RFC 6455): cadre text, fragmentare, ping/pong, închidere."""
 
@@ -243,7 +249,7 @@ class Bridge:
             waiting, self.waiting = self.waiting, {}
             self.pending.clear()
         for slot in waiting.values():
-            slot["error"] = RpcError(-32000, "Conexiunea cu app-server s-a întrerupt")
+            slot["error"] = bridge_error(-32000, "Conexiunea cu app-server s-a întrerupt", "disconnected")
             slot["done"].set()
         if was:
             self._push({"kind": "bridge", "method": "bridge/disconnected", "params": {"reason": str(error)[:300]}})
@@ -293,8 +299,11 @@ class Bridge:
     def _send(self, msg):
         ws = self.ws
         if ws is None:
-            raise RpcError(-32000, "app-server indisponibil")
-        ws.send(json.dumps(msg, ensure_ascii=False))
+            raise bridge_error(-32000, "app-server indisponibil", "unavailable")
+        try:
+            ws.send(json.dumps(msg, ensure_ascii=False))
+        except OSError as error:  # trimitere parțială posibilă: rezultat incert
+            raise bridge_error(-32000, "Conexiunea s-a întrerupt la trimitere: " + str(error)[:120], "disconnected") from None
 
     def _call(self, method, params, timeout):
         with self.lock:
@@ -310,7 +319,7 @@ class Bridge:
         if not slot["done"].wait(timeout):
             with self.lock:
                 self.waiting.pop(rid, None)
-            raise RpcError(-32001, "Timp depășit pentru " + method)
+            raise bridge_error(-32001, "Timp depășit pentru " + method, "timeout")
         if "error" in slot:
             raise slot["error"]
         return slot.get("result")
@@ -318,15 +327,15 @@ class Bridge:
     # --- operații pentru mască ---
     def rpc(self, method, params=None):
         if method in self.blocked:
-            raise RpcError(-32003, "Blocat: " + self.blocked[method])
+            raise bridge_error(-32003, "Blocat: " + self.blocked[method], "blocked")
         if method not in METHODS["client_requests"]:
-            raise RpcError(-32601, "Metodă inexistentă în schema app-server: " + str(method)[:80])
+            raise bridge_error(-32601, "Metodă inexistentă în schema app-server: " + str(method)[:80], "unknown_method")
         if method in UPLOAD_SCOPED:
             target = os.path.realpath(str((params or {}).get(UPLOAD_SCOPED[method], "")))
             if os.path.commonpath([target, self.uploads_dir]) != self.uploads_dir:
-                raise RpcError(-32003, "Blocat: scrierea e permisă doar în " + self.uploads_dir)
+                raise bridge_error(-32003, "Blocat: scrierea e permisă doar în " + self.uploads_dir, "blocked")
         if not self.ready.wait(5):
-            raise RpcError(-32000, "app-server indisponibil: " + (self.last_error or "se conectează"))
+            raise bridge_error(-32000, "app-server indisponibil: " + (self.last_error or "se conectează"), "unavailable")
         return self._call(method, params, SLOW.get(method, 120))
 
     def respond(self, request_id, result=None, error=None):

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ro">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#080e1a"><meta name="description" content="KelionDOTS — spațiu de lucru conectat la serviciile tale AI."><title>KelionDOTS · Workspace</title><link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTYiIGZpbGw9IiMxMDFiMzAiLz48cGF0aCBkPSJNMTggMTJ2NDBoOFYzOGw0LTQgMTMgMThoMTBMMzYgMjhsMTYtMTZINDFMMjYgMjhWMTJ6IiBmaWxsPSIjZWFmMGZmIi8+PGNpcmNsZSBjeD0iNTQiIGN5PSI1MyIgcj0iNSIgZmlsbD0iIzk2YTRmZiIvPjwvc3ZnPg=="><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
+<body>
+<svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<symbol id="grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v11H3z"/></symbol>
+<symbol id="users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-4 2-7 7-7s7 3 7 7m1-15a3 3 0 0 1 0 6m1 3c2 1 4 3 4 6"/></symbol>
+<symbol id="settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m12 2 2 3 3-1 3 3-2 3 2 2-2 3 2 3-3 3-3-2-2 2-3-2-3 2-3-3 2-3-2-3 2-2-2-3 3-3 3 1z"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="m12 2 9 4v5c0 6-4 10-9 12-5-2-9-6-9-12V6z"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M12 20V4m-7 7 7-7 7 7"/></symbol>
+<symbol id="clip" viewBox="0 0 24 24"><path d="m21 11-8 8a6 6 0 0 1-8-8l8-8a4 4 0 0 1 6 6l-8 8a2 2 0 0 1-3-3l8-8"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="M21 17v4h-4C9 20 4 15 3 7V3h4l2 5-3 3a17 17 0 0 0 7 7l3-3z"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M20 10c0 7-8 12-8 12S4 17 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/></symbol>
+<symbol id="activity" viewBox="0 0 24 24"><path d="M2 12h5l3-8 4 16 3-8h5"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 5V3H3v13h2"/></symbol>
+<symbol id="expand" viewBox="0 0 24 24"><path d="M8 3H3v5m18 0V3h-5M3 16v5h5m8 0h5v-5"/></symbol>
+<symbol id="close" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></symbol>
+<symbol id="refresh" viewBox="0 0 24 24"><path d="M20 4v6h-6M4 20v-6h6M5 10A8 8 0 0 1 20 9M19 14A8 8 0 0 1 4 15"/></symbol>
+</svg>
+<div class="app">
+<aside class="rail" aria-label="Navigarea principală">
+ <div class="mark" aria-label="KelionDOTS"><b>K<span>.</span></b><i></i></div>
+ <nav class="rail-nav" aria-label="Navigare">
+ <button data-panel="home" class="rail-button chosen" aria-label="Spațiul de lucru" title="Spațiul de lucru"><svg><use href="#grid"/></svg><span>Acasă</span></button>
+ <button data-panel="history" class="rail-button" aria-label="Istoric" title="Istoric"><svg><use href="#clock"/></svg><span>Istoric</span></button>
+ <button data-panel="files" class="rail-button" aria-label="Fișiere" title="Fișiere"><svg><use href="#folder"/></svg><span>Fișiere</span></button>
+ <button data-panel="agents" class="rail-button" aria-label="Agenți" title="Agenți"><svg><use href="#users"/></svg><span>Agenți</span></button>
+ </nav>
+ <div class="rail-bottom">
+ <button data-panel="capabilities" class="rail-button" aria-label="Capabilități" title="Capabilități"><svg><use href="#grid"/></svg><span>Unelte</span></button>
+ <button data-panel="settings" class="rail-button" aria-label="Setări" title="Setări"><svg><use href="#settings"/></svg><span>Setări</span></button>
+ <button data-panel="privacy" class="rail-button" aria-label="Confidențialitate" title="Confidențialitate"><svg><use href="#shield"/></svg><span>Date</span></button>
+ </div>
+</aside>
+<section class="workspace">
+<header class="global-header">
+ <div class="breadcrumb"><span>KELION</span><i></i><span>DOTS</span><b> / </b><strong>WORKSPACE</strong></div>
+ <div class="header-actions"><div id="connection" class="connection"><span class="status-dot"></span><span id="connection-text">Verificare</span></div><button id="login" class="login-btn" type="button">Conectare Google</button><button id="account" class="avatar" type="button" aria-label="Cont" hidden></button></div>
+</header>
+<div class="content">
+ <section class="identity" aria-label="Identitatea KelionDOTS">
+ <div class="robot-placeholder" role="img" aria-label="Spațiu rezervat personajului original DOTS"><div class="robot-grid" aria-hidden="true"><span></span><span></span><span></span><span></span></div><strong>DOTS</strong></div>
+ <div class="identity-copy"><span class="eyebrow">INTELIGENȚĂ ORCHESTRATĂ · KELION</span><h1>Spațiul tău de lucru.</h1><p>O singură suprafață pentru execuții, rezultate și artefacte.</p></div>
+ <div class="identity-number" aria-hidden="true"><span>01</span><small>CONTROL CENTER</small></div>
+ </section>
+ <section id="monitor-card" class="monitor-card" aria-label="Monitor de lucru">
+ <header class="monitor-head"><div class="monitor-title"><span class="surface-emblem"><svg><use href="#monitor"/></svg></span><div><strong>Monitor de lucru</strong><small id="monitor-caption">Rezultate și artefacte reale</small></div></div><div class="monitor-meta"><span id="task-state" class="task-state">Nicio lucrare</span><code id="task-id"></code></div></header>
+ <div class="monitor-body">
+ <div id="empty-artifact" class="empty-artifact"><div class="empty-symbol"><span></span><span></span><span></span></div><h2>Pregătit pentru următoarea lucrare</h2><p>Aici sunt afișate numai rezultatele reale. Selectează o cerere din istoric sau trimite una nouă.</p></div>
+ <pre id="output" class="output" hidden></pre><ol id="progress" class="progress" hidden></ol><div id="result-warning" class="result-warning" hidden></div>
+ </div>
+ <footer class="monitor-footer"><span><i class="subtle-dot"></i> Nu sunt afișate rezultate simulate</span><span id="result-time"></span></footer>
+ </section>
+ <div class="voice-line"><span class="voice-dot" aria-hidden="true"></span><span id="voice-phrase" aria-live="polite">Serviciul vocal DOTS live nu este conectat.</span><small>VOCE DOTS</small></div>
+ <div class="composer-frame">
+ <form id="compose" class="composer"><label class="sr-only" for="task">Sarcină pentru Kelion</label><textarea id="task" rows="1" maxlength="100000" placeholder="Scrie-i lui Kelion o sarcină…" disabled></textarea>
+ <div class="composer-row"><div class="input-tools">
+ <button type="button" id="attach" title="Atașează fișiere" disabled><svg><use href="#clip"/></svg><span>Atașează</span></button>
+ <button type="button" id="call" title="Apelul DOTS nativ nu este integrat" disabled><svg><use href="#phone"/></svg><span>Apel DOTS</span></button>
+ <button type="button" id="camera" title="Analiza camerei cu AI nu este integrată" disabled><svg><use href="#i-camera"/></svg><span>Cameră</span></button>
+ <button type="button" id="location" title="Adaugă locația ta reală, cu permisiune" disabled><svg><use href="#pin"/></svg><span>Locație</span></button>
+ </div><div class="screen-tools">
+ <button type="button" id="tab-result" class="active" aria-pressed="true"><svg><use href="#monitor"/></svg><span>Rezultat</span></button>
+ <button type="button" id="tab-activity" aria-pressed="false"><svg><use href="#activity"/></svg><span>Activitate</span></button>
+ <button type="button" id="copy" title="Copiază rezultatul" aria-label="Copiază rezultatul" disabled><svg><use href="#i-copy"/></svg></button>
+ <button type="button" id="fullscreen" title="Extinde monitorul" aria-label="Extinde monitorul"><svg><use href="#expand"/></svg></button>
+ <button type="submit" id="send" class="send" title="Trimite sarcina" aria-label="Trimite sarcina" disabled><svg><use href="#arrow"/></svg></button>
+ </div></div></form>
+ <div id="message" class="message" role="status"></div>
+ </div>
+</div>
+</section>
+<div id="backdrop" class="backdrop" hidden></div>
+<aside id="drawer" class="drawer" aria-label="Panou de informații" hidden><div class="drawer-head"><div><small id="drawer-kicker">KELION</small><h2 id="drawer-title">Istoric</h2></div><button id="drawer-close" class="icon" aria-label="Închide"><svg><use href="#close"/></svg></button></div><div id="drawer-body" class="drawer-body"></div></aside>
+</div>
+<input id="upload" type="file" multiple hidden aria-label="Selectează fișiere"><div id="google" hidden></div>
+</body></html>

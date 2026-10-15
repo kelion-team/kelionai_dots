@@ -62,8 +62,10 @@ export async function turnItems(rpc, threadId, turn) {
 
 // Eșec sigur (cererea sigur nu a ajuns) față de trimitere incertă (poate a ajuns): fără retrimitere automată.
 export function sendFailure(error) {
-  // Coduri ale punții: -32000 conexiune întreruptă, -32001 timp depășit → cererea poate fi ajuns la app-server.
-  if (error?.rpc) return [-32000, -32001].includes(error.rpc.code) ? 'uncertain' : 'failed';
+  // Erorile punții poartă data.source = "kelion-mask-bridge": disconnected/timeout → cererea poate fi ajuns
+  // la app-server (incert); restul (unavailable, blocked, unknown_method) → sigur netrimisă.
+  // O eroare fără acest marcaj vine de la app-server, care a primit și a refuzat cererea → netrimis.
+  if (error?.rpc) { const d = error.rpc.data; return d?.source === 'kelion-mask-bridge' && ['disconnected', 'timeout'].includes(d.reason) ? 'uncertain' : 'failed'; }
   if (error?.status && error.status >= 400 && error.status < 500) return 'failed';
   return 'uncertain';                                                // rețea, 502/504, timp depășit
 }

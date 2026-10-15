@@ -44,10 +44,13 @@ test('turn sumar: elementele complete vin din thread/items/list, toate paginile'
 });
 
 test('eșec sigur față de trimitere incertă', () => {
-  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32000 } })), 'uncertain');   // conexiune întreruptă
-  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32001 } })), 'uncertain');   // timp depășit în punte
-  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32003 } })), 'failed');      // blocat înainte de trimitere
-  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32600 } })), 'failed');      // refuz explicit app-server
+  const bridge = reason => Object.assign(Error('x'), { rpc: { code: -32000, data: { source: 'kelion-mask-bridge', reason } } });
+  assert.equal(sendFailure(bridge('disconnected')), 'uncertain');   // conexiune întreruptă în punte
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32001, data: { source: 'kelion-mask-bridge', reason: 'timeout' } } })), 'uncertain');
+  assert.equal(sendFailure(bridge('unavailable')), 'failed');       // app-server indisponibil înainte de trimitere
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32003, data: { source: 'kelion-mask-bridge', reason: 'blocked' } } })), 'failed');
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32000, message: 'Your workspace is out of credits' } })), 'failed');  // app-server a refuzat
+  assert.equal(sendFailure(Object.assign(Error('x'), { rpc: { code: -32600 } })), 'failed');
   assert.equal(sendFailure(Object.assign(Error('x'), { status: 400 })), 'failed');
   assert.equal(sendFailure(Object.assign(Error('x'), { status: 502 })), 'uncertain');
   assert.equal(sendFailure(new TypeError('Failed to fetch')), 'uncertain');

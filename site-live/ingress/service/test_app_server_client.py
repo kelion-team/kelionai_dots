@@ -148,6 +148,7 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(asc.RpcError) as blocked:
             self.bridge.rpc("account/rateLimitResetCredit/consume", {})
         self.assertIn("plafonului", blocked.exception.message)
+        self.assertEqual(blocked.exception.data, {"source": "kelion-mask-bridge", "reason": "blocked"})
         with self.assertRaises(asc.RpcError):
             self.bridge.rpc("web/search", {})
         with self.assertRaises(asc.RpcError):
@@ -226,8 +227,9 @@ class SafetyTests(unittest.TestCase):
     def test_pending_kept_when_response_cannot_be_sent(self):
         bridge = asc.Bridge("ws://127.0.0.1:1/")
         bridge.pending[json.dumps(900)] = {"id": 900, "method": "item/fileChange/requestApproval", "params": {}}
-        with self.assertRaises(asc.RpcError):
+        with self.assertRaises(asc.RpcError) as caught:
             bridge.respond(900, {"decision": "decline"})
+        self.assertEqual(caught.exception.data["reason"], "unavailable")
         self.assertEqual([p["id"] for p in bridge.pending_requests()], [900])
 
     def _socket_with(self, data):
@@ -256,6 +258,32 @@ class SafetyTests(unittest.TestCase):
         finally:
             asc.MAX_MESSAGE = old
             a.close(); b.close()
+
+
+class ErrorSourceTests(unittest.TestCase):
+    def test_app_server_errors_carry_no_bridge_marker(self):
+        bridge = asc.Bridge("ws://127.0.0.1:1/")
+        slot = {"done": threading.Event()}
+        bridge.waiting[7] = slot
+        bridge._dispatch({"id": 7, "error": {"code": -32000, "message": "Your workspace is out of credits"}})
+        self.assertIsNone(slot["error"].data)
+
+    def test_disconnect_marks_waiting_calls_uncertain(self):
+        bridge = asc.Bridge("ws://127.0.0.1:1/")
+        slot = {"done": threading.Event()}
+        bridge.waiting[8] = slot
+        bridge._drop(ConnectionError("x"))
+        self.assertEqual(slot["error"].data["reason"], "disconnected")
+
+    def test_socket_error_during_send_is_uncertain(self):
+        class Broken:
+            def send(self, text):
+                raise BrokenPipeError("pipe")
+        bridge = asc.Bridge("ws://127.0.0.1:1/")
+        bridge.ws = Broken()
+        with self.assertRaises(asc.RpcError) as caught:
+            bridge._send({"id": 1})
+        self.assertEqual(caught.exception.data["reason"], "disconnected")
 
 
 class SchemaTests(unittest.TestCase):

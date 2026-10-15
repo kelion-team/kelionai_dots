@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"><title>KelionAI</title><link rel="stylesheet" href="/style.css"><script src="/app.js" type="module"></script></head>
+<body>
+<div id="gate" class="gate"><div class="gate-box"><div class="logo big" aria-hidden="true"></div><h1>KelionAI</h1><p id="status" role="status">Se verifică configurația…</p><div id="google"></div><button id="signin" type="button" hidden>Conectare Google</button></div></div>
+<div id="app" class="app" hidden>
+  <aside id="side" class="side" aria-label="Conversații">
+    <div class="side-head"><span class="logo" aria-hidden="true"></span><strong>KelionAI</strong><button id="side-close" class="icon only-mobile" type="button" aria-label="Închide lista">✕</button></div>
+    <button id="new-thread" class="wide" type="button">＋ Conversație nouă</button>
+    <input id="search" type="search" placeholder="Caută în conversații" aria-label="Caută în conversații">
+    <label class="toggle"><input id="archived" type="checkbox"> Arhivate</label>
+    <nav id="threads" class="threads" aria-label="Istoric"></nav>
+    <button id="more-threads" class="ghost" type="button" hidden>Mai multe</button>
+    <div class="side-foot">
+      <button class="nav" data-panel="skills" type="button">Skills</button>
+      <button class="nav" data-panel="plugins" type="button">Pluginuri</button>
+      <button class="nav" data-panel="apps" type="button">Aplicații</button>
+      <button class="nav" data-panel="mcp" type="button">Servere MCP</button>
+      <button class="nav" data-panel="account" type="button">Cont și limite</button>
+      <button class="nav" data-panel="functions" type="button">Funcții</button>
+      <div class="me"><span id="who"></span><button id="logout" class="ghost small" type="button">Ieșire</button></div>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="bar">
+      <button id="side-open" class="icon only-mobile" type="button" aria-label="Conversații">☰</button>
+      <h2 id="title">Conversație nouă</h2>
+      <span id="thread-menu-wrap" class="menu-wrap" hidden><button id="thread-menu-open" class="icon" type="button" aria-label="Acțiuni conversație">⋯</button>
+        <span id="thread-menu" class="menu" hidden>
+          <button data-act="rename" type="button">Redenumește</button><button data-act="fork" type="button">Ramifică (fork)</button>
+          <button data-act="archive" type="button">Arhivează</button><button data-act="unarchive" type="button">Dezarhivează</button>
+          <button data-act="compact" type="button">Compactează contextul</button><button data-act="delete" class="danger" type="button">Șterge</button></span></span>
+      <span class="spacer"></span><button id="new-top" class="icon only-mobile" type="button" aria-label="Conversație nouă" title="Conversație nouă">✎</button><span id="link" class="link" title="Legătura cu Codex de pe kelion-nou">●</span>
+    </header>
+    <section id="log" class="log" aria-live="polite"><button id="older" class="ghost small older" type="button" hidden>Mesaje mai vechi</button><div id="empty" class="empty"><div class="logo big" aria-hidden="true"></div><p>Cu ce te ajut?</p></div></section>
+    <div id="approvals" class="approvals"></div>
+    <form id="composer" class="composer">
+      <div id="chips" class="chips"></div>
+      <textarea id="input" rows="1" placeholder="Trimite un mesaj" aria-label="Mesaj"></textarea>
+      <div class="tools">
+        <label class="icon" title="Adaugă imagine (masca trimite doar imagini, ca localImage)" aria-label="Adaugă imagine">＋<input id="file" type="file" accept="image/*" multiple hidden></label>
+        <select id="model" aria-label="Model"></select>
+        <select id="effort" aria-label="Efort de raționament"></select>
+        <select id="approval" aria-label="Aprobări" title="Politica de aprobare"><option value="">Aprobări: implicit</option><option value="untrusted">untrusted</option><option value="on-request">on-request</option><option value="never">never</option></select>
+        <select id="sandbox" aria-label="Sandbox" title="Sandbox (la conversație nouă)"><option value="">Sandbox: implicit</option><option value="read-only">read-only</option><option value="workspace-write">workspace-write</option><option value="danger-full-access">danger-full-access</option></select>
+        <span class="spacer"></span>
+        <button id="stop" class="round stop" type="button" hidden aria-label="Oprește">■</button>
+        <button id="send" class="round" type="submit" aria-label="Trimite">↑</button>
+      </div>
+    </form>
+  </main>
+  <div id="panel" class="panel" hidden><div class="panel-box"><header class="bar"><h2 id="panel-title"></h2><span class="spacer"></span><button id="panel-close" class="icon" type="button" aria-label="Închide">✕</button></header><div id="panel-body" class="panel-body"></div></div></div>
+</div>
+</body></html>

@@ -144,6 +144,9 @@ class WebSocket:
             elif n == 127:
                 n = struct.unpack("!Q", self._read(8))[0]
             mask = self._read(4) if b2 & 0x80 else None
+            # Limita se verifică înainte de citirea conținutului (inclusiv totalul fragmentelor).
+            if n > MAX_MESSAGE or (opcode in (0x0, 0x1, 0x2) and total + n > MAX_MESSAGE):
+                raise ConnectionError("Mesaj prea mare")
             payload = self._read(n)
             if mask:
                 payload = _xor(payload, mask)
@@ -155,8 +158,6 @@ class WebSocket:
             if opcode == 0xA:
                 continue
             total += n
-            if total > MAX_MESSAGE:
-                raise ConnectionError("Mesaj prea mare")
             parts.append(payload)
             if fin:
                 return b"".join(parts).decode("utf-8")
@@ -329,12 +330,14 @@ class Bridge:
         return self._call(method, params, SLOW.get(method, 120))
 
     def respond(self, request_id, result=None, error=None):
+        # Cererea rămâne în așteptare până când trimiterea răspunsului reușește; la eșec nu se retrimite automat.
         key = json.dumps(request_id)
         with self.lock:
             if key not in self.pending:
                 raise KeyError(request_id)
-            self.pending.pop(key)
         self._send({"id": request_id, **({"error": error} if error is not None else {"result": result})})
+        with self.lock:
+            self.pending.pop(key, None)
 
     def wait_events(self, since, timeout):
         with self.cond:

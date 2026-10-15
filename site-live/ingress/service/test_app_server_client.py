@@ -26,6 +26,7 @@ class FakeAppServer:
         self.port = self.listener.getsockname()[1]
         self.received = []
         self.conn = None
+        self.conns = []
         threading.Thread(target=self.serve, daemon=True).start()
 
     def serve(self):
@@ -35,6 +36,7 @@ class FakeAppServer:
             except OSError:
                 return
             self.conn = conn
+            self.conns.append(conn)
             threading.Thread(target=self.handle, args=(conn,), daemon=True).start()
 
     def handle(self, conn):
@@ -108,8 +110,11 @@ class FakeAppServer:
 
     def close(self):
         self.listener.close()
-        if self.conn:
-            self.conn.close()
+        for conn in self.conns:
+            try:
+                conn.close()
+            except OSError:
+                pass
 
 
 class BridgeTests(unittest.TestCase):
@@ -125,6 +130,9 @@ class BridgeTests(unittest.TestCase):
         self.server.close()
 
     def test_initialize_then_initialized(self):
+        deadline = time.time() + 5
+        while time.time() < deadline and len(self.server.received) < 2:
+            time.sleep(0.02)
         first, second = self.server.received[:2]
         self.assertEqual(first["method"], "initialize")
         self.assertEqual(first["params"]["clientInfo"]["name"], "kelionai_mask")
@@ -211,6 +219,43 @@ class BridgeTests(unittest.TestCase):
             self.assertEqual(call("/v1/respond", {"id": 12345, "result": {}})[0], 404)
         finally:
             http.shutdown()
+            http.server_close()
+
+
+class SafetyTests(unittest.TestCase):
+    def test_pending_kept_when_response_cannot_be_sent(self):
+        bridge = asc.Bridge("ws://127.0.0.1:1/")
+        bridge.pending[json.dumps(900)] = {"id": 900, "method": "item/fileChange/requestApproval", "params": {}}
+        with self.assertRaises(asc.RpcError):
+            bridge.respond(900, {"decision": "decline"})
+        self.assertEqual([p["id"] for p in bridge.pending_requests()], [900])
+
+    def _socket_with(self, data):
+        a, b = socket.socketpair()
+        ws = asc.WebSocket.__new__(asc.WebSocket)
+        ws.sock, ws.buffer, ws.lock = a, b"", threading.Lock()
+        b.sendall(data)
+        return ws, a, b
+
+    def test_oversized_frame_rejected_before_payload_read(self):
+        ws, a, b = self._socket_with(bytes([0x81, 127]) + struct.pack("!Q", asc.MAX_MESSAGE + 1))
+        try:
+            with self.assertRaises(ConnectionError):
+                ws.recv()
+            self.assertEqual(ws.buffer, b"")
+        finally:
+            a.close(); b.close()
+
+    def test_oversized_fragment_total_rejected(self):
+        old = asc.MAX_MESSAGE
+        asc.MAX_MESSAGE = 10
+        try:
+            ws, a, b = self._socket_with(bytes([0x01, 6]) + b"abcdef" + bytes([0x80, 6]) + b"ghijkl")
+            with self.assertRaises(ConnectionError):
+                ws.recv()
+        finally:
+            asc.MAX_MESSAGE = old
+            a.close(); b.close()
 
 
 class SchemaTests(unittest.TestCase):

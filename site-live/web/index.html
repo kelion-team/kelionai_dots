@@ -31,13 +31,13 @@
           <button data-act="compact" type="button">Compactează contextul</button><button data-act="delete" class="danger" type="button">Șterge</button></span></span>
       <span class="spacer"></span><button id="new-top" class="icon only-mobile" type="button" aria-label="Conversație nouă" title="Conversație nouă">✎</button><span id="link" class="link" title="Legătura cu Codex de pe kelion-nou">●</span>
     </header>
-    <section id="log" class="log" aria-live="polite"><div id="empty" class="empty"><div class="logo big" aria-hidden="true"></div><p>Cu ce te ajut?</p></div></section>
+    <section id="log" class="log" aria-live="polite"><button id="older" class="ghost small older" type="button" hidden>Mesaje mai vechi</button><div id="empty" class="empty"><div class="logo big" aria-hidden="true"></div><p>Cu ce te ajut?</p></div></section>
     <div id="approvals" class="approvals"></div>
     <form id="composer" class="composer">
       <div id="chips" class="chips"></div>
       <textarea id="input" rows="1" placeholder="Trimite un mesaj" aria-label="Mesaj"></textarea>
       <div class="tools">
-        <label class="icon" title="Adaugă imagine" aria-label="Adaugă imagine">＋<input id="file" type="file" accept="image/*" multiple hidden></label>
+        <label class="icon" title="Adaugă imagine (masca trimite doar imagini, ca localImage)" aria-label="Adaugă imagine">＋<input id="file" type="file" accept="image/*" multiple hidden></label>
         <select id="model" aria-label="Model"></select>
         <select id="effort" aria-label="Efort de raționament"></select>
         <select id="approval" aria-label="Aprobări" title="Politica de aprobare"><option value="">Aprobări: implicit</option><option value="untrusted">untrusted</option><option value="on-request">on-request</option><option value="never">never</option></select>

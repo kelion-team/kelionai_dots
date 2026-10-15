@@ -32,11 +32,48 @@ export function inputText(content) {
     : part.type === 'image' ? '🖼 imagine' : '[' + part.type + ']').join('\n');
 }
 
+// Starea turnului activ: un turn deja încheiat nu mai poate redeveni activ, indiferent dacă
+// notificarea turn/completed ajunge înaintea răspunsului HTTP la turn/start.
+export class TurnState {
+  constructor() { this.active = null; this.done = new Set(); }
+  started(id) { if (id && !this.done.has(id)) this.active = id; return this.active; }
+  completed(id) { this.done.add(id); if (this.active === id) this.active = null; return this.active; }
+  reset() { this.active = null; this.done.clear(); }
+}
+
+// Pagini de turnuri mai vechi: thread/turns/list cu cursorul înapoi și sortDirection "desc" (schema app-server).
+// Prima pagină include turnul-ancoră deja afișat; turnurile văzute se sar. Rezultatul e în ordine cronologică.
+export async function olderTurns(rpc, threadId, cursor, seen, limit = 20) {
+  const r = await rpc('thread/turns/list', { threadId, cursor, sortDirection: 'desc', itemsView: 'full', limit });
+  const turns = (r.data || []).filter(t => !seen.has(t.id)).reverse();
+  return { turns, cursor: r.nextCursor || null };
+}
+
+// Elementele complete ale unui turn încărcat doar sumar: thread/items/list, toate paginile.
+export async function turnItems(rpc, threadId, turn) {
+  if (!turn.itemsView || turn.itemsView === 'full') return turn.items || [];
+  const out = []; let cursor = null;
+  do {
+    const r = await rpc('thread/items/list', { threadId, turnId: turn.id, sortDirection: 'asc', ...(cursor ? { cursor } : {}) });
+    out.push(...(r.data || [])); cursor = r.nextCursor || null;
+  } while (cursor);
+  return out;
+}
+
+// Eșec sigur (cererea sigur nu a ajuns) față de trimitere incertă (poate a ajuns): fără retrimitere automată.
+export function sendFailure(error) {
+  if (error?.rpc) return 'failed';                                   // app-server a răspuns cu eroare
+  if (error?.status && error.status >= 400 && error.status < 500) return 'failed';
+  return 'uncertain';                                                // rețea, 502/504, timp depășit
+}
+
 if (typeof document !== 'undefined') {
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
 let csrf = '', methods = { allowed: [], blocked: {}, uploads_dir: '' }, models = [], since = 0, polling = false;
-let current = null, activeTurn = null, nextCursor = null, chips = [];
+let current = null, nextCursor = null, chips = [], olderCursor = null, sending = false;
+const turnState = new TurnState(), seenTurns = new Set();
+const active = () => turnState.active;
 const items = new Map();   // itemId -> elementul randat
 
 async function api(path, data) {
@@ -75,10 +112,11 @@ async function loadThreads(more = false) {
 function markCurrent() { for (const b of $('threads').children) b.classList.toggle('on', b.dataset.id === current); }
 
 // ---------- randarea elementelor (ThreadItem) ----------
-function render(item, turnId) {
+function render(item, turnId, before = null) {
   let node = items.get(item.id);
   const fresh = !node;
-  if (fresh) { node = el('div', 'msg item-' + item.type); node.dataset.turn = turnId || ''; items.set(item.id, node); $('log').append(node); $('empty').hidden = true; }
+  if (fresh) { node = el('div', 'msg item-' + item.type); node.dataset.turn = turnId || ''; items.set(item.id, node);
+    if (before) $('log').insertBefore(node, before); else $('log').append(node); $('empty').hidden = true; }
   node.replaceChildren();
   switch (item.type) {
     case 'userMessage': node.className = 'msg me'; node.textContent = inputText(item.content);
@@ -130,41 +168,63 @@ function value(v, depth = 0) {
 }
 
 // ---------- conversație ----------
-function resetLog() { items.clear(); $('log').replaceChildren($('empty')); $('empty').hidden = false; }
+function resetLog() { items.clear(); seenTurns.clear(); turnState.reset(); olderCursor = null; $('log').replaceChildren($('older'), $('empty')); $('older').hidden = true; $('empty').hidden = false; }
+async function showTurn(turn, before = null) {
+  seenTurns.add(turn.id);
+  for (const item of await turnItems(rpc, current, turn)) render(item, turn.id, before);
+  if (turn.status === 'inProgress') turnState.started(turn.id); else turnState.completed(turn.id);
+  if (turn.error) { const n = el('div', 'msg err', 'Eroare: ' + turn.error.message); if (before) $('log').insertBefore(n, before); else $('log').append(n); }
+}
 async function openThread(id) {
   const r = await rpc('thread/resume', { threadId: id });
-  current = id; activeTurn = null; resetLog(); markCurrent();
+  current = id; resetLog(); markCurrent();
   $('title').textContent = r.thread.name || r.thread.preview || 'Conversație'; $('thread-menu-wrap').hidden = false;
   if (r.model) selectModel(r.model, r.reasoningEffort);
-  for (const turn of r.thread.turns || []) {
-    for (const item of turn.items || []) render(item, turn.id);
-    if (turn.status === 'inProgress') activeTurn = turn.id;
-    if (turn.error) note('Eroare: ' + turn.error.message, 'err');
-  }
-  busy(Boolean(activeTurn)); $('log').scrollTop = $('log').scrollHeight; showApprovals();
+  for (const turn of r.thread.turns || []) await showTurn(turn);
+  olderCursor = r.turnsBackwardsCursor || null; $('older').hidden = !olderCursor;
+  busy(Boolean(active())); $('log').scrollTop = $('log').scrollHeight; showApprovals();
 }
-function newThread() { current = null; activeTurn = null; resetLog(); markCurrent(); $('title').textContent = 'Conversație nouă'; $('thread-menu-wrap').hidden = true; busy(false); showApprovals(); }
-function busy(on) { $('stop').hidden = !on; $('send').title = on ? 'Trimite în timpul rulării (steer)' : 'Trimite'; }
+async function loadOlder() {
+  if (!current || !olderCursor) return;
+  $('older').disabled = true;
+  try {
+    const thread = current, anchor = $('older').nextElementSibling, height = $('log').scrollHeight;
+    const page = await olderTurns(rpc, thread, olderCursor, seenTurns);
+    if (thread !== current) return;
+    for (const turn of page.turns) await showTurn(turn, anchor);
+    olderCursor = page.cursor; $('older').hidden = !olderCursor;
+    $('log').scrollTop += $('log').scrollHeight - height;
+  } catch (e) { note(e.message, 'err'); } finally { $('older').disabled = false; }
+}
+function newThread() { current = null; resetLog(); markCurrent(); $('title').textContent = 'Conversație nouă'; $('thread-menu-wrap').hidden = true; busy(false); showApprovals(); }
+function busy(on) { $('send').disabled = sending; $('stop').hidden = !on; $('send').title = on ? 'Trimite în timpul rulării (steer)' : 'Trimite'; }
 
+// Textul și imaginile rămân în compozitor până când app-server confirmă cererea.
 async function send(text) {
   const input = [];
   if (text) input.push({ type: 'text', text, text_elements: [] });
   for (const c of chips) input.push({ type: 'localImage', path: c.path });
-  if (!input.length) return;
-  $('input').value = ''; fit(); const sent = chips; chips = []; $('chips').replaceChildren();
+  if (!input.length || sending) return;
+  sending = true; busy(Boolean(active()));
+  const done = () => { if ($('input').value.trim() === text) { $('input').value = ''; fit(); } chips = chips.filter(c => !input.some(i => i.path === c.path)); drawChips(); };
   try {
     if (!current) {
       const params = {}; if ($('model').value) params.model = $('model').value;
       if ($('approval').value) params.approvalPolicy = $('approval').value; if ($('sandbox').value) params.sandbox = $('sandbox').value;
       const r = await rpc('thread/start', params); current = r.thread.id; $('thread-menu-wrap').hidden = false; showApprovals(); loadThreads().catch(() => {});
     }
-    if (activeTurn) { await rpc('turn/steer', { threadId: current, expectedTurnId: activeTurn, input }); return; }
+    if (active()) { await rpc('turn/steer', { threadId: current, expectedTurnId: active(), input }); done(); return; }
     const params = { threadId: current, input };
     if ($('model').value) params.model = $('model').value; if ($('effort').value) params.effort = $('effort').value;
     if ($('approval').value) params.approvalPolicy = $('approval').value;
-    const r = await rpc('turn/start', params); activeTurn = r.turn.id; busy(true);
+    const r = await rpc('turn/start', params); done();
+    if (r.turn.status === 'inProgress') turnState.started(r.turn.id); else turnState.completed(r.turn.id);
+    seenTurns.add(r.turn.id);
     for (const item of r.turn.items || []) render(item, r.turn.id);
-  } catch (e) { note(e.message, 'err'); chips = sent.concat(chips); drawChips(); }
+  } catch (e) {
+    if (sendFailure(e) === 'failed') note('Netrimis: ' + e.message + '. Mesajul a rămas în compozitor.', 'err');
+    else note('Trimitere incertă (' + e.message + '): poate a ajuns la Codex. Verifică conversația înainte să retrimiți; nu retrimit automat.', 'warn');
+  } finally { sending = false; busy(Boolean(active())); }
 }
 
 // ---------- aprobări și întrebări cerute de server (ServerRequest) ----------
@@ -216,8 +276,8 @@ function onEvent(ev) {
   if (ev.method === 'account/rateLimits/updated' && $('panel-title').dataset.kind === 'account') { openPanel('account'); return; }
   if (p.threadId && p.threadId !== current) return;
   switch (ev.method) {
-    case 'turn/started': activeTurn = p.turn.id; busy(true); break;
-    case 'turn/completed': if (activeTurn === p.turn.id) activeTurn = null; busy(Boolean(activeTurn));
+    case 'turn/started': seenTurns.add(p.turn.id); turnState.started(p.turn.id); busy(Boolean(active())); break;
+    case 'turn/completed': turnState.completed(p.turn.id); busy(Boolean(active()));
       if (p.turn.error) note('Eroare: ' + p.turn.error.message, 'err'); if (p.turn.status === 'interrupted') note('Oprit.', 'note'); loadThreads().catch(() => {}); break;
     case 'item/started': case 'item/completed': render(p.item, p.turnId); break;
     case 'item/agentMessage/delta': { let n = items.get(p.itemId); if (!n) n = render({ type: 'agentMessage', id: p.itemId, text: '' }, p.turnId);
@@ -332,7 +392,8 @@ const closeSide = () => document.body.classList.remove('side-on');
 $('input').addEventListener('input', fit);
 $('input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('composer').requestSubmit(); } });
 $('composer').onsubmit = e => { e.preventDefault(); send($('input').value.trim()); };
-$('stop').onclick = () => { if (current && activeTurn) rpc('turn/interrupt', { threadId: current, turnId: activeTurn }).catch(e => note(e.message, 'err')); };
+$('stop').onclick = () => { if (current && active()) rpc('turn/interrupt', { threadId: current, turnId: active() }).catch(e => note(e.message, 'err')); };
+$('older').onclick = loadOlder;
 $('model').onchange = () => efforts();
 $('file').onchange = e => { attach([...e.target.files]); e.target.value = ''; };
 $('new-thread').onclick = () => { newThread(); closeSide(); };

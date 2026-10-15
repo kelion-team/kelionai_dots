@@ -97,3 +97,4 @@ dl.tree{display:grid;grid-template-columns:max-content 1fr;gap:2px 10px}
   .panel{padding:8px}
 }
 .thread.wait::after{content:" ●";color:var(--warn)}
+.older{align-self:center}

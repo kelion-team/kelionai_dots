@@ -16,7 +16,7 @@ browser ─► kelionai.app (/api/app/*, sesiune Google + CSRF, doar contul perm
 | Conversație nouă, trimitere | `thread/start`, `turn/start` (input text + `localImage`) |
 | Trimitere în timpul rulării / Oprește | `turn/steer` / `turn/interrupt` |
 | Istoric, căutare, arhivate, „Mai multe” | `thread/list` (searchTerm, archived, cursor) |
-| Deschiderea unei conversații | `thread/resume` (turns + items) |
+| Deschiderea unei conversații | `thread/resume` (turns + items); „Mesaje mai vechi”: `thread/turns/list` cu `turnsBackwardsCursor`, `sortDirection: desc`; turnuri sumare completate cu `thread/items/list` |
 | Redenumește, ramifică, arhivează, dezarhivează, compactează, șterge | `thread/name/set`, `thread/fork`, `thread/archive`, `thread/unarchive`, `thread/compact/start`, `thread/delete` |
 | Model și efort | `model/list` (supportedReasoningEfforts), `model` + `effort` în `turn/start` |
 | Aprobări și sandbox | `approvalPolicy`, `sandbox` (la `thread/start`), `approvalPolicy` la `turn/start` |
@@ -24,6 +24,12 @@ browser ─► kelionai.app (/api/app/*, sesiune Google + CSRF, doar contul perm
 | Elemente afișate | userMessage, agentMessage, reasoning, plan, commandExecution, fileChange, mcpToolCall, webSearch, imageView, imageGeneration, contextCompaction, review; restul fidel ca date |
 | Cereri ale serverului | `item/commandExecution/requestApproval`, `item/fileChange/requestApproval`, `execCommandApproval`, `applyPatchApproval`, `item/tool/requestUserInput`, `mcpServer/elicitation/request` |
 | Imagini | `fs/createDirectory` + `fs/writeFile` (doar în directorul de încărcări), afișare cu `fs/readFile` |
+
+Atașamente: masca trimite **doar imagini** (`localImage`, maximum 8 MB fiecare). `thread/attachment/*` (atașamente
+opace cu `attachmentType`/`identityKey`/`payload`) nu este folosit de mască, deci atașamentele generale nu sunt acoperite.
+
+Trimiterea: textul și imaginile rămân în compozitor până la confirmarea app-server. O eroare a app-server înseamnă
+„netrimis”; o eroare de rețea sau un timp depășit înseamnă „trimitere incertă”, afișată ca atare, fără retrimitere automată.
 | Skills, Pluginuri, Aplicații, Servere MCP | `skills/list`, `plugin/list`, `app/list`, `mcpServerStatus/list` |
 | Cont și limite | `account/read`, `account/rateLimits/read`, `account/usage/read` |
 | Funcții | lista metodelor permise și a celor blocate, cu motivul |

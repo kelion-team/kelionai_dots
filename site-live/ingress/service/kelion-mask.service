@@ -1,0 +1,16 @@
+[Unit]
+Description=Kelion: puntea măștii kelionai.app către Codex app-server (doar loopback)
+After=network-online.target
+
+[Service]
+# KELION_MASK_TOKEN=... (același token ca în mediul serverului web; nu se pune în repo)
+# KELION_APPSERVER_TOKEN=... (doar dacă listenerul app-server cere autentificare)
+EnvironmentFile=/etc/kelion-mask/mask.env
+ExecStart=/usr/bin/python3 /opt/kelion-app/mask/app_server_client.py --config /etc/kelion-mask/config.json
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

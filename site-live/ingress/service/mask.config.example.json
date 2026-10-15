@@ -1,0 +1,6 @@
+{
+  "app_server_url": "ws://127.0.0.1:18767/",
+  "port": 8775,
+  "uploads_dir": "/var/lib/kelion-magistrala/mask-uploads",
+  "enable": []
+}

@@ -13,10 +13,10 @@ function cookie(req, name) {
   return values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0].slice(name.length + 1)) ? values[0].slice(name.length + 1) : '';
 }
 const setCookie = (name, value, age) => `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`;
-async function body(req) {
+async function body(req, max = 110000) {
   if (req.headers['content-type']?.split(';')[0] !== 'application/json') fail(415, 'JSON required');
   let size = 0; const chunks = [];
-  for await (const chunk of req) { size += chunk.length; if (size > 110000) fail(413, 'Request too large'); chunks.push(chunk); }
+  for await (const chunk of req) { size += chunk.length; if (size > max) fail(413, 'Request too large'); chunks.push(chunk); }
   try { const data = JSON.parse(Buffer.concat(chunks)); if (!data || Array.isArray(data) || typeof data !== 'object') throw 0; return data; } catch { fail(400, 'Invalid JSON'); }
 }
 const AUDIO_TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mp4']);
@@ -36,6 +36,20 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
   const missing = [!config.clientId && 'GOOGLE_CLIENT_ID', !allowed.size && 'KELION_ALLOWED_EMAILS', !config.apiToken && 'KELION_CLIENT_TOKEN'].filter(Boolean);
   if (config.apiToken && !/^[A-Za-z0-9_-]{32,256}$/.test(config.apiToken)) throw Error('Invalid API credential');
   if (config.voiceToken && !/^[A-Za-z0-9_-]{32,256}$/.test(config.voiceToken)) throw Error('Invalid voice credential');
+  if (config.maskToken && !/^[A-Za-z0-9_-]{32,256}$/.test(config.maskToken)) throw Error('Invalid mask credential');
+  // Puntea măștii (loopback 8775): operațiile Codex app-server de pe kelion-nou, 1:1 după schemă.
+  async function mask(path, data, timeout = 130000) {
+    if (!config.maskToken) fail(503, 'Mask bridge not configured');
+    let response;
+    try { response = await upstreamFetch('http://127.0.0.1:8775' + path, { method: data ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.timeout(timeout),
+      headers: { authorization: 'Bearer ' + config.maskToken, 'content-type': 'application/json' }, ...(data ? { body: JSON.stringify(data) } : {}) }); }
+    catch { fail(502, 'Mask bridge unavailable'); }
+    if (response.status === 404) { const e = await response.json().catch(() => ({})); fail(404, String(e.error || 'Not found').slice(0, 300)); }
+    if (response.status === 400) { const e = await response.json().catch(() => ({})); fail(400, String(e.error || 'Invalid request').slice(0, 300)); }
+    if (!response.ok) fail(502, 'Mask bridge unavailable');
+    const text = await response.text(); if (text.length > 64 * 1024 * 1024) fail(502, 'Mask response too large');
+    return JSON.parse(text);
+  }
   // Serviciul DOTS de voce (loopback 8770): sunet → text (whisper.cpp) și text → sunet (piper), pe server.
   async function voice(path, init) {
     if (!config.voiceToken) fail(503, 'Voice service not configured');
@@ -119,7 +133,7 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
       const path = req.url;
       if (req.method === 'POST' && req.headers.origin !== config.publicOrigin) fail(403, 'Exact origin required');
       if (req.method === 'GET' && assets.has(path)) { const [type, content] = assets.get(path); res.writeHead(200, { 'content-type': type }); res.end(content); return; }
-      if (req.method === 'GET' && path === '/api/config') return send(200, { clientId: config.clientId || null, missing, ready: !missing.length, worker: 'not_verified', voice: Boolean(config.voiceToken) });
+      if (req.method === 'GET' && path === '/api/config') return send(200, { clientId: config.clientId || null, missing, ready: !missing.length, worker: 'not_verified', voice: Boolean(config.voiceToken), mask: Boolean(config.maskToken) });
       if (req.method === 'POST' && path === '/auth/nonce') {
         if (missing.length) fail(503, 'Missing: ' + missing.join(', '));
         limit('nonce', 30); cleanup();
@@ -140,7 +154,8 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
         prepared('INSERT INTO sessions VALUES (?,?,?,?,?)').run(hash(id), user.sub, user.email, csrf, Date.now() + 43200000);
         return send(200, { email: user.email, csrf }, { 'set-cookie': [setCookie(COOKIE, id, 43200), setCookie(LOGIN, '', 0)] });
       }
-      if (!['/api/session', '/auth/logout', '/api/tasks', '/api/voice/stt', '/api/voice/tts'].includes(path) && !/^\/api\/tasks\/web-[a-f0-9]{32}$/.test(path)) fail(404, 'Unknown endpoint');
+      const MASK = ['/api/app/health', '/api/app/methods', '/api/app/pending', '/api/app/rpc', '/api/app/events', '/api/app/respond'];
+      if (![...MASK, '/api/session', '/auth/logout', '/api/tasks', '/api/voice/stt', '/api/voice/tts'].includes(path) && !/^\/api\/tasks\/web-[a-f0-9]{32}$/.test(path)) fail(404, 'Unknown endpoint');
       const user = session(req);
       if (req.method === 'POST' && req.headers['x-csrf-token'] !== user.csrf) fail(403, 'Invalid CSRF token');
       if (req.method === 'GET' && path === '/api/session') return send(200, { email: user.email, csrf: user.csrf });
@@ -172,6 +187,26 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
         const wav = Buffer.from(await response.arrayBuffer()); if (wav.length > 20 * 1024 * 1024) fail(502, 'Voice response too large');
         res.writeHead(200, { 'content-type': 'audio/wav', 'content-length': wav.length }); res.end(wav); return;
       }
+      if (MASK.includes(path)) {
+        if (req.method === 'GET' && ['/api/app/health', '/api/app/methods', '/api/app/pending'].includes(path)) { limit('mask-read', 600); return send(200, await mask('/v1/' + path.slice(9))); }
+        if (req.method === 'POST' && path === '/api/app/rpc') {
+          limit('mask-rpc', 600); const data = await body(req, 12 * 1024 * 1024);
+          if (Object.keys(data).some(k => !['method', 'params'].includes(k)) || typeof data.method !== 'string' || !/^[A-Za-z_/]{1,80}$/.test(data.method)
+            || (data.params !== undefined && (data.params === null || typeof data.params !== 'object' || Array.isArray(data.params)))) fail(400, 'Invalid request');
+          return send(200, await mask('/v1/rpc', data, 620000));
+        }
+        if (req.method === 'POST' && path === '/api/app/events') {
+          limit('mask-events', 600); const data = await body(req);
+          if (Object.keys(data).some(k => k !== 'since') || !Number.isSafeInteger(data.since) || data.since < 0) fail(400, 'Invalid request');
+          return send(200, await mask('/v1/events', { since: data.since, timeout: 25 }, 35000));
+        }
+        if (req.method === 'POST' && path === '/api/app/respond') {
+          limit('mask-rpc', 600); const data = await body(req, 1024 * 1024);
+          if (Object.keys(data).some(k => !['id', 'result', 'error'].includes(k)) || !['string', 'number'].includes(typeof data.id)) fail(400, 'Invalid request');
+          return send(200, await mask('/v1/respond', data));
+        }
+        fail(405, 'Method not allowed');
+      }
       if (req.method === 'GET' && path.startsWith('/api/tasks/')) {
         limit('read', 300); const id = path.slice('/api/tasks/'.length);
         if (!prepared('SELECT 1 FROM tasks WHERE id=? AND sub=?').get(id, user.sub)) fail(404, 'Unknown task');
@@ -180,7 +215,7 @@ export function createApp(config, { keys = googleKeys(), upstreamFetch = fetch }
       fail(404, 'Unknown endpoint');
     } catch (error) { if (!res.headersSent) send(error instanceof HttpError ? error.status : 500, { error: error instanceof HttpError ? error.message : 'Internal error' }); else res.end(); }
   });
-  server.requestTimeout = 15000; server.headersTimeout = 10000; server.maxRequestsPerSocket = 100;
+  server.requestTimeout = 120000; server.headersTimeout = 10000; server.maxRequestsPerSocket = 100;
   server.on('close', () => { clearInterval(timer); db.close(); });
   return server;
 }
@@ -188,7 +223,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   process.umask(0o077);
   const app = createApp({ publicOrigin: 'https://kelionai.app', clientId: process.env.GOOGLE_CLIENT_ID ?? '',
     allowedEmails: (process.env.KELION_ALLOWED_EMAILS ?? '').split(',').map(s => s.trim()).filter(Boolean),
-    apiToken: process.env.KELION_CLIENT_TOKEN ?? '', voiceToken: process.env.KELION_VOICE_TOKEN ?? '', database: join(process.env.STATE_DIRECTORY || '/var/lib/kelion-web', 'web.sqlite') });
+    apiToken: process.env.KELION_CLIENT_TOKEN ?? '', voiceToken: process.env.KELION_VOICE_TOKEN ?? '', maskToken: process.env.KELION_MASK_TOKEN ?? '', database: join(process.env.STATE_DIRECTORY || '/var/lib/kelion-web', 'web.sqlite') });
   app.listen(8766, '127.0.0.1', () => console.log('Kelion web listening on loopback:8766'));
   for (const event of ['SIGINT', 'SIGTERM']) process.on(event, () => { app.close(); app.closeAllConnections(); });
 }

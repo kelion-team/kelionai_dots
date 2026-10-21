@@ -57,10 +57,11 @@ cele live; se aplică **reparații exacte** peste textul live.
 
 ## B2. Cine face deploy
 
-Kelion are acces la server **doar pentru citire** (decizia lui Adrian). Kelion pregătește tot până la comandă (ramură,
-PR cu teste, scriptul de reparație cu probă/backup/revenire, commitul fix); **comanda o rulează Adrian**, apoi Kelion și
-Claude verifică doar citind. Un deploy făcut direct de Kelion ar cere acces de scriere pe server, pe care numai Adrian îl
-poate acorda și configura.
+Kelion are drepturi de administrator pe server: citire, scriere, modificare (confirmat de Adrian, 21.10.2026). **Kelion face
+deploy singur**: rulează pe server, ca root, comanda din B.3 (varianta pentru terminalul serverului), cu toate regulile din
+B.1–B.4: commit fix, niciun apel în curs, probă pe copie, backup, revenire automată, apoi verificare cu dovezi. Adrian poate
+rula aceeași comandă oricând. Fără modificări manuale ale fișierelor live în afara unui script de reparație dintr-un PR:
+altfel codul de pe server și cel din GitHub se despart din nou.
 
 ## C. Niciodată
 

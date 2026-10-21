@@ -5,11 +5,14 @@ proxy adds a private header that only it knows, so a local process cannot forge 
 owner's approval. The owner then picks which channel identity the connection gets
 (chatgpt, work or kelion). Tokens are random, stored only as SHA-256 hashes, and map
 to exactly one identity. Static bearer credentials keep working unchanged.
+
+The identity is chosen automatically by the connector URL, never by a manual step:
+  .../kelion-channel/mcp/chatgpt, .../mcp/work, .../mcp/kelion  (plain .../mcp means chatgpt)
+When the owner is already signed in, authorization completes in one redirect.
 """
 import base64
 import hashlib
 import hmac
-import html
 import json
 import secrets
 import sqlite3
@@ -72,14 +75,29 @@ class OAuthServer:
     def enabled(self):
         return bool(self.proxy_secret) and bool(self.owner_emails)
 
-    def resource_metadata_url(self):
-        return self.base + '/.well-known/oauth-protected-resource'
+    def resource_for(self, participant=None):
+        return self.resource + ('/' + participant if participant else '')
 
-    def www_authenticate(self):
-        return 'Bearer resource_metadata="' + self.resource_metadata_url() + '"'
+    def participant_for_resource(self, resource):
+        """Identity from the connector URL; None when the resource is not this channel."""
+        if resource is None:
+            return 'chatgpt'
+        resource = resource.rstrip('/')
+        if resource == self.resource:
+            return 'chatgpt'
+        for participant in OAUTH_PARTICIPANTS:
+            if resource == self.resource_for(participant):
+                return participant
+        return None
 
-    def protected_resource(self):
-        return {'resource': self.resource, 'authorization_servers': [self.issuer],
+    def resource_metadata_url(self, participant=None):
+        return self.base + '/.well-known/oauth-protected-resource' + ('/mcp/' + participant if participant else '')
+
+    def www_authenticate(self, participant=None):
+        return 'Bearer resource_metadata="' + self.resource_metadata_url(participant) + '"'
+
+    def protected_resource(self, participant=None):
+        return {'resource': self.resource_for(participant), 'authorization_servers': [self.issuer],
                 'bearer_methods_supported': ['header'], 'scopes_supported': ['channel'],
                 'resource_name': 'Kelion shared channel'}
 
@@ -153,57 +171,24 @@ class OAuthServer:
         challenge = one('code_challenge')
         if one('code_challenge_method') != 'S256' or not isinstance(challenge, str) or not 43 <= len(challenge) <= 128:
             raise OAuthError('invalid_request', 'PKCE S256 code_challenge required')
-        resource = one('resource', required=False)
-        if resource is not None and resource.rstrip('/') != self.resource:
+        participant = self.participant_for_resource(one('resource', required=False))
+        if participant is None:
             raise OAuthError('invalid_target', 'Unknown resource')
         state = one('state', required=False) or ''
         if len(state) > 512:
             raise OAuthError('invalid_request', 'state too long')
-        return {'client_id': client_id, 'redirect_uri': redirect_uri, 'challenge': challenge, 'state': state}
+        return {'client_id': client_id, 'redirect_uri': redirect_uri, 'challenge': challenge, 'state': state,
+                'participant': participant}
 
-    def consent_page(self, request):
-        csrf = secrets.token_urlsafe(32)
+    def approve(self, request):
+        """Owner already signed in: issue the code for the identity named by the connector URL, no extra step."""
+        code = secrets.token_urlsafe(32)
         with self.lock:
-            now = self.clock()
-            self.db.execute('DELETE FROM pending WHERE expires < ?', (now,))
-            self.db.execute('INSERT INTO pending VALUES (?,?,?)', (csrf, json.dumps(request), now + PENDING_TTL))
-        buttons = ''.join(
-            '<button name="participant" value="%s">%s</button>' % (p, html.escape(p)) for p in OAUTH_PARTICIPANTS)
-        return ('<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-                '<title>Kelion – conectare la punte</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem}'
-                'button{display:block;width:100%;margin:.5rem 0;padding:.8rem;font-size:1rem;border-radius:.5rem;border:1px solid #888;background:#fff;cursor:pointer}'
-                '.deny{border-color:#c33;color:#c33}</style></head><body>'
-                '<h1>Conectare la puntea Kelion</h1><p>O aplicație ChatGPT cere acces la canalul comun: citire, trimitere și confirmare de mesaje, '
-                'nimic altceva. Alege ca ce identitate se conectează:</p>'
-                '<form method="post" action="' + html.escape(self.base + '/oauth/authorize') + '">'
-                '<input type="hidden" name="csrf" value="' + csrf + '">' + buttons +
-                '<button class="deny" name="participant" value="deny">Refuz</button></form></body></html>')
-
-    def approve(self, form):
-        def one(key):
-            values = form.get(key, [])
-            if len(values) != 1:
-                raise OAuthError('invalid_request', 'Missing or repeated field: ' + key)
-            return values[0]
-        csrf, participant = one('csrf'), one('participant')
-        with self.lock:
-            row = self.db.execute('SELECT request, expires FROM pending WHERE csrf=?', (csrf,)).fetchone()
-            self.db.execute('DELETE FROM pending WHERE csrf=?', (csrf,))
-        if not row or row[1] < self.clock():
-            raise OAuthError('invalid_request', 'Authorization request expired; start the connection again')
-        request = json.loads(row[0])
-        params = {'state': request['state']} if request['state'] else {}
-        params['iss'] = self.issuer
-        if participant == 'deny':
-            params['error'] = 'access_denied'
-        elif participant in OAUTH_PARTICIPANTS:
-            code = secrets.token_urlsafe(32)
-            with self.lock:
-                self.db.execute('INSERT INTO codes VALUES (?,?,?,?,?,?)', (_hash(code), request['client_id'], request['redirect_uri'],
-                                                                         request['challenge'], participant, self.clock() + CODE_TTL))
-            params['code'] = code
-        else:
-            raise OAuthError('invalid_request', 'Unknown identity')
+            self.db.execute('INSERT INTO codes VALUES (?,?,?,?,?,?)', (_hash(code), request['client_id'], request['redirect_uri'],
+                                                                     request['challenge'], request['participant'], self.clock() + CODE_TTL))
+        params = {'code': code, 'iss': self.issuer}
+        if request['state']:
+            params['state'] = request['state']
         return request['redirect_uri'] + '?' + urlencode(params)
 
     # ---------------------------------------------------------------- tokens

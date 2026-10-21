@@ -139,8 +139,9 @@ def public_host(origin):
     return parsed.netloc.lower()
 
 
-WELL_KNOWN_RESOURCE = ('/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp',
-                       '/.well-known/oauth-protected-resource/kelion-channel/mcp')
+WELL_KNOWN_RESOURCE_PREFIXES = ('/.well-known/oauth-protected-resource/kelion-channel/mcp',
+                                '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-protected-resource')
+MCP_IDENTITY_PATHS = {'/mcp/chatgpt': 'chatgpt', '/mcp/work': 'work', '/mcp/kelion': 'kelion'}
 WELL_KNOWN_AS = ('/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/kelion-channel',
                  '/.well-known/openid-configuration', '/.well-known/openid-configuration/kelion-channel')
 
@@ -168,7 +169,7 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=Non
             for key, value in (headers or {}).items():
                 self.send_header(key, value)
             if status == 401 and oauth is not None and 'WWW-Authenticate' not in (headers or {}):
-                self.send_header('WWW-Authenticate', oauth.www_authenticate())
+                self.send_header('WWW-Authenticate', oauth.www_authenticate(MCP_IDENTITY_PATHS.get(urlsplit(self.path).path)))
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
@@ -258,7 +259,9 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=Non
                     if set(body) != {'id', 'sha256'}:
                         raise ChannelError('Acknowledgement requires id and sha256 only')
                     return self.respond(200, channel.acknowledge(principal, body['id'], body['sha256']))
-                if url.path == '/mcp':
+                if url.path in MCP_IDENTITY_PATHS and principal != MCP_IDENTITY_PATHS[url.path]:
+                    return self.respond(403, {'error': 'This connector URL belongs to another identity'})
+                if url.path == '/mcp' or url.path in MCP_IDENTITY_PATHS:
                     accept = {part.strip().split(';')[0] for part in self.headers.get('Accept', '').split(',')}
                     if not {'application/json', 'text/event-stream'} <= accept:
                         return self.respond(406, {'error': 'Accept application/json and text/event-stream required'})
@@ -295,9 +298,16 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=Non
         def oauth_route(self, url):
             # Public discovery and token endpoints; the consent page needs the owner's proxy sign-in.
             path = url.path
-            if self.command == 'GET' and path in WELL_KNOWN_RESOURCE:
-                self.respond(200, oauth.protected_resource())
-                return True
+            if self.command == 'GET':
+                for prefix in WELL_KNOWN_RESOURCE_PREFIXES:
+                    if path == prefix or path.startswith(prefix + '/'):
+                        rest = path[len(prefix):].strip('/')
+                        if rest.startswith('mcp/'):
+                            rest = rest[4:]
+                        if rest and rest not in MCP_IDENTITY_PATHS.values():
+                            break
+                        self.respond(200, oauth.protected_resource(rest or None))
+                        return True
             if self.command == 'GET' and path in WELL_KNOWN_AS:
                 self.respond(200, oauth.authorization_server())
                 return True
@@ -313,21 +323,12 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=Non
                     raise OAuthError('invalid_request', 'Form-encoded body required')
                 self.respond(200, oauth.token(form), headers={'Pragma': 'no-cache'})
                 return True
-            if path == '/oauth/authorize' and self.command in ('GET', 'POST'):
+            if path == '/oauth/authorize' and self.command == 'GET':
                 if not oauth.owner_ok(self.headers):
                     self.respond(403, {'error': 'access_denied', 'error_description': 'Owner sign-in through kelionai.app required'})
                     return True
-                if self.command == 'GET':
-                    request = oauth.validate_request(parse_qs(url.query, keep_blank_values=True, max_num_fields=20))
-                    page = oauth.consent_page(request).encode()
-                    self.respond(200, raw=page, content_type='text/html; charset=utf-8',
-                                 headers={'X-Frame-Options': 'DENY', 'Content-Security-Policy':
-                                          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"})
-                    return True
-                form = self.read_form()
-                if not isinstance(form, dict) or not all(isinstance(v, list) for v in form.values()):
-                    raise OAuthError('invalid_request', 'Form-encoded body required')
-                self.respond(302, headers={'Location': oauth.approve(form)})
+                request = oauth.validate_request(parse_qs(url.query, keep_blank_values=True, max_num_fields=20))
+                self.respond(302, headers={'Location': oauth.approve(request)})
                 return True
             return False
 

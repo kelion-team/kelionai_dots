@@ -12,7 +12,8 @@ POD=/opt/kelion-pod
 ASSETS=/opt/kelion-control/assets
 J=/var/lib/kelion-pod/pod.jsonl
 ts=$(date +%Y%m%d-%H%M%S)
-tmp=$(mktemp -d)
+tmp=$(mktemp -d) || echec "director temporar: creare eșuată; nimic schimbat."
+[ -n "$tmp" ] && [ -d "$tmp" ] || echec "director temporar invalid; nimic schimbat."
 pas() { echo; echo "== $*"; }
 [ "$(id -u)" = 0 ] || { echo "Rulează ca root."; exit 1; }
 
@@ -47,7 +48,11 @@ inainte=$(wc -l < "$J")
 systemctl restart kelion-pod || echec "repornire eșuată. Backup: $bk"
 sleep 25
 if ! systemctl is-active -q kelion-pod || ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"ok": true'; then
-  echo "EȘEC: revin la backup"; rm -rf "$POD/pod_locuri"; cp -a "$bk/pod_locuri" "$POD/pod_locuri"; systemctl restart kelion-pod; exit 1
+  echo "EȘEC: revin la backup"
+  rm -rf "$POD/pod_locuri" || echec "restaurare: eliminare director eșuată; nu repornesc. Backup: $bk"
+  cp -a "$bk/pod_locuri" "$POD/pod_locuri" || echec "restaurare backup eșuată; nu repornesc. Backup: $bk"
+  systemctl restart kelion-pod || echec "repornire după restaurare eșuată. Backup: $bk"
+  exit 1
 fi
 sleep 20
 echo "--- dovezi după repornire:"

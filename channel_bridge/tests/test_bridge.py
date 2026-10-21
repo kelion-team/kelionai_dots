@@ -45,6 +45,16 @@ class BridgeTests(unittest.TestCase):
     def submit(self):
         return self.b.submit(self.m, 'keliondots-principal')
 
+    def test_missing_identity_cannot_bypass_auth(self):
+        for principal in (None, '', ' '):
+            with self.assertRaisesRegex(Blocked, 'authenticated_principal_required'):
+                self.b.submit(self.m, principal)
+        self.submit()
+        self.b.tick()
+        with self.assertRaisesRegex(Blocked, 'authenticated_principal_required'):
+            self.b.receive('msg-1', 'task-1', 'result', None, 'forged')
+        self.assertEqual(self.b.status('msg-1')['state'], 'awaiting_result')
+
     def test_disabled_is_inert(self):
         self.b.enabled = False
         with self.assertRaisesRegex(Blocked, 'bridge_disabled'):

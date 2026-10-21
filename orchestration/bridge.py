@@ -121,6 +121,7 @@ def _trigger_transport(envelope, token, opener=None):
             "agent_id": envelope["agent_id"], "api_trigger_id": channel_id,
             "issue_url": envelope.get("issue_url"), "conversation_url": url,
             "agent_trigger_run_id": run, "status": "trigger_accepted", "accepted_at_utc": utcnow(),
+            "input_sha256": hashlib.sha256(envelope["input"].encode("utf-8")).hexdigest(),
             "result_retrieved": False, "verified": False}
 
 
@@ -183,7 +184,7 @@ def main(argv=None):
     try:
         if opts.action == "prepare":
             obj = prepare(opts.task_id, opts.surface, opts.agent_id, opts.api_trigger_id,
-                          pathlib.Path(opts.input_file).read_text(encoding="utf-8"), opts.issue_url)
+                          pathlib.Path(opts.input_file).read_bytes().decode("utf-8"), opts.issue_url)
         elif opts.action == "trigger":
             if not opts.execute:
                 raise ValueError("Not executed; pass --execute after checking entitlement and costs")

@@ -67,6 +67,10 @@ def evaluate(receipt, result, input_bytes, output_bytes, verifier):
         raise ValueError('Oversized artifact')
     actual_input = digest(input_bytes)
     actual_output = digest(output_bytes)
+    bound_input = receipt.get('input_sha256')
+    if not isinstance(bound_input, str) or not SHA.fullmatch(bound_input):
+        raise ValueError('Missing input_sha256 on original dispatch receipt')
+    _same('dispatch input_sha256', bound_input, actual_input)
     for name, actual in (('input_sha256', actual_input), ('result_sha256', actual_output)):
         declared = result.get(name)
         if not isinstance(declared, str) or not SHA.fullmatch(declared):

@@ -105,6 +105,8 @@ class Bridge:
     def submit(self, message, principal):
         if not self.enabled:
             raise Blocked('bridge_disabled')
+        if not isinstance(principal, str) or not principal.strip():
+            raise Blocked('authenticated_principal_required')
         self._endpoint(message.source, principal)
         self._endpoint(message.target)
         if message.target not in self.adapters:
@@ -127,6 +129,8 @@ class Bridge:
                             (state, reason, self.clock() if due is None else due, result, mid))
 
     def receive(self, mid, correlation_id, kind, principal, result=None):
+        if not isinstance(principal, str) or not principal.strip():
+            raise Blocked('authenticated_principal_required')
         row = self.status(mid)
         msg = json.loads(row['envelope'])
         self._endpoint(msg['target'], principal)

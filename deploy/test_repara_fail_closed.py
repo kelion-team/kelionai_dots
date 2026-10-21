@@ -77,7 +77,7 @@ else:
 """
 
 class DeployFailureTests(unittest.TestCase):
-    def run_script(self, step, fail='', ref=True):
+    def run_script(self, step, fail='', ref='0123456789abcdef0123456789abcdef01234567'):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             pod, assets = root/'pod', root/'assets'
@@ -105,9 +105,12 @@ class DeployFailureTests(unittest.TestCase):
             script = root/'run.sh'
             script.write_text(source)
             env = dict(os.environ, PATH=str(bindir)+':'+os.environ['PATH'],
-                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td,
-                       KELION_REF='0123456789abcdef0123456789abcdef01234567')
-            if not ref: env.pop('KELION_REF')
+                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td)
+            # None means absent; every string (including empty/invalid) reaches Bash unchanged.
+            if ref is None:
+                env.pop('KELION_REF', None)
+            else:
+                env['KELION_REF'] = ref
             result = subprocess.run(['bash', str(script)], env=env, text=True,
                                     capture_output=True, timeout=15)
             log = root/'commands.jsonl'
@@ -119,10 +122,11 @@ class DeployFailureTests(unittest.TestCase):
     def test_missing_commit_ref_stops_before_any_action(self):
         for step in (2, 3):
             with self.subTest(step=step):
-                result, events, files = self.run_script(step, ref=False)
+                result, events, files = self.run_script(step, ref=None)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('KELION_REF', result.stdout)
-                self.assertFalse(any(e[0] in ('curl', 'install', 'systemctl', 'cp') for e in events))
+                self.assertEqual(events, [])
+                self.assertTrue(all(v == 'original\n' for v in files.values()))
 
     def test_backup_failure_stops_before_install_and_restart(self):
         for step in (2, 3):
@@ -213,7 +217,7 @@ class DeployFailureTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(events, [])
                     self.assertTrue(all(v == 'original\n' for v in files.values()))
-                    self.assertIn('KELION_REF', result.stderr)
+                    self.assertIn('KELION_REF', result.stdout)
 
     def test_new_call_during_preparation_stops_before_backup_install_restart(self):
         for step in (2, 3):

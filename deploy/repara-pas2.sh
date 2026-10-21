@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Pasul 2 (21.10.2026), rulat de Adrian ca root pe server, o singură comandă:
+# Pasul 2 (21.10.2026), rulat ca root pe server de Kelion (admin) sau de Adrian, o singură comandă:
 #  A) așezarea companionului (robot sus, kelionDots sub el, Microfon stânga + Cameră dreapta) — fără repornire;
 #  B) locurile de apel nelogate în ChatGPT sunt recunoscute, cer logarea cu adresa corectă și revin singure după logare.
 # B repornește kelion-pod, deci se aplică DOAR fără apel în curs (altfel îl sare și spune să rulezi din nou).
 set -uo pipefail
-REF="${KELION_REF:-fix/locuri-asteptare-sunet}"
+REF="${KELION_REF:-}"
+# Commit fix obligatoriu (40 hex), același cu cel din URL-ul scriptului: fără ramuri care se pot schimba între revizuire și rulare.
+[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."; exit 1; }
 RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
 POD=/opt/kelion-pod
 ASSETS=/opt/kelion-control/assets
@@ -32,10 +34,12 @@ fi
 pas "B) Locuri nelogate"
 if ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false'; then
   echo "SĂRIT: e un apel în curs. Rulează aceeași comandă din nou după apel (A nu se repetă)."
-  rm -rf "$tmp"; exit 0
+  rm -rf "$tmp"; exit 2   # nu e reușită: B nu s-a aplicat
 fi
 curl -fsSL "$RAW/repara_logare_locuri.py" -o "$tmp/r.py" || { echo "OPRIT: descărcare eșuată. Nimic schimbat la B."; exit 1; }
 python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || { echo "OPRIT: proba a picat. Nimic schimbat la B."; exit 1; }
+# A doua verificare, imediat înainte de instalare și repornire: un apel început între timp oprește totul.
+curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false' || { echo "OPRIT: a început un apel în timpul pregătirii. Nimic instalat. Rulează din nou după apel."; rm -rf "$tmp"; exit 1; }
 bk="$POD/backup-$ts"; mkdir -p "$bk" && cp -a "$POD/pod_locuri" "$bk/"
 for f in executor_server.py locuri.py resurse.py; do install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f"; done
 rm -rf "$POD/pod_locuri/__pycache__"

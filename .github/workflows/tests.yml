@@ -1,0 +1,31 @@
+name: Teste
+
+# Rulează la fiecare PR și la fiecare push pe main. Cu „Allow auto-merge” activat și
+# regula „Require status checks: teste”, un PR intră singur în main doar când trec testele.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  teste:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Puntea (channel_bridge)
+        run: python3 -B -m unittest discover -s channel_bridge/tests -v
+      - name: Orchestrare
+        run: python3 -B -m unittest discover -s orchestration/tests -v
+      - name: Export
+        run: python3 -B -m unittest discover -s tests -v
+      - name: Sintaxă scripturi de deploy
+        run: |
+          bash -n deploy/install-shared-channel.sh
+          bash -n deploy/auto-deploy-web.sh

@@ -53,7 +53,13 @@ elif name == 'curl':
         out.write_text('KELION_COMPANION_LAYOUT_20261021\nKELION_COMPANION_LAYOUT_20261021_END\n'
                        if stage == 'css_download' else '# mock patcher\n')
     else:
-        print('{"apel_in_curs": false, "ok": true}')
+        counter = root/'health-count'
+        count = int(counter.read_text())+1 if counter.exists() else 1
+        counter.write_text(str(count))
+        if fail == 'call_started' and count >= 2:
+            print('{"apel_in_curs": true, "ok": true}')
+        else:
+            print('{"apel_in_curs": false, "ok": true}')
 elif name == 'python3':
     dest = pathlib.Path(args[-1])
     (dest/'pod_locuri').mkdir(parents=True)
@@ -71,7 +77,7 @@ else:
 """
 
 class DeployFailureTests(unittest.TestCase):
-    def run_script(self, step, fail=''):
+    def run_script(self, step, fail='', ref='a'*40):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             pod, assets = root/'pod', root/'assets'
@@ -99,10 +105,11 @@ class DeployFailureTests(unittest.TestCase):
             script = root/'run.sh'
             script.write_text(source)
             env = dict(os.environ, PATH=str(bindir)+':'+os.environ['PATH'],
-                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td)
+                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td, KELION_REF=ref)
             result = subprocess.run(['bash', str(script)], env=env, text=True,
                                     capture_output=True, timeout=15)
-            events = [json.loads(x) for x in (root/'commands.jsonl').read_text().splitlines()]
+            events = ([json.loads(x) for x in (root/'commands.jsonl').read_text().splitlines()]
+                      if (root/'commands.jsonl').exists() else [])
             files = {str(p.relative_to(root)): p.read_text() for p in
                      [pod/'kelion_pod.py', pod/'apel_invitat.py', *sorted((pod/'pod_locuri').glob('*.py'))] if p.exists()}
             return result, events, files
@@ -186,6 +193,27 @@ class DeployFailureTests(unittest.TestCase):
                 self.assertEqual(sum(e[:2] == ['systemctl', 'restart'] for e in events), 2)
                 self.assertTrue(all(v == 'original\n' for v in files.values()))
                 self.assertNotIn('GATA.', result.stdout)
+
+
+    def test_unpinned_download_ref_is_rejected_before_side_effects(self):
+        for step in (2, 3):
+            for ref in ('', 'main', 'a'*39, 'g'*40):
+                with self.subTest(step=step, ref=ref):
+                    result, events, files = self.run_script(step, ref=ref)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(events, [])
+                    self.assertTrue(all(v == 'original\n' for v in files.values()))
+                    self.assertIn('KELION_REF', result.stderr)
+
+    def test_new_call_during_preparation_stops_before_backup_install_restart(self):
+        for step in (2, 3):
+            with self.subTest(step=step):
+                result, events, files = self.run_script(step, 'call_started')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any(e[0] in ('install', 'systemctl') for e in events))
+                self.assertFalse(any(e[0] == 'mkdir' and 'backup-' in e[-1] for e in events))
+                self.assertTrue(all(v == 'original\n' for v in files.values()))
+                self.assertIn('în timpul pregătirii', result.stdout)
 
     def test_success_path_preserved(self):
         for step, count in [(2, 3), (3, 2)]:

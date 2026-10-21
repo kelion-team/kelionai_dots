@@ -27,7 +27,7 @@ cele live; se aplică **reparații exacte** peste textul live.
    fiecare înlocuire trebuie găsită EXACT o dată, altfel nimic nu se scrie; marcaj «DEJA APLICAT» pentru a doua rulare;
    compilare (`py_compile`) și o **probă de comportament** pe copia reparată. Model: `deploy/repara_pod.py`,
    `deploy/repara_logare_locuri.py`, `deploy/repara_necunoscuti.py`.
-2. **Scriptul de aplicare** `deploy/repara-<subiect>.sh`, rulat de Adrian ca root, cu o singură comandă:
+2. **Scriptul de aplicare** `deploy/repara-<subiect>.sh`, rulat ca root de Kelion (sau de Adrian), cu o singură comandă:
    1. **oprire dacă e un apel în curs** (`curl http://127.0.0.1:8095/sanatate` -> `"apel_in_curs": false`), pentru orice
       repornire a `kelion-pod` sau `kelion-whatsapp`; verificarea se **repetă imediat înainte de instalare și repornire**
       (un apel început în timpul pregătirii oprește totul, nimic instalat). Fereastra rămasă e de sub o secundă; o oprire
@@ -42,16 +42,16 @@ cele live; se aplică **reparații exacte** peste textul live.
    8. **cod de ieșire adevărat**: 0 doar dacă totul s-a aplicat; un script care rulează mai mulți pași iese cu cod diferit
       de 0 dacă oricare pas nu s-a aplicat complet.
    Model: `deploy/repara-apel-whatsapp.sh`, `deploy/repara-pas2.sh`, `deploy/repara-pas3.sh`, `deploy/repara-tot.sh`.
-3. **Comanda pentru Adrian** — `<COMMIT>` = commitul complet (40 hex), de două ori:
-   - PowerShell pe laptop:
+3. **Comanda de deploy** (Kelion sau Adrian) — `<COMMIT>` = commitul complet (40 hex), de două ori:
+   - PowerShell pe laptopul lui Adrian:
      `ssh -i $env:USERPROFILE\.ssh\kelion_contabo root@144.91.64.250 "curl -fsSL https://raw.githubusercontent.com/kelion-team/kelionai_dots/<COMMIT>/deploy/repara-<subiect>.sh | KELION_REF=<COMMIT> bash"`
-   - terminalul serverului (deja root pe Contabo, fără ssh):
+   - terminalul serverului (Kelion, ca root pe Contabo, fără ssh):
      `curl -fsSL https://raw.githubusercontent.com/kelion-team/kelionai_dots/<COMMIT>/deploy/repara-<subiect>.sh | KELION_REF=<COMMIT> bash`
 4. **Verificare după aplicare (obligatorie, doar citire):** marcajul reparației în fișierul live, serviciul activ,
    `/sanatate` ok, evenimentele din `pod.jsonl` care dovedesc efectul (ex. apel real: `adrian_vorbit_s` > 0 și
    `kelion_vorbit_s` > 0, fără `dot_watch_failure`). Abia apoi «gata», cu ora și dovada.
 5. **GitHub = server:** după o publicare reușită, copia codului live se actualizează în `kelion-brain` prin
-   `deploy/safe-export` (pregătire locală, verificarea conținutului de către Adrian, apoi publish pe ramură + PR).
+   `deploy/safe-export` (pregătire locală, verificarea inventarului și a conținutului fiecărui fișier, apoi publish pe ramură + PR).
    Sincronizarea se poate repeta: la fiecare publish, `server/` din ramura nouă e înlocuit integral cu copia aprobată
    (fișierele dispărute de pe server dispar și din PR).
 

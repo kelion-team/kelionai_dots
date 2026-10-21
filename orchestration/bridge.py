@@ -121,6 +121,7 @@ def _trigger_transport(envelope, token, opener=None):
             "agent_id": envelope["agent_id"], "api_trigger_id": channel_id,
             "issue_url": envelope.get("issue_url"), "conversation_url": url,
             "agent_trigger_run_id": run, "status": "trigger_accepted", "accepted_at_utc": utcnow(),
+            "input_sha256": hashlib.sha256(envelope["input"].encode("utf-8")).hexdigest(),
             "result_retrieved": False, "verified": False}
 
 

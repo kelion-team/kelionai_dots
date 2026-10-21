@@ -11,11 +11,23 @@ class GateTests(unittest.TestCase):
     def setUp(self):
         self.inp = b'original user input'
         self.out = b'result from agent'
-        self.receipt = {'task_id':'kelion-0001','agent_id':'agt_abc','agent_trigger_run_id':'apirun_xyz','agent_run_status':'completed','status':'run_completed_result_not_retrieved'}
+        self.receipt = {'task_id':'kelion-0001','agent_id':'agt_abc','agent_trigger_run_id':'apirun_xyz','agent_run_status':'completed','status':'run_completed_result_not_retrieved','input_sha256':result_gate.digest(self.inp)}
         self.result = {'task_id':'kelion-0001','agent_id':'agt_abc','agent_trigger_run_id':'apirun_xyz','input_sha256':result_gate.digest(self.inp),'result_sha256':result_gate.digest(self.out),'result_ref':'https://github.com/a/b/issues/4#issuecomment-123'}
         self.verifier = {'task_id':'kelion-0001','agent_id':'agt_abc','agent_trigger_run_id':'apirun_xyz','input_sha256':result_gate.digest(self.inp),'result_sha256':result_gate.digest(self.out),'verifier':'agt_independent','passed':True,'evidence_ref':'https://github.com/a/b/actions/runs/42'}
     def evaluate(self):
         return result_gate.evaluate(self.receipt,self.result,self.inp,self.out,self.verifier)
+    def test_missing_dispatch_binding_is_rejected(self):
+        self.receipt.pop('input_sha256')
+        with self.assertRaisesRegex(ValueError, 'original dispatch'):
+            self.evaluate()
+
+    def test_consistent_substituted_input_is_rejected(self):
+        self.inp = b'substituted request'
+        self.result['input_sha256'] = result_gate.digest(self.inp)
+        self.verifier['input_sha256'] = result_gate.digest(self.inp)
+        with self.assertRaisesRegex(ValueError, 'dispatch input_sha256'):
+            self.evaluate()
+
     def test_positive_is_not_claimed_authenticated(self):
         r=self.evaluate()
         self.assertTrue(r['integrity_checks_passed'])

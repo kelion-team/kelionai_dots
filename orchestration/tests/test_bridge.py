@@ -1,4 +1,5 @@
 import json
+import hashlib
 import sys
 import unittest
 from pathlib import Path
@@ -54,6 +55,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(receipt['status'], 'trigger_accepted')
         self.assertFalse(receipt['verified'])
         self.assertNotIn('SECRET', json.dumps(receipt))
+        self.assertEqual(receipt['input_sha256'], hashlib.sha256(self.env['input'].encode()).hexdigest())
 
     def test_trigger_202_empty_body_is_accepted_without_claiming_result(self):
         def fake(req, timeout):

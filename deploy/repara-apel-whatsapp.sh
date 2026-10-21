@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reparațiile apelului WhatsApp (21.10.2026) pe serverul Contabo — rulat de Adrian, ca root, o singură comandă.
+# Reparațiile apelului WhatsApp (21.10.2026) pe serverul Contabo — rulat ca root de Kelion (admin pe server) sau de Adrian, o singură comandă.
 # Nu face nimic dacă e un apel în curs. Face backup, aplică, repornește, arată dovezile; dacă podul nu pornește, revine singur.
 set -uo pipefail
 REF="${KELION_REF:-}"

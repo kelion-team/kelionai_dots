@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Toate reparațiile rămase, într-o singură comandă (Adrian, după ce închizi apelul):
+# Toate reparațiile rămase, într-o singură comandă (Kelion sau Adrian, după închiderea apelului):
 #   pasul 2 — companion așezat corect, locuri nelogate recunoscute, fără «ocupat» fals la vârf de încărcare;
 #   pasul 3 — orice număr WhatsApp primește răspuns, necunoscuții pe ruta izolată de invitați.
 # Fiecare pas își face proba pe server, backup și revenire; nimic nu se aplică în timpul unui apel.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pasul 3 (21.10.2026, cerința 8 din apel): orice număr WhatsApp primește răspuns; necunoscuții pe ruta IZOLATĂ de invitați.
-# Rulat de Adrian ca root. Se aplică DOAR fără apel în curs (repornește kelion-pod); probă pe copie, backup, revenire.
+# Rulat ca root de Kelion (admin pe server) sau de Adrian. Se aplică DOAR fără apel în curs (repornește kelion-pod); probă pe copie, backup, revenire.
 set -uo pipefail
 REF="${KELION_REF:-}"
 # Commit fix obligatoriu (40 hex), același cu cel din URL-ul scriptului: fără ramuri care se pot schimba între revizuire și rulare.

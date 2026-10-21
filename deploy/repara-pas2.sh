@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pasul 2 (21.10.2026), rulat de Adrian ca root pe server, o singură comandă:
+# Pasul 2 (21.10.2026), rulat ca root pe server de Kelion (admin) sau de Adrian, o singură comandă:
 #  A) așezarea companionului (robot sus, kelionDots sub el, Microfon stânga + Cameră dreapta) — fără repornire;
 #  B) locurile de apel nelogate în ChatGPT sunt recunoscute, cer logarea cu adresa corectă și revin singure după logare.
 # B repornește kelion-pod, deci se aplică DOAR fără apel în curs (altfel îl sare și spune să rulezi din nou).

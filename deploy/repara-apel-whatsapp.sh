@@ -2,7 +2,9 @@
 # Reparațiile apelului WhatsApp (21.10.2026) pe serverul Contabo — rulat de Adrian, ca root, o singură comandă.
 # Nu face nimic dacă e un apel în curs. Face backup, aplică, repornește, arată dovezile; dacă podul nu pornește, revine singur.
 set -uo pipefail
-REF="${KELION_REF:-fix/locuri-asteptare-sunet}"
+REF="${KELION_REF:-}"
+# Commit fix obligatoriu (40 hex), același cu cel din URL-ul scriptului: fără ramuri care se pot schimba între revizuire și rulare.
+[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."; exit 1; }
 POD=/opt/kelion-pod
 J=/var/lib/kelion-pod/pod.jsonl
 URL="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy/repara_pod.py"
@@ -30,6 +32,8 @@ mkdir -p "$bk" && cp -a "$POD/kelion_pod.py" "$POD/pod_locuri" "$bk/" || { echo 
 echo "$bk"
 
 pas "4/5 Aplicare + repornire kelion-pod"
+# A doua verificare, imediat înainte de instalare și repornire: un apel început între timp oprește totul.
+curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false' || { echo "OPRIT: a început un apel în timpul pregătirii. Nimic instalat. Rulează din nou după apel."; rm -rf "$tmp"; exit 1; }
 install -m 644 "$tmp/nou/kelion_pod.py" "$POD/kelion_pod.py"
 for f in locuri.py executor_server.py resurse.py; do
   install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f"

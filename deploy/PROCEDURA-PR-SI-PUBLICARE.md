@@ -29,21 +29,38 @@ cele live; se aplică **reparații exacte** peste textul live.
    `deploy/repara_logare_locuri.py`, `deploy/repara_necunoscuti.py`.
 2. **Scriptul de aplicare** `deploy/repara-<subiect>.sh`, rulat de Adrian ca root, cu o singură comandă:
    1. **oprire dacă e un apel în curs** (`curl http://127.0.0.1:8095/sanatate` -> `"apel_in_curs": false`), pentru orice
-      repornire a `kelion-pod` sau `kelion-whatsapp`;
-   2. descărcare de la un **commit fix** (nu de la o ramură care se poate schimba);
+      repornire a `kelion-pod` sau `kelion-whatsapp`; verificarea se **repetă imediat înainte de instalare și repornire**
+      (un apel început în timpul pregătirii oprește totul, nimic instalat). Fereastra rămasă e de sub o secundă; o oprire
+      completă a apelurilor noi ar cere o poartă de admitere în pod, care nu există încă;
+   2. descărcare de la un **commit fix**: scriptul cere `KELION_REF=<commit complet, 40 hex>` (același commit ca în URL)
+      și refuză să ruleze fără el; toate fișierele ajutătoare se descarcă de la acel commit, nu de la o ramură;
    3. probă pe copie (`python3 repara_x.py /opt/... /tmp/...`) — dacă pică: «Nimic schimbat»;
    4. **backup** (`/opt/<serviciu>/backup-<data>`);
    5. instalare, repornirea DOAR a serviciului atins;
    6. **verificare de sănătate**; la eșec, **revenire automată** la backup;
-   7. **dovezi**: liniile relevante din jurnal după repornire (ex.: 0 `canal_dot_esuat` în 60 s).
-   Model: `deploy/repara-apel-whatsapp.sh`, `deploy/repara-pas2.sh`, `deploy/repara-tot.sh`.
-3. **Comanda pentru Adrian** (PowerShell pe laptop, sau terminalul serverului):
-   `ssh -i $env:USERPROFILE\.ssh\kelion_contabo root@144.91.64.250 "curl -fsSL https://raw.githubusercontent.com/kelion-team/kelionai_dots/<COMMIT>/deploy/repara-<subiect>.sh | bash"`
+   7. **dovezi**: liniile relevante din jurnal după repornire (ex.: 0 `canal_dot_esuat` în 60 s);
+   8. **cod de ieșire adevărat**: 0 doar dacă totul s-a aplicat; un script care rulează mai mulți pași iese cu cod diferit
+      de 0 dacă oricare pas nu s-a aplicat complet.
+   Model: `deploy/repara-apel-whatsapp.sh`, `deploy/repara-pas2.sh`, `deploy/repara-pas3.sh`, `deploy/repara-tot.sh`.
+3. **Comanda pentru Adrian** — `<COMMIT>` = commitul complet (40 hex), de două ori:
+   - PowerShell pe laptop:
+     `ssh -i $env:USERPROFILE\.ssh\kelion_contabo root@144.91.64.250 "curl -fsSL https://raw.githubusercontent.com/kelion-team/kelionai_dots/<COMMIT>/deploy/repara-<subiect>.sh | KELION_REF=<COMMIT> bash"`
+   - terminalul serverului (deja root pe Contabo, fără ssh):
+     `curl -fsSL https://raw.githubusercontent.com/kelion-team/kelionai_dots/<COMMIT>/deploy/repara-<subiect>.sh | KELION_REF=<COMMIT> bash`
 4. **Verificare după aplicare (obligatorie, doar citire):** marcajul reparației în fișierul live, serviciul activ,
    `/sanatate` ok, evenimentele din `pod.jsonl` care dovedesc efectul (ex. apel real: `adrian_vorbit_s` > 0 și
    `kelion_vorbit_s` > 0, fără `dot_watch_failure`). Abia apoi «gata», cu ora și dovada.
 5. **GitHub = server:** după o publicare reușită, copia codului live se actualizează în `kelion-brain` prin
    `deploy/safe-export` (pregătire locală, verificarea conținutului de către Adrian, apoi publish pe ramură + PR).
+   Sincronizarea se poate repeta: la fiecare publish, `server/` din ramura nouă e înlocuit integral cu copia aprobată
+   (fișierele dispărute de pe server dispar și din PR).
+
+## B2. Cine face deploy
+
+Kelion are acces la server **doar pentru citire** (decizia lui Adrian). Kelion pregătește tot până la comandă (ramură,
+PR cu teste, scriptul de reparație cu probă/backup/revenire, commitul fix); **comanda o rulează Adrian**, apoi Kelion și
+Claude verifică doar citind. Un deploy făcut direct de Kelion ar cere acces de scriere pe server, pe care numai Adrian îl
+poate acorda și configura.
 
 ## C. Niciodată
 

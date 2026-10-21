@@ -77,7 +77,7 @@ else:
 """
 
 class DeployFailureTests(unittest.TestCase):
-    def run_script(self, step, fail='', ref='a'*40):
+    def run_script(self, step, fail='', ref=True):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             pod, assets = root/'pod', root/'assets'
@@ -105,14 +105,24 @@ class DeployFailureTests(unittest.TestCase):
             script = root/'run.sh'
             script.write_text(source)
             env = dict(os.environ, PATH=str(bindir)+':'+os.environ['PATH'],
-                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td, KELION_REF=ref)
+                       FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td,
+                       KELION_REF='0123456789abcdef0123456789abcdef01234567')
+            if not ref: env.pop('KELION_REF')
             result = subprocess.run(['bash', str(script)], env=env, text=True,
                                     capture_output=True, timeout=15)
-            events = ([json.loads(x) for x in (root/'commands.jsonl').read_text().splitlines()]
-                      if (root/'commands.jsonl').exists() else [])
+            log = root/'commands.jsonl'
+            events = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
             files = {str(p.relative_to(root)): p.read_text() for p in
                      [pod/'kelion_pod.py', pod/'apel_invitat.py', *sorted((pod/'pod_locuri').glob('*.py'))] if p.exists()}
             return result, events, files
+
+    def test_missing_commit_ref_stops_before_any_action(self):
+        for step in (2, 3):
+            with self.subTest(step=step):
+                result, events, files = self.run_script(step, ref=False)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('KELION_REF', result.stdout)
+                self.assertFalse(any(e[0] in ('curl', 'install', 'systemctl', 'cp') for e in events))
 
     def test_backup_failure_stops_before_install_and_restart(self):
         for step in (2, 3):

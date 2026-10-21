@@ -7,8 +7,8 @@ set -uo pipefail
 # Never continue to install/restart after a required preparation or write failed.
 echec() { echo "OPRIT: $*" >&2; exit 1; }
 REF="${KELION_REF:-}"
-# Require the reviewed immutable commit; never download a moving branch as root.
-[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || echec "setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."
+# Commit fix obligatoriu (40 hex), același ca în URL: fără ramuri care se pot schimba între revizuire și rulare.
+[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."; exit 1; }
 RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
 POD=/opt/kelion-pod
 ASSETS=/opt/kelion-control/assets
@@ -41,7 +41,7 @@ if ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": fals
 fi
 curl -fsSL "$RAW/repara_logare_locuri.py" -o "$tmp/r.py" || { echo "OPRIT: descărcare eșuată. Nimic schimbat la B."; exit 1; }
 python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || { echo "OPRIT: proba a picat. Nimic schimbat la B."; exit 1; }
-# Recheck after preparation: a call may have started since the first check.
+# A doua verificare, imediat înainte de backup/instalare/repornire: un apel început între timp oprește totul.
 curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false' || { echo "OPRIT: a început un apel în timpul pregătirii. Nimic instalat. Rulează din nou după apel."; rm -rf "$tmp"; exit 1; }
 bk="$POD/backup-$ts"; mkdir -p "$bk" && cp -a "$POD/pod_locuri" "$bk/" || echec "backup eșuat; nu instalez și nu repornesc."
 for f in executor_server.py locuri.py resurse.py; do

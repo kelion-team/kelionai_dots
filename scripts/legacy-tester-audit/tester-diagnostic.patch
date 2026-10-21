@@ -1,0 +1,116 @@
+--- /opt/kelion-brain/tester-ui.py
++++ /opt/kelion-brain/tester-ui.py
+@@ -1,4 +1,5 @@
+-"""Tester Kelion: deschide paginile /app/ AUTENTIFICAT intr-un Chromium real (Playwright), in locul lui Adrian, si MASOARA.
++"""Tester Kelion: diagnostic LEGACY LOCAL in Chromium (Playwright), NU acceptanta LIVE.
++Ruta autentificata Caddy /app/ si autentificarea portalului nu sunt exercitate aici.
+ 
+ Autentificarea: un server HTTP local, doar pe 127.0.0.1 si doar cat ruleaza testul, serveste paginile din /var/www/kelion/app
+ si trimite cererile GET catre API-ul real (kelion-senzori, 127.0.0.1:4190) cu identitatea de serviciu tester@kelion.
+@@ -176,6 +177,54 @@
+     return r
+ 
+ 
++
++# This local adapter serves legacy files, not Caddy's authenticated portal route.
++# Do not infer production acceptance from a locally rendered legacy page.
++TEST_SURFACE = "legacy-static-local"
++LIVE_COVERAGE_GAPS = [
++    "Caddy routes /app/ to portal 8094; this adapter serves legacy index.html.",
++    "Authenticated portal /app/control-api/state is not exercised by this adapter.",
++]
++
++
++def coverage_only(page):
++    """Known adapter route gap, with all other measured checks passing.
++
++    Keep the raw 404 and the failed page result. Only exclude this *adapter*
++    failure from automatic application-repair requests; never hide other errors.
++    """
++    http = page.get("erori_http", [])
++    console = page.get("erori_consola", [])
++    return bool(
++        http and all(e == {"url": "/app/control-api/state", "status": 404} for e in http)
++        and all(e == "Failed to load resource: the server responded with a status of 404 (Not Found)" for e in console)
++        and not page.get("cereri_esuate") and not page.get("eroare")
++        and not page.get("prea_rar") and page.get("status_http") == 200
++        and page.get("date_afisate_s") is not None
++        and ("eveniment" not in page or (
++            page.get("eveniment_ecran_s") is not None
++            and page["eveniment_ecran_s"] <= TINTA_S))
++    )
++
++
++def describe_defect(page):
++    details = [page.get("prea_rar"), page.get("eroare")]
++    if page.get("erori_consola"):
++        details.append("erori consola " + str(page["erori_consola"][:2]))
++    if page.get("erori_http"):
++        details.append("HTTP " + ", ".join(
++            f"{e['status']} {e['url']}" for e in page["erori_http"]))
++    if page.get("cereri_esuate"):
++        details.append("cereri esuate " + str(page["cereri_esuate"][:2]))
++    if "eveniment" in page and not page["ok"]:
++        details.append("eveniment->ecran " + str(page.get("eveniment_ecran_s")) + " s")
++    if page.get("date_afisate_s") is None:
++        details.append("datele nu se afiseaza")
++    if coverage_only(page):
++        details.append("LIPSA ACOPERIRE ADAPTOR; endpointul LIVE nu a fost masurat")
++    return page["pagina"] + ": " + "; ".join(filter(None, details))
++
++
+ def main(pagini):
+     s = server_local()
+     baza = f"http://127.0.0.1:{s.server_address[1]}"
+@@ -190,20 +239,26 @@
+         b.close()
+     s.shutdown()
+     rez["blocate_de_tester"] = sorted(set(Local.blocate))[:30]
+-    rez["ok"] = all(x["ok"] for x in rez["pagini"])
+-    defecte = sorted({f"{x['pagina']}: " + "; ".join(filter(None, [x.get("prea_rar"), x.get("eroare"),
+-                      ("erori consola " + str(x["erori_consola"][:2])) if x["erori_consola"] else "",
+-                      ("eveniment->ecran " + str(x.get("eveniment_ecran_s")) + " s") if "eveniment" in x and not x["ok"] else "",
+-                      "datele nu se afiseaza" if x.get("date_afisate_s") is None else ""])) for x in rez["pagini"] if not x["ok"]})
++    rez["surface"] = TEST_SURFACE
++    rez["coverage_gaps"] = list(LIVE_COVERAGE_GAPS)
++    rez["legacy_ok"] = all(x["ok"] for x in rez["pagini"])
++    rez["live_acceptance"] = False
++    rez["ok"] = False  # Consumers of the old field must not infer LIVE acceptance.
++    defecte = sorted({describe_defect(x) for x in rez["pagini"] if not x["ok"]})
++    reparabile = sorted({describe_defect(x) for x in rez["pagini"]
++                         if not x["ok"] and not coverage_only(x)})
++    rez["defecte_legacy"] = defecte
++    rez["defecte_reparabile"] = reparabile
+     rez["defecte"] = defecte
+-    if defecte and os.environ.get("KELION_TESTER_REPARA", "1") == "1":
++    if reparabile and os.environ.get("KELION_TESTER_REPARA", "1") == "1":
+         try:
+             sys.path.insert(0, "/opt/kelion-brain/unelte")
+             import coada
+             s = coada.C.adauga("kelion-tester-remediere",
+-                "Testerul Kelion (Chromium autentificat, masurare reala la 1280 si 390 px) a gasit pe LIVE: " + " | ".join(defecte)
+-                + ". Repara cauza in fisierele live (copie in proiect), test.sh care ruleaza /opt/kelion-brain/tester-ui.py pe paginile atinse, "
+-                "livrare DOAR prin kelion-pregateste-livrare /var/www/kelion/app ... --proba (proba = tester-ui.py pe live, tinta eveniment->ecran <= 5 s). "
++                "Testerul Kelion (Chromium, adaptor LEGACY LOCAL, NU acceptanta LIVE, 1280 si 390 px) a gasit: " + " | ".join(reparabile)
++                + ". Investigheaza pe copie izolata daca defectul apartine adaptorului sau aplicatiei. "
++                "Pastreaza modificarile preexistente. Nu modifica LIVE pe baza acestui diagnostic local. "
++                "Acceptanta LIVE necesita separat ruta Caddy reala si autentificare aprobata. "
+                 "Nu reduce testele ca sa treaca.", sursa="Tester Kelion (automat)")
+             rez["reparatie"] = s["id"] + (" (exista deja, urmarita)" if s.get("_exista") else " (noua)")
+             if not s.get("_exista"):
+@@ -218,11 +273,14 @@
+ 
+ 
+ def rezumat(rez):
+-    linii = [f"TESTER KELION {rez['ora']}: {'TOATE OK' if rez['ok'] else 'PROBLEME'} ({sum(x['ok'] for x in rez['pagini'])}/{len(rez['pagini'])} pagini x latimi)"]
++    linii = [f"TESTER KELION {rez['ora']}: LEGACY LOCAL ({sum(x['ok'] for x in rez['pagini'])}/{len(rez['pagini'])} pagini x latimi)",
++             "Acceptanta LIVE: NEVERIFICATA; ruta Caddy si autentificarea portalului nu au fost testate."]
+     for x in rez["pagini"]:
+         linii.append(f"- {x['pagina']} @{x['latime']}px: {'OK' if x['ok'] else 'PICAT'}; date in {x.get('date_afisate_s')} s; reimprospatare la {x.get('reimprospatare_s')} s"
+                      + (f"; EVENIMENT->ECRAN {x.get('eveniment_ecran_s')} s (tinta {TINTA_S})" if "eveniment" in x else "")
+                      + (f"; erori consola: {x['erori_consola'][:2]}" if x["erori_consola"] else "")
++                     + ("; HTTP: " + str(x["erori_http"]) if x.get("erori_http") else "")
++                     + ("; LIPSA ACOPERIRE ADAPTOR" if coverage_only(x) else "")
+                      + (f"; eroare: {x['eroare']}" if x.get("eroare") else "") + (f"; PREA RAR: {x['prea_rar']}" if x.get("prea_rar") else ""))
+     if rez.get("reparatie"):
+         linii.append(f"Reparatie automata in coada: {rez['reparatie']}")

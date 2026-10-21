@@ -25,6 +25,29 @@ class Diagnostics(unittest.TestCase):
             asyncio.run(scope['Example']()._captura_dot(types.SimpleNamespace(dot_page=page), 'dot_ui_lost'))
         return page, opened, log
 
+    def test_page_access_errors_do_not_escape(self):
+        log = Mock()
+        scope = dict(jurnal=log)
+        exec(fixture(p.NEW_CAPTURE), scope)
+        page = Mock(); page.is_closed.side_effect = RuntimeError('closed browser')
+        for call in (object(), types.SimpleNamespace(dot_page=page)):
+            asyncio.run(scope['Example']()._captura_dot(call, 'lost'))
+        self.assertEqual(log.call_count, 2)
+
+    def test_actual_command_grammar(self):
+        scope = {}; exec(fixture(p.NEW_COMMAND), scope)
+        obj = scope['Example'](); obj.jurnal = Mock()
+        commands = [
+            ['pactl', 'load-module', 'module-null-sink', 'sink_name=wa_in_2', 'rate=48000', 'channels=1', 'sink_properties=device.description=WhatsApp_in_2'],
+            ['pactl', 'load-module', 'module-remap-source', 'master=wa_in_2.monitor', 'source_name=mic_wa_2', 'source_properties=device.description=Microfon_WhatsApp_2'],
+            ['pactl', 'list', 'short', 'sources'],
+            ['pactl', 'load-module', 'module-null-sink', 'rate=44100', 'channels=2'],
+        ]
+        for command in commands:
+            with self.assertRaises(RuntimeError):
+                obj._eroare_sunet(types.SimpleNamespace(numar=2), 'failure', types.SimpleNamespace(args=command,stderr='failed',stdout='',returncode=1))
+            self.assertEqual(obj.jurnal.call_args.args[0]['comanda'], command)
+
     def test_first_2000(self):
         page, opened, _ = self.capture()
         self.assertEqual(page.evaluate.await_args_list[0].args, ('document.body.innerText.slice(0, 2000)',))

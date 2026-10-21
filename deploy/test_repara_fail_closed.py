@@ -20,9 +20,13 @@ fail = os.environ.get('FAIL_STAGE', '')
 with (root/'commands.jsonl').open('a') as f:
     f.write(json.dumps([name, *args])+'\n')
 stage = ''
-if name == 'cp':
+if name == 'mktemp':
+    stage = 'mktemp'
+elif name == 'cp':
     if 'backup-' in args[-1]:
         stage = 'css_backup' if 'portal.css' in args[-1] else 'html_backup' if 'portal.html' in args[-1] else 'pod_backup'
+    elif any('backup-' in a for a in args[:-1]):
+        stage = 'rollback_copy'
 elif name == 'mkdir' and 'backup-' in args[-1]:
     stage = 'backup_dir'
 elif name == 'install':
@@ -37,7 +41,11 @@ elif name == 'curl':
         stage = 'patch_download'
 if stage and fail == stage:
     sys.exit(73)
-if name == 'id':
+if name == 'mktemp' and fail == 'mktemp_empty':
+    pass
+elif name == 'mktemp' and fail == 'mktemp_missing':
+    print(root/'not-created')
+elif name == 'id':
     print('0')
 elif name == 'curl':
     if '-o' in args:
@@ -53,7 +61,10 @@ elif name == 'python3':
         (dest/'pod_locuri'/f).write_text('patched\n')
     (dest/'kelion_pod.py').write_text('necunoscut_pe_ruta_invitat\n')
     (dest/'apel_invitat.py').write_text('patched\n')
-elif name in ('systemctl', 'sleep'):
+elif name == 'systemctl':
+    if args[0] == 'is-active' and fail in ('rollback_copy', 'health'):
+        sys.exit(1)
+elif name == 'sleep':
     pass
 else:
     sys.exit(subprocess.call(['/usr/bin/'+name, *args]))
@@ -79,7 +90,7 @@ class DeployFailureTests(unittest.TestCase):
             wrapper = bindir/'mock'
             wrapper.write_text('#!'+sys.executable+'\n'+MOCK)
             wrapper.chmod(0o755)
-            for name in ('cp', 'mkdir', 'install', 'systemctl', 'curl', 'python3', 'sleep', 'id'):
+            for name in ('cp', 'mkdir', 'install', 'systemctl', 'curl', 'python3', 'sleep', 'id', 'mktemp'):
                 (bindir/name).symlink_to(wrapper)
             source = Path(__file__).with_name(f'repara-pas{step}.sh').read_text()
             source = source.replace('POD=/opt/kelion-pod', f'POD={pod}')
@@ -93,7 +104,7 @@ class DeployFailureTests(unittest.TestCase):
                                     capture_output=True, timeout=15)
             events = [json.loads(x) for x in (root/'commands.jsonl').read_text().splitlines()]
             files = {str(p.relative_to(root)): p.read_text() for p in
-                     [pod/'kelion_pod.py', pod/'apel_invitat.py', *sorted((pod/'pod_locuri').glob('*.py'))]}
+                     [pod/'kelion_pod.py', pod/'apel_invitat.py', *sorted((pod/'pod_locuri').glob('*.py'))] if p.exists()}
             return result, events, files
 
     def test_backup_failure_stops_before_install_and_restart(self):
@@ -145,6 +156,35 @@ class DeployFailureTests(unittest.TestCase):
             with self.subTest(step=step):
                 result, _, _ = self.run_script(step, 'restart')
                 self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('GATA.', result.stdout)
+
+
+    def test_invalid_temporary_directory_stops_before_download(self):
+        for step in (2, 3):
+            for failure in ('mktemp', 'mktemp_empty', 'mktemp_missing'):
+                with self.subTest(step=step, failure=failure):
+                    result, events, files = self.run_script(step, failure)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertFalse(any(e[0] in ('curl', 'install', 'systemctl') for e in events))
+                    self.assertTrue(all(v == 'original\n' for v in files.values()))
+                    self.assertNotIn('GATA.', result.stdout)
+
+    def test_failed_rollback_copy_never_restarts_incomplete_restore(self):
+        for step in (2, 3):
+            with self.subTest(step=step):
+                result, events, _ = self.run_script(step, 'rollback_copy')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(sum(e[:2] == ['systemctl', 'restart'] for e in events), 1)
+                self.assertIn('restaurare backup eșuată', result.stderr)
+                self.assertNotIn('GATA.', result.stdout)
+
+    def test_successful_restore_keeps_failure_exit_and_second_restart(self):
+        for step in (2, 3):
+            with self.subTest(step=step):
+                result, events, files = self.run_script(step, 'health')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(sum(e[:2] == ['systemctl', 'restart'] for e in events), 2)
+                self.assertTrue(all(v == 'original\n' for v in files.values()))
                 self.assertNotIn('GATA.', result.stdout)
 
     def test_success_path_preserved(self):

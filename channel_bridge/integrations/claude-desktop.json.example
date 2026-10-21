@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "kelion_channel": {
+      "command": "python3",
+      "args": [
+        "-B",
+        "/ABSOLUTE/VERIFIED_CHECKOUT/channel_bridge/shared_client.py",
+        "--base-url",
+        "https://kelionai.app/kelion-channel",
+        "--participant",
+        "claude",
+        "stdio"
+      ]
+    }
+  }
+}

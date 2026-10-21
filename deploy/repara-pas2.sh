@@ -4,6 +4,8 @@
 #  B) locurile de apel nelogate în ChatGPT sunt recunoscute, cer logarea cu adresa corectă și revin singure după logare.
 # B repornește kelion-pod, deci se aplică DOAR fără apel în curs (altfel îl sare și spune să rulezi din nou).
 set -uo pipefail
+# Never continue to install/restart after a required preparation or write failed.
+echec() { echo "OPRIT: $*" >&2; exit 1; }
 REF="${KELION_REF:-fix/locuri-asteptare-sunet}"
 RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
 POD=/opt/kelion-pod
@@ -18,15 +20,15 @@ pas "A) Companion"
 if grep -q KELION_COMPANION_LAYOUT_20261021 "$ASSETS/portal.css"; then
   echo "deja aplicat"
 elif curl -fsSL "$RAW/companion-layout.css" -o "$tmp/c.css" && grep -q KELION_COMPANION_LAYOUT_20261021_END "$tmp/c.css"; then
-  cp -a "$ASSETS/portal.css" "$ASSETS/portal.css.backup-$ts"
-  cp -a "$ASSETS/portal.html" "$ASSETS/portal.html.backup-$ts"
-  cat "$tmp/c.css" >> "$ASSETS/portal.css"
+  cp -a "$ASSETS/portal.css" "$ASSETS/portal.css.backup-$ts" || echec "backup portal.css eșuat; nu aplic."
+  cp -a "$ASSETS/portal.html" "$ASSETS/portal.html.backup-$ts" || echec "backup portal.html eșuat; nu aplic."
+  cat "$tmp/c.css" >> "$ASSETS/portal.css" || echec "scriere portal.css eșuată."
   # versiune nouă în adresa stilului, ca browserul să nu folosească stilul vechi din cache
-  sed -i 's/portal\.css?v=\([A-Za-z0-9._-]*\)/portal.css?v=\1-c1/' "$ASSETS/portal.html"
+  sed -i 's/portal\.css?v=\([A-Za-z0-9._-]*\)/portal.css?v=\1-c1/' "$ASSETS/portal.html" || echec "actualizare portal.html eșuată."
   echo "aplicat; backup portal.css.backup-$ts"
   echo "dovadă: $(grep -c KELION_COMPANION_LAYOUT_20261021 "$ASSETS/portal.css") marcaje în portal.css; $(grep -o 'portal\.css?v=[A-Za-z0-9._-]*' "$ASSETS/portal.html" | head -1)"
 else
-  echo "OPRIT la A: nu am putut descărca stilul. Nimic schimbat la A."
+  echec "la A: descărcare sau validare stil eșuată. Nimic schimbat la A."
 fi
 
 pas "B) Locuri nelogate"
@@ -36,11 +38,13 @@ if ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": fals
 fi
 curl -fsSL "$RAW/repara_logare_locuri.py" -o "$tmp/r.py" || { echo "OPRIT: descărcare eșuată. Nimic schimbat la B."; exit 1; }
 python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || { echo "OPRIT: proba a picat. Nimic schimbat la B."; exit 1; }
-bk="$POD/backup-$ts"; mkdir -p "$bk" && cp -a "$POD/pod_locuri" "$bk/"
-for f in executor_server.py locuri.py resurse.py; do install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f"; done
+bk="$POD/backup-$ts"; mkdir -p "$bk" && cp -a "$POD/pod_locuri" "$bk/" || echec "backup eșuat; nu instalez și nu repornesc."
+for f in executor_server.py locuri.py resurse.py; do
+  install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f" || echec "instalare $f eșuată; nu repornesc. Backup: $bk"
+done
 rm -rf "$POD/pod_locuri/__pycache__"
 inainte=$(wc -l < "$J")
-systemctl restart kelion-pod
+systemctl restart kelion-pod || echec "repornire eșuată. Backup: $bk"
 sleep 25
 if ! systemctl is-active -q kelion-pod || ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"ok": true'; then
   echo "EȘEC: revin la backup"; rm -rf "$POD/pod_locuri"; cp -a "$bk/pod_locuri" "$POD/pod_locuri"; systemctl restart kelion-pod; exit 1
@@ -54,3 +58,4 @@ echo "GATA. Acum: deschide ecranul serverului și loghează-te în ChatGPT în f
 echo "  https://kelionai.app/app/pod-ecran/vnc.html?autoconnect=1&resize=scale&path=app/pod-ecran/websockify"
 echo "După logare, locurile revin singure în ~1 minut (nu mai trebuie niciun fișier-marcaj)."
 rm -rf "$tmp"
+

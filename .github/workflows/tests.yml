@@ -38,4 +38,6 @@ jobs:
           bash -n deploy/repara-pas2.sh
           bash -n deploy/repara-pas3.sh
           bash -n deploy/repara-tot.sh
+          bash -n deploy/instaleaza-grupuri.sh
+          python3 -m py_compile deploy/repara_grupuri.py
           python3 -m py_compile deploy/repara_necunoscuti.py

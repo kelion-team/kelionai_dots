@@ -21,6 +21,8 @@ jobs:
           python-version: '3.12'
       - name: Puntea (channel_bridge)
         run: python3 -B -m unittest discover -s channel_bridge/tests -v
+      - name: Locuri de apel paralele (pod_locuri)
+        run: python3 -B -m unittest discover -s pod_locuri/tests -v
       - name: Orchestrare
         run: python3 -B -m unittest discover -s orchestration/tests -v
       - name: Export

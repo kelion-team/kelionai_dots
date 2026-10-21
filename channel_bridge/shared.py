@@ -6,7 +6,7 @@ from pathlib import Path
 from orchestration.report_outbox import ReportOutbox
 
 IDENTITY = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$')
-PARTICIPANTS = ('chatgpt', 'work', 'kelion', 'claude', 'contabo')
+PARTICIPANTS = ('chatgpt', 'work', 'kelion', 'cloud', 'contabo')
 
 
 class ChannelError(ValueError):

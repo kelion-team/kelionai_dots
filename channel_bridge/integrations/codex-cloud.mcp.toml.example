@@ -1,0 +1,6 @@
+# Apply only after this HTTPS route is published on Contabo and the cloud
+# credential is supplied privately to the actual Codex runtime.
+# This file does not install the host or activate a connection by itself.
+[mcp_servers.kelion_channel]
+url = "https://kelionai.app/kelion-channel/mcp"
+bearer_token_env_var = "KELION_CHANNEL_CLOUD_TOKEN"

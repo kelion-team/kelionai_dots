@@ -1,6 +1,6 @@
 # Punte de canale Kelion — propunere izolată
 
-Transportul nou autentificat pentru ChatGPT, Work, Kelion, **mediul Claude** și Contabo este în [SHARED-CHANNEL.md](SHARED-CHANNEL.md). Documentul de mai jos descrie ledgerul experimental anterior; registrul său inert nu este registrul clienților noului host. Niciunul nu este declarat instalat live prin existența codului.
+Transportul nou autentificat pentru ChatGPT, Work, Kelion, **mediul cloud/Codex de aici** și Contabo este în [SHARED-CHANNEL.md](SHARED-CHANNEL.md). Documentul de mai jos descrie ledgerul experimental anterior; registrul său inert nu este registrul clienților noului host. Niciunul nu este declarat instalat live prin existența codului.
 
 Pachet reviewabil, implicit inert. Nu este instalat și nu conectează încă cele trei suprafețe live. Python 3.10+ pe Linux, numai biblioteca standard; fără instalare de dependențe, shell, descoperire de porturi, modele sau credențiale. Singurele fișiere noi sunt în `channel_bridge/`. Nu modifică Jobs, Live, backup, orchestrarea existentă sau workflowuri.
 

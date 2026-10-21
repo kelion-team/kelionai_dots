@@ -51,6 +51,13 @@ def limita_cgroup_mb(cale="/sys/fs/cgroup/memory.max"):
         return None
 
 
+def cgroup_folosit_mb(cale="/sys/fs/cgroup/memory.current"):
+    try:
+        return int(open(cale).read().strip()) // (1024 * 1024)
+    except (OSError, ValueError):
+        return None
+
+
 def nuclee_disponibile():
     try:
         return len(os.sched_getaffinity(0))
@@ -100,13 +107,20 @@ def calculeaza(cfg, *, meminfo=None, nuclee=None, incarcare=None, cgroup_mb=None
     cgroup_mb = cgroup_mb if cgroup_mb is not None else limita_cgroup_mb()
 
     total = meminfo.get("MemTotal", 0)
-    if cgroup_mb:
-        total = min(total, cgroup_mb)
     disponibil = meminfo.get("MemAvailable", 0)
+    if cgroup_mb:
+        # Sub o limită cgroup, liberul real e limita minus ce folosește deja grupul, nu memoria întregii mașini.
+        total = min(total, cgroup_mb)
+        folosit_cgroup = cgroup_folosit_mb()
+        if folosit_cgroup is not None:
+            disponibil = min(disponibil, max(0, cgroup_mb - folosit_cgroup))
+        disponibil = min(disponibil, total)
     ram_loc = max(1, cfg["ram_pe_loc_mb"])
     rezerva_ram = total * cfg["rezerva_ram_procent"] / 100
     # RAM-ul locurilor deja pornite e deja consumat din «disponibil»: îl adunăm înapoi.
     ram_pentru_locuri = disponibil + locuri_active * ram_loc - rezerva_ram
+    # Niciodată peste ce încape în totalul permis, după rezervă (și cu locurile active adunate înapoi).
+    ram_pentru_locuri = min(ram_pentru_locuri, total - rezerva_ram)
     maxim_ram = max(0, int(ram_pentru_locuri // ram_loc))
 
     cpu_loc = max(0.01, cfg["cpu_pe_loc"])

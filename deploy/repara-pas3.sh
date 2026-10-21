@@ -6,7 +6,7 @@ set -uo pipefail
 echec() { echo "OPRIT: $*" >&2; exit 1; }
 REF="${KELION_REF:-}"
 # Commit fix obligatoriu (40 hex), același ca în URL: fără ramuri care se pot schimba între revizuire și rulare.
-[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."; exit 1; }
+[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat." >&2; exit 1; }
 RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
 POD=/opt/kelion-pod
 J=/var/lib/kelion-pod/pod.jsonl

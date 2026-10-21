@@ -107,7 +107,8 @@ class DeployFailureTests(unittest.TestCase):
             env = dict(os.environ, PATH=str(bindir)+':'+os.environ['PATH'],
                        FIXTURE=td, FAIL_STAGE=fail, TMPDIR=td,
                        KELION_REF='0123456789abcdef0123456789abcdef01234567')
-            if not ref: env.pop('KELION_REF')
+            if ref is False: env.pop('KELION_REF')
+            elif isinstance(ref, str): env['KELION_REF'] = ref
             result = subprocess.run(['bash', str(script)], env=env, text=True,
                                     capture_output=True, timeout=15)
             log = root/'commands.jsonl'
@@ -121,7 +122,7 @@ class DeployFailureTests(unittest.TestCase):
             with self.subTest(step=step):
                 result, events, files = self.run_script(step, ref=False)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn('KELION_REF', result.stdout)
+                self.assertIn('KELION_REF', result.stderr)
                 self.assertFalse(any(e[0] in ('curl', 'install', 'systemctl', 'cp') for e in events))
 
     def test_backup_failure_stops_before_install_and_restart(self):

@@ -213,5 +213,37 @@ class AsteptareLocTests(unittest.TestCase):
         self.assertEqual(len(self.ex.alerte), 1)
 
 
+class AnulareSiConfigTests(unittest.TestCase):
+    def test_apel_terminat_cat_asteapta_nu_ocupa_locul(self):
+        ex = FakeExec()
+        _, citeste = resurse_fixe(1)
+        m = Manager(ex, None, citeste_resurse=citeste, dormi=lambda s: m.elibereaza("plecat"))
+        m.sincronizeaza()
+        m.locuri[1].stare = PORNIRE
+        raspunsuri = iter([PORNIRE] * 3)
+        ex.pregatit = lambda l: next(raspunsuri, PREGATIT)
+        self.assertIsNone(m.aloca("plecat", asteapta_s=15))   # s-a închis în timpul așteptării
+        self.assertNotEqual(m.locuri[1].stare, OCUPAT)
+        self.assertIsNone(m.locuri[1].apel)
+
+    def test_timpul_de_asteptare_schimbat_chiar_acum_se_aplica(self):
+        with tempfile.TemporaryDirectory() as d:
+            cale = os.path.join(d, "locuri.json")
+            with open(cale, "w") as h:
+                json.dump({"asteptare_loc_s": 0}, h)
+            ex, dormit = FakeExec(), []
+            _, citeste = resurse_fixe(1)
+            m = Manager(ex, cale, citeste_resurse=citeste, dormi=dormit.append)
+            m.sincronizeaza()
+            m.locuri[1].stare = PORNIRE
+            with open(cale, "w") as h:
+                json.dump({"asteptare_loc_s": 5}, h)
+            os.utime(cale, ns=(time.time_ns() + 10**9, time.time_ns() + 10**9))
+            raspunsuri = iter([PORNIRE, PORNIRE, PORNIRE])
+            ex.pregatit = lambda l: next(raspunsuri, PREGATIT)
+            self.assertIsNotNone(m.aloca("x"))
+            self.assertTrue(dormit)
+
+
 if __name__ == "__main__":
     unittest.main()

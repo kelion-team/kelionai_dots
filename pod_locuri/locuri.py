@@ -103,6 +103,7 @@ class Manager:
         self.capacitate = None
         self.lock = threading.RLock()
         self._alerta_la = None
+        self._anulate = set()
 
     # ------------------------------------------------------------ capacitate
     def _active(self):
@@ -174,6 +175,9 @@ class Manager:
         """Primul loc pregătit. Dacă un loc doar se pregătește (ex. reîncărcare după apelul anterior), apelul AȘTEAPTĂ
         până la asteapta_s secunde în loc să fie refuzat. None doar când toate locurile posibile sunt ocupate
         sau nimic nu s-a pregătit în timp (atunci: «ocupat» + alertă)."""
+        with self.lock:
+            self.config.actualizeaza()               # o configurare schimbată chiar acum se vede la acest apel
+            self._anulate.discard(apel_id)
         if asteapta_s is None:
             asteapta_s = float(self.config.valori.get("asteptare_loc_s", 15))
         termen = time.monotonic() + max(0.0, asteapta_s)
@@ -181,13 +185,17 @@ class Manager:
         sincronizat = False
         while True:
             with self.lock:
+                if apel_id in self._anulate:         # apelul s-a terminat cât aștepta: nu mai ocupă niciun loc
+                    self._anulate.discard(apel_id)
+                    self.executor.jurnal({"ev": "alocare_anulata", "apel": apel_id})
+                    return None
                 for loc in self.locuri.values():
                     if loc.apel == apel_id:
                         return loc
                 liber = self._primul_pregatit()
-                if liber is None:
+                if liber is None and time.monotonic() < termen:
                     for loc in list(self.locuri.values()):   # un loc în pornire poate fi gata chiar acum
-                        if loc.stare == PORNIRE:
+                        if loc.stare == PORNIRE and time.monotonic() < termen:
                             self._verifica(loc)
                     liber = self._primul_pregatit()
                 if liber is None and not sincronizat:
@@ -225,6 +233,7 @@ class Manager:
                     self._schimba(loc, PORNIRE)   # pagina se reîmprospătează, apoi redevine «pregatit»
                     self._verifica(loc)
                     return loc
+            self._anulate.add(apel_id)            # încă așteaptă un loc: aloca() renunță
             return None
 
     def stare(self):

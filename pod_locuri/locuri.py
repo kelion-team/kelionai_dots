@@ -91,8 +91,10 @@ class Manager:
          jurnal(eveniment: dict) -> None
     """
 
-    def __init__(self, executor, config_cale=None, *, citeste_resurse=None, director_profile="/var/lib/kelion-pod"):
+    def __init__(self, executor, config_cale=None, *, citeste_resurse=None, director_profile="/var/lib/kelion-pod",
+                 dormi=time.sleep):
         self.executor = executor
+        self._dormi = dormi
         self.config = Config(config_cale)
         self.config.actualizeaza()
         self.citeste_resurse = citeste_resurse or (lambda cfg, active: calculeaza(cfg, locuri_active=active))
@@ -101,6 +103,7 @@ class Manager:
         self.capacitate = None
         self.lock = threading.RLock()
         self._alerta_la = None
+        self._anulate = set()
 
     # ------------------------------------------------------------ capacitate
     def _active(self):
@@ -165,30 +168,62 @@ class Manager:
             self.executor.jurnal({"ev": "loc_stare", "loc": loc.numar, "de_la": vechi, "la": stare, "apel": loc.apel})
 
     # ------------------------------------------------------------ apeluri
-    def aloca(self, apel_id):
-        """Primul loc pregătit; None doar când toate locurile posibile sunt ocupate (atunci: mesaj «ocupat» + alertă)."""
+    def _primul_pregatit(self):
+        return next((l for l in sorted(self.locuri.values(), key=lambda l: l.numar) if l.stare == PREGATIT), None)
+
+    def aloca(self, apel_id, asteapta_s=None):
+        """Primul loc pregătit. Dacă un loc doar se pregătește (ex. reîncărcare după apelul anterior), apelul AȘTEAPTĂ
+        până la asteapta_s secunde în loc să fie refuzat. None doar când toate locurile posibile sunt ocupate
+        sau nimic nu s-a pregătit în timp (atunci: «ocupat» + alertă)."""
         with self.lock:
-            for loc in self.locuri.values():
-                if loc.apel == apel_id:
-                    return loc
-            liber = next((l for l in sorted(self.locuri.values(), key=lambda l: l.numar) if l.stare == PREGATIT), None)
-            if liber is None:
-                self.sincronizeaza()
-                liber = next((l for l in sorted(self.locuri.values(), key=lambda l: l.numar) if l.stare == PREGATIT), None)
-            if liber is None:
-                ocupate = sum(1 for l in self.locuri.values() if l.stare == OCUPAT)
-                if ocupate >= (self.capacitate.maxim if self.capacitate else 1):
-                    acum = time.time()
-                    if self._alerta_la is None or acum - self._alerta_la > 600:
-                        self._alerta_la = acum
-                        self.executor.alerta(f"Serverul e la capacitate: {ocupate} apeluri simultane "
-                                             f"(limita {self.capacitate.motiv}). Mareste planul Contabo; "
-                                             "locurile noi pornesc singure.")
-                self.executor.jurnal({"ev": "fara_loc", "apel": apel_id, "ocupate": ocupate})
-                return None
-            liber.apel = apel_id
-            self._schimba(liber, OCUPAT)
-            return liber
+            self.config.actualizeaza()               # o configurare schimbată chiar acum se vede la acest apel
+            self._anulate.discard(apel_id)
+        if asteapta_s is None:
+            asteapta_s = float(self.config.valori.get("asteptare_loc_s", 15))
+        termen = time.monotonic() + max(0.0, asteapta_s)
+        inceput = time.monotonic()
+        sincronizat = False
+        while True:
+            with self.lock:
+                if apel_id in self._anulate:         # apelul s-a terminat cât aștepta: nu mai ocupă niciun loc
+                    self._anulate.discard(apel_id)
+                    self.executor.jurnal({"ev": "alocare_anulata", "apel": apel_id})
+                    return None
+                for loc in self.locuri.values():
+                    if loc.apel == apel_id:
+                        return loc
+                liber = self._primul_pregatit()
+                if liber is None and time.monotonic() < termen:
+                    for loc in list(self.locuri.values()):   # un loc în pornire poate fi gata chiar acum
+                        if loc.stare == PORNIRE and time.monotonic() < termen:
+                            self._verifica(loc)
+                    liber = self._primul_pregatit()
+                if liber is None and not sincronizat:
+                    self.sincronizeaza()
+                    sincronizat = True
+                    liber = self._primul_pregatit()
+                if liber is not None:
+                    liber.apel = apel_id
+                    self._schimba(liber, OCUPAT)
+                    if time.monotonic() - inceput > 0.2:
+                        self.executor.jurnal({"ev": "loc_dupa_asteptare", "apel": apel_id, "loc": liber.numar,
+                                              "asteptat_s": round(time.monotonic() - inceput, 1)})
+                    return liber
+                se_pregatesc = any(l.stare == PORNIRE for l in self.locuri.values())
+                if not se_pregatesc or time.monotonic() >= termen:
+                    ocupate = sum(1 for l in self.locuri.values() if l.stare == OCUPAT)
+                    if ocupate >= (self.capacitate.maxim if self.capacitate else 1):
+                        acum = time.time()
+                        if self._alerta_la is None or acum - self._alerta_la > 600:
+                            self._alerta_la = acum
+                            self.executor.alerta(f"Serverul e la capacitate: {ocupate} apeluri simultane "
+                                                 f"(limita {self.capacitate.motiv}). Mareste planul Contabo; "
+                                                 "locurile noi pornesc singure.")
+                    self.executor.jurnal({"ev": "fara_loc", "apel": apel_id, "ocupate": ocupate,
+                                          "stari": {str(l.numar): l.stare for l in self.locuri.values()},
+                                          "asteptat_s": round(time.monotonic() - inceput, 1)})
+                    return None
+            self._dormi(0.5)
 
     def elibereaza(self, apel_id):
         with self.lock:
@@ -198,6 +233,7 @@ class Manager:
                     self._schimba(loc, PORNIRE)   # pagina se reîmprospătează, apoi redevine «pregatit»
                     self._verifica(loc)
                     return loc
+            self._anulate.add(apel_id)            # încă așteaptă un loc: aloca() renunță
             return None
 
     def stare(self):

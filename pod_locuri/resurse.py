@@ -14,6 +14,7 @@ CONFIG_IMPLICIT = {
     "rezerva_cpu_procent": 25,
     "locuri_maxim_absolut": 64,  # plafon de siguranță, nu limită de business
     "locuri_pregatite": 2,       # câte locuri libere stau gata de apel (pornire din prima)
+    "asteptare_loc_s": 15,       # un apel așteaptă un loc care se pregătește (reîncărcare după apelul anterior), nu e refuzat
 }
 
 

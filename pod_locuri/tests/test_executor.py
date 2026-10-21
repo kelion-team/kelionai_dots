@@ -28,7 +28,7 @@ class LoginTests(unittest.TestCase):
             ex = ExecutorServer(jurnal_cale=os.path.join(d, "j"), alerte_cale=os.path.join(d, "a"))
             loc = descrie_loc(5, director_profile=d)
             pornite = []
-            with mock.patch.object(ex, "_sinks", return_value={loc.wa_in}), \
+            with mock.patch.object(ex, "_nume_sunet", return_value={loc.wa_in, loc.chrome_out, loc.mic}), \
                  mock.patch("pod_locuri.executor_server.subprocess.Popen", side_effect=lambda *a, **k: ProcViu()) as popen, \
                  mock.patch.object(ex, "opreste", side_effect=lambda l: ex.procese.pop(l.numar, None)):
                 ex.porneste(loc, login=True)
@@ -47,6 +47,46 @@ class LoginTests(unittest.TestCase):
                 self.assertEqual(ex.pregatit(loc), PORNIRE)                # repornit în modul pod
                 self.assertTrue(any("--remote-debugging-port=%d" % loc.port_cdp in x for x in popen.call_args[0][0]))
                 self.assertNotIn(5, ex.login)
+
+
+class SunetIdempotentTests(unittest.TestCase):
+    def _ex(self, d):
+        return ExecutorServer(jurnal_cale=os.path.join(d, "j"), alerte_cale=os.path.join(d, "a"))
+
+    def test_loc_pe_jumatate_creat_completeaza_doar_ce_lipseste(self):
+        with tempfile.TemporaryDirectory() as d:
+            ex, loc = self._ex(d), descrie_loc(7, director_profile=d)
+            rulate = []
+            ok = mock.Mock(returncode=0, stdout="", stderr="")
+            with mock.patch.object(ex, "_nume_sunet", return_value={loc.wa_in, "wa_in_7.monitor"}), \
+                 mock.patch("pod_locuri.executor_server.subprocess.run", side_effect=lambda c, **k: rulate.append(c) or ok), \
+                 mock.patch("pod_locuri.executor_server.subprocess.Popen", side_effect=lambda *a, **k: ProcViu()):
+                ex.porneste(loc)
+            create = [next(a for a in c if a.startswith(("sink_name=", "source_name="))) for c in rulate]
+            self.assertEqual(create, ["sink_name=chrome_out_7", "source_name=mic_wa_7"])   # wa_in_7 exista deja
+
+    def test_eroare_pactl_e_jurnalizata_cu_motivul(self):
+        with tempfile.TemporaryDirectory() as d:
+            ex, loc = self._ex(d), descrie_loc(8, director_profile=d)
+            rau = mock.Mock(returncode=1, stdout="", stderr="Failure: Module initialization failed")
+            with mock.patch.object(ex, "_nume_sunet", return_value=set()), \
+                 mock.patch("pod_locuri.executor_server.subprocess.run", return_value=rau), \
+                 mock.patch("pod_locuri.executor_server.subprocess.Popen") as popen:
+                with self.assertRaises(RuntimeError):
+                    ex.porneste(loc)
+                popen.assert_not_called()                                     # fara sunet nu porneste Chrome
+            jurnal = open(os.path.join(d, "j")).read()
+            self.assertIn("sunet_loc_esuat", jurnal)
+            self.assertIn("Module initialization failed", jurnal)
+
+    def test_toate_bucatile_existente_nu_ruleaza_pactl(self):
+        with tempfile.TemporaryDirectory() as d:
+            ex, loc = self._ex(d), descrie_loc(9, director_profile=d)
+            with mock.patch.object(ex, "_nume_sunet", return_value={loc.wa_in, loc.chrome_out, loc.mic}), \
+                 mock.patch("pod_locuri.executor_server.subprocess.run") as run, \
+                 mock.patch("pod_locuri.executor_server.subprocess.Popen", side_effect=lambda *a, **k: ProcViu()):
+                ex.porneste(loc)
+            run.assert_not_called()
 
 
 if __name__ == "__main__":

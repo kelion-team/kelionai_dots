@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "endpoints": [
+    {"name": "keliondots", "verified": false, "enabled": false, "blocker": "voice_chat_delivery_contract_unverified"},
+    {"name": "brain", "verified": false, "enabled": false, "evidence": "Contabo catalog 3ed69346; canal_openai.py and canal_ack.py read 2026-10-21; informational contract only", "blocker": "service_transport_and_identity_unconfigured_worker_isolation_unvalidated"},
+    {"name": "cloud", "verified": false, "enabled": false, "blocker": "cloud_conversation_delivery_api_undocumented"}
+  ]
+}

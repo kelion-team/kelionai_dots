@@ -1,0 +1,33 @@
+# PROPOSAL ONLY. Not installed, enabled or started by this package.
+[Unit]
+Description=Kelion isolated channel bridge (inert proposal)
+After=local-fs.target
+ConditionPathExists=/etc/kelion-channel-bridge/registry.json
+
+[Service]
+Type=simple
+User=kelion-channel-bridge
+Group=kelion-channel-bridge
+WorkingDirectory=/opt/kelion-channel-bridge
+ExecStart=/usr/bin/python3 -B -m channel_bridge --config /etc/kelion-channel-bridge/registry.json --state /var/lib/kelion-channel-bridge/ledger.sqlite --serve
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ReadWritePaths=/var/lib/kelion-channel-bridge
+
+[Install]
+WantedBy=multi-user.target

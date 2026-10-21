@@ -59,18 +59,24 @@ class OAuthTests(unittest.TestCase):
         self.assertEqual(st, 201, raw)
         return json.loads(raw)['client_id']
 
-    def authorize(self, client_id, verifier, participant='chatgpt', headers=None):
-        q = urlencode({'response_type': 'code', 'client_id': client_id, 'redirect_uri': CALLBACK, 'state': 'st1',
-                       'code_challenge': s256(verifier), 'code_challenge_method': 'S256',
-                       'resource': 'https://kelionai.app/kelion-channel/mcp'})
-        st, _, page = self.call('GET', '/oauth/authorize?' + q, headers=headers or self.owner())
-        if st != 200:
-            return st, None
-        csrf = page.decode().split('name="csrf" value="')[1].split('"')[0]
-        st, h, _ = self.call('POST', '/oauth/authorize', {'csrf': csrf, 'participant': participant}, form=True,
-                             headers={**(headers or self.owner()), 'Origin': 'https://kelionai.app'})
+    def authorize(self, client_id, verifier, resource='https://kelionai.app/kelion-channel/mcp', headers=None):
+        params = {'response_type': 'code', 'client_id': client_id, 'redirect_uri': CALLBACK, 'state': 'st1',
+                  'code_challenge': s256(verifier), 'code_challenge_method': 'S256'}
+        if resource:
+            params['resource'] = resource
+        st, h, _ = self.call('GET', '/oauth/authorize?' + urlencode(params), headers=headers or self.owner())
+        return st, h.get('Location')
+
+    def connect(self, resource):
+        client = self.register()
+        verifier = secrets.token_urlsafe(48)
+        st, location = self.authorize(client, verifier, resource)
         self.assertEqual(st, 302)
-        return st, h['Location']
+        code = parse_qs(urlsplit(location).query)['code'][0]
+        st, _, raw = self.call('POST', '/oauth/token', {'grant_type': 'authorization_code', 'code': code, 'client_id': client,
+                                                        'redirect_uri': CALLBACK, 'code_verifier': verifier}, form=True)
+        self.assertEqual(st, 200, raw)
+        return json.loads(raw)['access_token']
 
     def test_discovery_and_401_points_to_metadata(self):
         st, h, _ = self.call('POST', '/mcp', {'jsonrpc': '2.0', 'id': 1, 'method': 'ping'})
@@ -88,7 +94,7 @@ class OAuthTests(unittest.TestCase):
     def test_full_flow_identity_refresh_and_mcp(self):
         client = self.register()
         verifier = secrets.token_urlsafe(48)
-        _, location = self.authorize(client, verifier, 'work')
+        _, location = self.authorize(client, verifier, 'https://kelionai.app/kelion-channel/mcp/work')
         params = parse_qs(urlsplit(location).query)
         self.assertTrue(location.startswith(CALLBACK + '?'))
         self.assertEqual(params['state'], ['st1'])
@@ -143,16 +149,32 @@ class OAuthTests(unittest.TestCase):
             st, _, _ = self.call('POST', '/oauth/register', {'redirect_uris': [uri]})
             self.assertEqual(st, 400, uri)
 
-    def test_deny_and_cloud_identity_not_grantable(self):
+    def test_identity_comes_from_connector_url_automatically(self):
+        for resource, who in (('https://kelionai.app/kelion-channel/mcp', 'chatgpt'), (None, 'chatgpt'),
+                              ('https://kelionai.app/kelion-channel/mcp/kelion', 'kelion'),
+                              ('https://kelionai.app/kelion-channel/mcp/work', 'work')):
+            tok = self.connect(resource)
+            st, _, raw = self.call('GET', '/v1/health', headers={'Authorization': 'Bearer ' + tok})
+            self.assertEqual(json.loads(raw)['participant'], who, resource)
+
+    def test_cloud_and_unknown_identities_never_grantable(self):
         client = self.register()
-        _, location = self.authorize(client, secrets.token_urlsafe(48), 'deny')
-        self.assertEqual(parse_qs(urlsplit(location).query)['error'], ['access_denied'])
-        q = urlencode({'response_type': 'code', 'client_id': client, 'redirect_uri': CALLBACK,
-                       'code_challenge': s256(secrets.token_urlsafe(48)), 'code_challenge_method': 'S256'})
-        _, _, page = self.call('GET', '/oauth/authorize?' + q, headers=self.owner())
-        csrf = page.decode().split('name="csrf" value="')[1].split('"')[0]
-        st, _, _ = self.call('POST', '/oauth/authorize', {'csrf': csrf, 'participant': 'contabo'}, form=True, headers=self.owner())
-        self.assertEqual(st, 400)
+        for resource in ('https://kelionai.app/kelion-channel/mcp/cloud', 'https://kelionai.app/kelion-channel/mcp/contabo',
+                         'https://evil.example/mcp'):
+            st, _ = self.authorize(client, secrets.token_urlsafe(48), resource)
+            self.assertEqual(st, 400, resource)
+
+    def test_identity_path_enforced_on_mcp(self):
+        tok = self.connect('https://kelionai.app/kelion-channel/mcp/work')
+        hdr = {'Authorization': 'Bearer ' + tok, 'Accept': 'application/json, text/event-stream'}
+        ping = {'jsonrpc': '2.0', 'id': 1, 'method': 'ping'}
+        self.assertEqual(self.call('POST', '/mcp/work', ping, headers=hdr)[0], 200)
+        self.assertEqual(self.call('POST', '/mcp/kelion', ping, headers=hdr)[0], 403)
+        st, h, _ = self.call('POST', '/mcp/kelion', ping)
+        self.assertEqual(st, 401)
+        self.assertIn('/.well-known/oauth-protected-resource/mcp/kelion"', h['WWW-Authenticate'])
+        st, _, raw = self.call('GET', '/.well-known/oauth-protected-resource/kelion-channel/mcp/kelion')
+        self.assertEqual(json.loads(raw)['resource'], 'https://kelionai.app/kelion-channel/mcp/kelion')
 
     def test_static_tokens_still_work(self):
         st, _, raw = self.call('GET', '/v1/health', headers={'Authorization': 'Bearer ' + self.tokens['cloud']})

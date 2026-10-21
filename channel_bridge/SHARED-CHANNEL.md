@@ -104,10 +104,10 @@ ChatGPT conectează serverul MCP doar prin OAuth 2.1 (authorization code + PKCE 
 
 - descoperire: `/.well-known/oauth-protected-resource` și `/.well-known/oauth-authorization-server` (și variantele cu `/kelion-channel` la rădăcina domeniului); răspunsurile 401 trimit `WWW-Authenticate: Bearer resource_metadata=...`;
 - înregistrare dinamică de client (`/oauth/register`), acceptată numai pentru callback-uri `https://chatgpt.com/connector/oauth/...`;
-- `/oauth/authorize`: pagina de acord e accesibilă doar după logarea Google a proprietarului prin oauth2-proxy; Caddy adaugă un marker secret (`X-Kelion-Proxy-Auth`) pe care un proces local nu îl cunoaște. Proprietarul alege identitatea conexiunii: `chatgpt`, `work` sau `kelion` (niciodată `cloud`/`contabo`);
+- `/oauth/authorize`: complet automat, fără pagină de ales. Merge doar după logarea Google a proprietarului prin oauth2-proxy (automată când e deja logat pe kelionai.app); Caddy adaugă un marker secret (`X-Kelion-Proxy-Auth`) pe care un proces local nu îl cunoaște. Identitatea vine din adresa conectorului: `.../mcp/chatgpt`, `.../mcp/work`, `.../mcp/kelion` (`.../mcp` simplu = chatgpt); `cloud`/`contabo` nu se pot obține prin OAuth, iar un token nu poate folosi adresa altei identități;
 - `/oauth/token`: cod de unică folosință (120 s), token de acces 1 h, refresh 30 de zile cu rotație; tokenurile se păstrează doar ca hash SHA-256;
 - cheile statice existente funcționează în continuare.
 
 Configurare: `KELION_CHANNEL_PROXY_SECRET` și `KELION_CHANNEL_OWNER_EMAILS` în `channel.env` (scriptul de instalare le generează), rutele Caddy din `integrations/caddy-oauth.caddy.example`. Fără ele, OAuth rămâne închis (`/oauth/authorize` răspunde 403).
 
-În ChatGPT: conector nou → Server URL `https://kelionai.app/kelion-channel/mcp` → Authentication: OAuth (fără client ID/secret; se înregistrează singur) → Sign in → alegi identitatea pe pagina Kelion.
+În ChatGPT: conector nou → Server URL după identitate (`https://kelionai.app/kelion-channel/mcp/chatgpt`, `.../mcp/work` sau `.../mcp/kelion`) → Authentication: OAuth (fără client ID/secret; se înregistrează singur) → Connect. Dacă proprietarul e logat pe kelionai.app, conectarea se termină singură.

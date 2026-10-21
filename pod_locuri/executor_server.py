@@ -15,6 +15,19 @@ MEDIU = {"DISPLAY": ":77", "XDG_RUNTIME_DIR": "/run/kelion-pod",
          "PULSE_SERVER": "unix:/run/kelion-pod/pulse/native"}
 
 
+def module_ale_locului(lista_module, loc):
+    """Indexurile modulelor PulseAudio ale ACESTUI loc. Potrivire exactă pe argument
+    (sink_name=wa_in_2 nu se potrivește cu wa_in_20), ca oprirea unui loc să nu atingă alt apel."""
+    ale_lui = {f"sink_name={loc.wa_in}", f"sink_name={loc.chrome_out}", f"source_name={loc.mic}",
+               f"master={loc.wa_in}.monitor"}
+    indexuri = []
+    for linie in lista_module.splitlines():
+        campuri = linie.split("\t")
+        if len(campuri) >= 3 and ale_lui & set(campuri[2].split()):
+            indexuri.append(campuri[0])
+    return indexuri
+
+
 class ExecutorServer:
     def __init__(self, jurnal_cale="/var/lib/kelion-pod/pod.jsonl", alerte_cale="/var/lib/kelion-pod/alerte.jsonl",
                  alerta_cmd=None):
@@ -59,9 +72,8 @@ class ExecutorServer:
             except subprocess.TimeoutExpired:
                 proc.kill()
         r = subprocess.run(["pactl", "list", "short", "modules"], env=self._mediu(), capture_output=True, text=True, timeout=10)
-        for linie in r.stdout.splitlines():
-            if any(f"={nume}" in linie for nume in (loc.wa_in, loc.chrome_out, loc.mic)):
-                subprocess.run(["pactl", "unload-module", linie.split("\t")[0]], env=self._mediu(), capture_output=True, timeout=10)
+        for index in module_ale_locului(r.stdout, loc):
+            subprocess.run(["pactl", "unload-module", index], env=self._mediu(), capture_output=True, timeout=10)
 
     @staticmethod
     def _cookie_mtime(loc):

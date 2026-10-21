@@ -27,6 +27,8 @@ jobs:
         run: python3 -B -m unittest discover -s orchestration/tests -v
       - name: Grupuri WhatsApp
         run: python3 -B -m unittest discover -s whatsapp_grupuri/tests -v
+      - name: Diagnostic tester legacy (offline)
+        run: python3 -B -m unittest discover -s scripts/legacy-tester-audit -p 'test_*.py' -v
       - name: Export
         run: python3 -B -m unittest discover -s tests -v
       - name: Sintaxă scripturi de deploy

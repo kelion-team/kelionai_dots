@@ -1,0 +1,77 @@
+"""Tester Kelion: deschide paginile /app/ AUTENTIFICAT intr-un Chromium real (Playwright), in locul lui Adrian, si MASOARA.
+Synthetic structural fixture. Not a production server snapshot.
+"""
+import json
+import os
+import sys
+import time
+from playwright.sync_api import sync_playwright
+
+TINTA_S = 5.0
+OUT = "unused-fixture-result.json"
+PAGINI = ["/app/"]
+
+class Local:
+    blocate = []
+
+def server_local():
+    raise AssertionError("synthetic fixture: real network forbidden")
+
+def testeaza(*args):
+    raise AssertionError("synthetic fixture: real browser forbidden")
+
+def main(pagini):
+    s = server_local()
+    baza = f"http://127.0.0.1:{s.server_address[1]}"
+    rez = {"t": time.time(), "ora": time.strftime("%Y-%m-%d %H:%M:%S"), "tinta_eveniment_ecran_s": TINTA_S, "pagini": []}
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        for cale in pagini:
+            for latime in (1280, 390):   # laptop si telefon
+                pg = b.new_page(viewport={"width": latime, "height": 900})
+                rez["pagini"].append(testeaza(pg, baza, cale, latime))
+                pg.close()
+        b.close()
+    s.shutdown()
+    rez["blocate_de_tester"] = sorted(set(Local.blocate))[:30]
+    rez["ok"] = all(x["ok"] for x in rez["pagini"])
+    defecte = sorted({f"{x['pagina']}: " + "; ".join(filter(None, [x.get("prea_rar"), x.get("eroare"),
+                      ("erori consola " + str(x["erori_consola"][:2])) if x["erori_consola"] else "",
+                      ("eveniment->ecran " + str(x.get("eveniment_ecran_s")) + " s") if "eveniment" in x and not x["ok"] else "",
+                      "datele nu se afiseaza" if x.get("date_afisate_s") is None else ""])) for x in rez["pagini"] if not x["ok"]})
+    rez["defecte"] = defecte
+    if defecte and os.environ.get("KELION_TESTER_REPARA", "1") == "1":
+        try:
+            sys.path.insert(0, "/opt/kelion-brain/unelte")
+            import coada
+            s = coada.C.adauga("kelion-tester-remediere",
+                "Testerul Kelion (Chromium autentificat, masurare reala la 1280 si 390 px) a gasit pe LIVE: " + " | ".join(defecte)
+                + ". Repara cauza in fisierele live (copie in proiect), test.sh care ruleaza /opt/kelion-brain/tester-ui.py pe paginile atinse, "
+                "livrare DOAR prin kelion-pregateste-livrare /var/www/kelion/app ... --proba (proba = tester-ui.py pe live, tinta eveniment->ecran <= 5 s). "
+                "Nu reduce testele ca sa treaca.", sursa="Tester Kelion (automat)")
+            rez["reparatie"] = s["id"] + (" (exista deja, urmarita)" if s.get("_exista") else " (noua)")
+            if not s.get("_exista"):
+                coada.C.porneste_supraveghetor()
+        except Exception as e:
+            rez["reparatie"] = f"nu am putut pune reparatia in coada: {type(e).__name__}: {e}"
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    with open(OUT + ".tmp", "w", encoding="utf-8") as h:
+        json.dump(rez, h, ensure_ascii=False, indent=1)
+    os.replace(OUT + ".tmp", OUT)
+    return rez
+
+
+def rezumat(rez):
+    linii = [f"TESTER KELION {rez['ora']}: {'TOATE OK' if rez['ok'] else 'PROBLEME'} ({sum(x['ok'] for x in rez['pagini'])}/{len(rez['pagini'])} pagini x latimi)"]
+    for x in rez["pagini"]:
+        linii.append(f"- {x['pagina']} @{x['latime']}px: {'OK' if x['ok'] else 'PICAT'}; date in {x.get('date_afisate_s')} s; reimprospatare la {x.get('reimprospatare_s')} s"
+                     + (f"; EVENIMENT->ECRAN {x.get('eveniment_ecran_s')} s (tinta {TINTA_S})" if "eveniment" in x else "")
+                     + (f"; erori consola: {x['erori_consola'][:2]}" if x["erori_consola"] else "")
+                     + (f"; eroare: {x['eroare']}" if x.get("eroare") else "") + (f"; PREA RAR: {x['prea_rar']}" if x.get("prea_rar") else ""))
+    if rez.get("reparatie"):
+        linii.append(f"Reparatie automata in coada: {rez['reparatie']}")
+    return "\n".join(linii)
+
+
+if __name__ == "__main__":
+    print(rezumat(main(sys.argv[1:] or PAGINI)))

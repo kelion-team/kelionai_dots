@@ -4,7 +4,7 @@ import tempfile
 import time
 import unittest
 
-from pod_locuri.locuri import Manager, descrie_loc, comanda_chrome, comenzi_sunet, PREGATIT, OCUPAT, LOGIN_NECESAR, OPRIT
+from pod_locuri.locuri import Manager, descrie_loc, comanda_chrome, comenzi_sunet, PREGATIT, OCUPAT, LOGIN_NECESAR, OPRIT, PORNIRE
 from pod_locuri.resurse import Config, calculeaza, CONFIG_IMPLICIT
 
 MB = 1024
@@ -172,6 +172,45 @@ class ManagerTests(unittest.TestCase):
         pregatite = [l for l in self.m.locuri.values() if l.stare == PREGATIT]
         self.assertLessEqual(len(pregatite), 2 + 1)            # rezerva (+ locul 1, care nu se oprește)
         self.assertTrue(all(l.stare in (PREGATIT, OPRIT) for l in self.m.locuri.values()))
+
+
+class AsteptareLocTests(unittest.TestCase):
+    """Defectul din 21.10 18:32: apel refuzat cu «fara_loc» desi «ocupate»: 0 (locul se reincarca)."""
+
+    def setUp(self):
+        self.ex = FakeExec()
+        self.res, citeste = resurse_fixe(1)
+        self.dormit = []
+        self.m = Manager(self.ex, None, citeste_resurse=citeste, dormi=self.dormit.append)
+
+    def test_apel_asteapta_locul_care_se_reincarca_nu_e_refuzat(self):
+        self.m.sincronizeaza()
+        loc = self.m.locuri[1]
+        loc.stare = PORNIRE                                   # tocmai s-a terminat apelul anterior
+        raspunsuri = iter([PORNIRE, PORNIRE, PORNIRE])
+        self.ex.pregatit = lambda l: next(raspunsuri, PREGATIT)
+        primit = self.m.aloca("apel-nou", asteapta_s=15)
+        self.assertIs(primit, loc)
+        self.assertEqual(loc.stare, OCUPAT)
+        self.assertGreaterEqual(len(self.dormit), 1)          # a asteptat, nu a refuzat
+        self.assertFalse(any(e["ev"] == "fara_loc" for e in self.ex.ev))
+        self.assertTrue(any(e["ev"] == "loc_dupa_asteptare" for e in self.ex.ev) or len(self.dormit) >= 1)
+
+    def test_refuz_doar_dupa_termen_si_cu_starile_in_jurnal(self):
+        self.m.sincronizeaza()
+        self.m.locuri[1].stare = PORNIRE
+        self.ex.pregatit = lambda l: PORNIRE                  # nu se mai pregateste
+        self.assertIsNone(self.m.aloca("apel-x", asteapta_s=0))
+        refuz = [e for e in self.ex.ev if e["ev"] == "fara_loc"][-1]
+        self.assertEqual(refuz["stari"], {"1": PORNIRE})
+        self.assertEqual(self.ex.alerte, [])                  # nu e «server la capacitate»: nimic ocupat
+
+    def test_toate_ocupate_refuz_imediat_fara_asteptare(self):
+        self.m.sincronizeaza()
+        self.assertIsNotNone(self.m.aloca("a1"))
+        self.assertIsNone(self.m.aloca("a2", asteapta_s=15))
+        self.assertEqual(self.dormit, [])                     # nimic in pregatire: nu se asteapta degeaba
+        self.assertEqual(len(self.ex.alerte), 1)
 
 
 if __name__ == "__main__":

@@ -43,16 +43,32 @@ class ExecutorServer:
         env.update(extra or {})
         return env
 
-    def _sinks(self):
-        r = subprocess.run(["pactl", "list", "short", "sinks"], env=self._mediu(), capture_output=True, text=True, timeout=10)
-        return {linie.split("\t")[1] for linie in r.stdout.splitlines() if "\t" in linie}
+    def _nume_sunet(self):
+        """Numele tuturor sink-urilor ȘI surselor existente (un loc pe jumătate creat nu mai blochează pornirea)."""
+        nume = set()
+        for tip in ("sinks", "sources"):
+            r = subprocess.run(["pactl", "list", "short", tip], env=self._mediu(), capture_output=True, text=True, timeout=10)
+            nume |= {linie.split("\t")[1] for linie in r.stdout.splitlines() if linie.count("\t") >= 1}
+        return nume
+
+    def _creeaza_sunet(self, loc):
+        """Idempotent pe fiecare bucată: se creează doar ce lipsește; o eroare spune exact ce și de ce."""
+        existente = self._nume_sunet()
+        for comanda in comenzi_sunet(loc):
+            nume = next(a.split("=", 1)[1] for a in comanda if a.startswith(("sink_name=", "source_name=")))
+            if nume in existente:
+                continue
+            r = subprocess.run(comanda, env=self._mediu(), capture_output=True, text=True, timeout=10)
+            if r.returncode != 0:
+                eroare = (r.stderr or r.stdout or "").strip()[:200]
+                self.jurnal({"ev": "sunet_loc_esuat", "loc": loc.numar, "nume": nume, "cod": r.returncode, "eroare": eroare})
+                raise RuntimeError(f"sunet_loc_esuat {nume}: {eroare}")
+            existente.add(nume)
 
     def porneste(self, loc, login=False):
         if loc.numar == 1:
             return
-        if loc.wa_in not in self._sinks():
-            for comanda in comenzi_sunet(loc):
-                subprocess.run(comanda, env=self._mediu(), check=True, capture_output=True, timeout=10)
+        self._creeaza_sunet(loc)
         os.makedirs(loc.profil, exist_ok=True)
         if login:
             self.login[loc.numar] = [self._cookie_mtime(loc), None, time.time()]

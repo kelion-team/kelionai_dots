@@ -57,6 +57,11 @@ R = {
 
     def opreste(self, loc):"""),
     ],
+    "pod_locuri/resurse.py": [
+        ("capacitatea nu coboara la 0 la un varf de incarcare (20:21:15: maxim 0, motiv CPU, cu un apel in curs)",
+         """    maxim = max(0, min(maxim_ram, maxim_cpu, int(cfg["locuri_maxim_absolut"])))""",
+         """    maxim = max(min(1, int(cfg["locuri_maxim_absolut"])), min(maxim_ram, maxim_cpu, int(cfg["locuri_maxim_absolut"])))"""),
+    ],
     "pod_locuri/locuri.py": [
         ("adresa corecta a ecranului in alerta",
          """intra pe kelionai.app/app/pod-ecran si logheaza-te in fereastra deschisa.\"""",
@@ -100,7 +105,12 @@ def proba(destinatie):
         assert ex._sesiune_stabila(loc) is False, "logarea nu trebuie încheiată imediat"
         ex._sesiune_vazuta[loc.numar] -= 30
         assert ex._sesiune_stabila(loc) is True, "după 20 s de sesiune, logarea e încheiată"
-    return "profil nelogat -> login_necesar; după logare + 20 s -> revine singur în mod pod"
+    from pod_locuri.resurse import calculeaza, CONFIG_IMPLICIT
+    cap = calculeaza(dict(CONFIG_IMPLICIT), meminfo={"MemTotal": 11960, "MemAvailable": 8141}, nuclee=6,
+                     incarcare=4.87, cgroup_mb=None, locuri_active=2)
+    assert cap.maxim >= 1, f"vârful de încărcare de la 20:21 dă încă maxim {cap.maxim}"
+    return (f"profil nelogat -> login_necesar; după logare + 20 s -> revine singur în mod pod; "
+            f"la încărcarea 4.87 de la 20:21 capacitatea e {cap.maxim} (înainte 0)")
 
 
 if __name__ == "__main__":

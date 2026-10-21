@@ -37,7 +37,7 @@ fi
 curl -fsSL "$RAW/repara_logare_locuri.py" -o "$tmp/r.py" || { echo "OPRIT: descărcare eșuată. Nimic schimbat la B."; exit 1; }
 python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || { echo "OPRIT: proba a picat. Nimic schimbat la B."; exit 1; }
 bk="$POD/backup-$ts"; mkdir -p "$bk" && cp -a "$POD/pod_locuri" "$bk/"
-for f in executor_server.py locuri.py; do install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f"; done
+for f in executor_server.py locuri.py resurse.py; do install -m 644 "$tmp/nou/pod_locuri/$f" "$POD/pod_locuri/$f"; done
 rm -rf "$POD/pod_locuri/__pycache__"
 inainte=$(wc -l < "$J")
 systemctl restart kelion-pod

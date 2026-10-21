@@ -1,0 +1,15 @@
+
+/* KELION_COMPANION_LAYOUT_20261021: robot sus, kelionDots sub el, Microfon stanga + Camera dreapta (Adrian, 21.10.2026).
+   Inainte: tot blocul de butoane statea intr-o singura coloana de ~56px ("Microfo n ON" rupt pe doua randuri). */
+.sidebar-top.companion-controls-docked{grid-template-columns:minmax(0,1fr) auto;justify-items:center;row-gap:8px;padding-block:10px}
+.sidebar-top.companion-controls-docked #brand-home{grid-column:1;grid-row:1;justify-self:center}
+.sidebar-top.companion-controls-docked #close-navigation{grid-column:2;grid-row:1}
+.sidebar-top.companion-controls-docked #companion-controls-slot{grid-column:1/-1;grid-row:2;width:100%;max-width:none}
+#companion-controls-slot>#primary-action{grid-template-columns:minmax(0,1fr)}
+#companion-controls-slot #primary-action .dots-control{grid-column:1/-1;width:100%;align-items:stretch;gap:6px}
+#companion-controls-slot #primary-action .dots-link{align-self:center;width:auto;min-width:0;max-width:12rem;min-height:36px;padding:6px 18px}
+#companion-controls-slot #primary-action .dots-live-status{justify-content:center}
+#companion-controls-slot #primary-action .dots-media-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%}
+#companion-controls-slot #primary-action .dots-media-toggle{min-height:36px;padding:6px 4px;white-space:nowrap;overflow-wrap:normal;font-size:12px}
+#companion-controls-slot #primary-action .dots-hint{text-align:center}
+/* KELION_COMPANION_LAYOUT_20261021_END */

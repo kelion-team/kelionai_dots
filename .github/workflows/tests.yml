@@ -32,4 +32,5 @@ jobs:
           bash -n deploy/install-shared-channel.sh
           bash -n deploy/auto-deploy-web.sh
           bash -n deploy/repara-apel-whatsapp.sh
-          python3 -m py_compile deploy/repara_pod.py
+          python3 -m py_compile deploy/repara_pod.py deploy/repara_logare_locuri.py
+          bash -n deploy/repara-pas2.sh

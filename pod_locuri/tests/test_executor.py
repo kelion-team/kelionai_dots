@@ -8,6 +8,15 @@ from pod_locuri.executor_server import ExecutorServer
 from pod_locuri.locuri import descrie_loc, LOGIN_NECESAR, PORNIRE
 
 
+def scrie_cookie(cale, nume):
+    import sqlite3
+    con = sqlite3.connect(cale)
+    con.execute("CREATE TABLE IF NOT EXISTS cookies (host_key TEXT, name TEXT, encrypted_value BLOB)")
+    con.execute("INSERT INTO cookies VALUES ('.chatgpt.com', ?, x'00')", (nume,))
+    con.commit()
+    con.close()
+
+
 class ProcViu:
     def poll(self):
         return None
@@ -27,7 +36,12 @@ class LoginTests(unittest.TestCase):
                 self.assertEqual(ex.pregatit(loc), LOGIN_NECESAR)          # încă nelogat
                 cookies = os.path.join(loc.profil, "Default", "Network", "Cookies")
                 os.makedirs(os.path.dirname(cookies))
-                open(cookies, "w").close()                                 # Adrian s-a logat: cookie-urile se schimbă
+                scrie_cookie(cookies, "oai-did")                           # cookie fără sesiune (pagina de login)
+                ex.login[5][2] -= 30
+                self.assertEqual(ex.pregatit(loc), LOGIN_NECESAR)
+                self.assertEqual(ex.pregatit(loc), LOGIN_NECESAR)          # nu se repornește fără sesiune
+                scrie_cookie(cookies, "__Secure-next-auth.session-token")  # Adrian s-a logat
+                os.utime(cookies, (time.time() + 5, time.time() + 5))
                 self.assertEqual(ex.pregatit(loc), LOGIN_NECESAR)          # așteaptă să se liniștească
                 ex.login[5][2] -= 30                                       # 30 s fără alte schimbări
                 self.assertEqual(ex.pregatit(loc), PORNIRE)                # repornit în modul pod

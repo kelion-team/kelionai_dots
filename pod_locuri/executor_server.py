@@ -5,6 +5,7 @@ Nu atinge locul 1 (îl gestionează kelion-pod-ecran.sh, ca azi).
 """
 import json
 import os
+import sqlite3
 import subprocess
 import time
 import urllib.request
@@ -84,14 +85,40 @@ class ExecutorServer:
                 continue
         return None
 
+    @staticmethod
+    def _cale_cookies(loc):
+        for cale in (os.path.join(loc.profil, "Default", "Network", "Cookies"), os.path.join(loc.profil, "Default", "Cookies")):
+            if os.path.exists(cale):
+                return cale
+        return None
+
+    def sesiune_chatgpt(self, loc):
+        """True doar dacă profilul are cookie-ul de sesiune autentificată ChatGPT (numele e în clar; valoarea nu se citește)."""
+        cale = self._cale_cookies(loc)
+        if not cale:
+            return False
+        try:
+            # Copie read-only prin URI, ca să nu blocăm baza pe care Chrome o scrie.
+            con = sqlite3.connect(f"file:{cale}?mode=ro&immutable=1", uri=True, timeout=2)
+            try:
+                rand = con.execute(
+                    "SELECT 1 FROM cookies WHERE host_key LIKE '%chatgpt.com' "
+                    "AND name LIKE '__Secure-next-auth.session-token%' LIMIT 1").fetchone()
+            finally:
+                con.close()
+            return rand is not None
+        except sqlite3.Error:
+            return False
+
     def logare_terminata(self, loc, liniste_s=20):
-        """În modul login nu există CDP: logarea lui Adrian se vede din cookie-urile profilului.
-        Când s-au schimbat față de pornire și apoi au stat neschimbate liniste_s secunde, logarea e gata."""
+        """În modul login nu există CDP. Logarea e gata doar când profilul are cookie-ul de SESIUNE ChatGPT
+        și cookie-urile au stat neschimbate liniste_s secunde (MFA / pași în curs nu sunt întrerupți).
+        Simpla scriere a altor cookie-uri nu contează ca logare."""
         stare = self.login.get(loc.numar)
         if not stare:
             return False
         actual = self._cookie_mtime(loc)
-        if actual is None or actual == stare[0]:
+        if actual is None or actual == stare[0] or not self.sesiune_chatgpt(loc):
             return False
         if actual != stare[1]:
             stare[1], stare[2] = actual, time.time()

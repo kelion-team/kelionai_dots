@@ -14,6 +14,7 @@ if __package__ in (None, ""):
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
+from channel_bridge.shared import PARTICIPANTS
 
 MAX_RESPONSE = 8 * 1024 * 1024
 MAX_REQUEST = 262144
@@ -133,8 +134,8 @@ class ChannelClient:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-url', default=os.environ.get('KELION_CHANNEL_URL'))
-    parser.add_argument('--token-env', default='KELION_CHANNEL_CLAUDE_TOKEN')
-    parser.add_argument('--participant')
+    parser.add_argument('--token-env', help='Private credential variable; defaults to the selected participant')
+    parser.add_argument('--participant', required=True, choices=PARTICIPANTS)
     commands = parser.add_subparsers(dest='operation', required=True)
     commands.add_parser('health')
     commands.add_parser('stdio')
@@ -155,7 +156,8 @@ def main():
     send.add_argument('--reply-to')
     args = parser.parse_args()
     try:
-        client = ChannelClient(args.base_url, os.environ.get(args.token_env, ''), expected_participant=args.participant)
+        token_env = args.token_env or 'KELION_CHANNEL_' + args.participant.upper() + '_TOKEN'
+        client = ChannelClient(args.base_url, os.environ.get(token_env, ''), expected_participant=args.participant)
         if args.operation == 'stdio':
             client.stdio()
             return 0

@@ -1,15 +1,15 @@
 # Canal comun cu confirmări separate
 
-Transport implementat pentru clienți autentificați: ChatGPT, Work, Kelion, mediul Claude și Contabo. Reutilizează `orchestration.report_outbox.ReportOutbox`; nu înlocuiește workerul, canalul Brain, Jobs, Live, backup sau orchestrarea modelelor. Codul nu a fost încă instalat pe Contabo și nu conectează singur conversațiile produselor.
+Transport implementat pentru clienți autentificați: ChatGPT, Work, Kelion, mediul cloud/Codex și Contabo. Reutilizează `orchestration.report_outbox.ReportOutbox`; nu înlocuiește workerul, canalul Brain, Jobs, Live, backup sau orchestrarea modelelor. Codul nu a fost încă instalat pe Contabo și nu conectează singur conversațiile produselor.
 
 ## Contract
 
-Ținta este **mediul Claude**, distinct de mașina cloud/Codex pe care a fost pregătit codul. Nu se presupune existența unui agent separat numit Claude.
+Ținta este **mediul cloud/Codex din această aplicație**, identificat prin participantul `cloud`. Claude de la Anthropic nu este un participant al acestei punți. Nu există alias între identitatea veche `claude` și `cloud`; credențialele și mesajele istorice nu se transferă automat.
 
 - Un singur istoric SQLite privat, cu identitate de proprietar și identități distincte pentru cele cinci medii. Expeditorul este derivat din autentificare; câmpuri precum `sender` din JSON sunt refuzate.
 - Fiecare mesaj are `id` stabil, `correlation_id`, text, destinatari și opțional `reply_to`. Implicit ajunge în inboxul fiecărui alt participant. Un răspuns păstrează audiența mesajului inițial și nu poate extinde accesul unui mesaj privat.
 - Retrimiterea aceluiași ID/conținut este idempotentă. Același ID cu alt conținut, expeditor, corelație ori destinatari este refuzat.
-- Citirea nu marchează mesajul primit. Fiecare destinatar confirmă explicit hashul primit; confirmarea Work nu confirmă și ChatGPT, mediul Claude sau Contabo.
+- Citirea nu marchează mesajul primit. Fiecare destinatar confirmă explicit hashul primit; confirmarea Work nu confirmă și ChatGPT, mediul cloud/Codex sau Contabo.
 - Confirmarea este numai `read_acknowledged`. Rezolvarea unei sarcini necesită în continuare execuția reală, output recuperat, verificare și răspuns în canalul de origine. Niciun ACK nu produce automat o stare „rezolvat”.
 - Nu sunt invocate modele, nu sunt create abonamente și nu se face replay automat după timeout. După un rezultat de transport incert, se recitește ID-ul inițial.
 - Folosiți un fișier de stare dedicat acestui canal, separat de alte outboxuri. Nu ștergeți istoricul ori cheile de deduplicare cât timp există clienți care pot retrimite. Cursorii reprezintă ordinea în baza păstrată; o recreare/exportare a bazei cere resynchronizare, nu reutilizarea oarbă a cursorilor.
@@ -22,7 +22,7 @@ Cerințe: Python 3.10+, checkoutul revizuit, un director de stare privat și cin
 KELION_CHANNEL_CHATGPT_TOKEN
 KELION_CHANNEL_WORK_TOKEN
 KELION_CHANNEL_KELION_TOKEN
-KELION_CHANNEL_CLAUDE_TOKEN
+KELION_CHANNEL_CLOUD_TOKEN
 KELION_CHANNEL_CONTABO_TOKEN
 ```
 
@@ -53,33 +53,33 @@ Inboxul întoarce și `next_after`/`has_more`. Continuați de la `next_after` p�
 
 MCP expune `kelion_channel_send`, `kelion_channel_read`, `kelion_channel_ack`, `kelion_channel_get`. Nu are shell, worker sau API de rulare a modelelor. Notificările MCP nu declanșează mutații.
 
-## Clienți Claude și Contabo
+## Clienți cloud/Codex și Contabo
 
 Fiecare client primește numai propria credențială prin mediul său privat. `KELION_CHANNEL_URL` este rădăcina HTTPS reală publicată de proxy, de exemplu `https://kelionai.app/kelion-channel` **numai după instalarea acelei rute**.
 
 ```bash
-python3 -B -m channel_bridge.shared_client --participant claude health
-python3 -B -m channel_bridge.shared_client --participant claude read --unread-only
-python3 -B -m channel_bridge.shared_client --participant claude send \
+python3 -B -m channel_bridge.shared_client --participant cloud health
+python3 -B -m channel_bridge.shared_client --participant cloud read --unread-only
+python3 -B -m channel_bridge.shared_client --participant cloud send \
   --id ID_STABIL --correlation-id TASK_ID --text 'mesajul efectiv'
-python3 -B -m channel_bridge.shared_client --participant claude ack ID_STABIL SHA256_PRIMIT
-python3 -B -m channel_bridge.shared_client --participant claude send \
+python3 -B -m channel_bridge.shared_client --participant cloud ack ID_STABIL SHA256_PRIMIT
+python3 -B -m channel_bridge.shared_client --participant cloud send \
   --id ID_RASPUNS --correlation-id TASK_ID --reply-to ID_STABIL --text 'rezultatul efectiv'
 ```
 
-Pentru alte medii selectați explicit `--token-env KELION_CHANNEL_CONTABO_TOKEN`, respectiv numele corespunzător. CLI nu acceptă valori de token în argumente. HTTPS păstrează proxy-ul și verificarea TLS; redirecturile sunt refuzate pentru a evita transmiterea credențialelor către alt host. Nu există retry automat al mutațiilor.
+Pentru Contabo selectați `--participant contabo`; clientul folosește `KELION_CHANNEL_CONTABO_TOKEN`. CLI cere explicit `--participant` și selectează implicit variabila privată corespunzătoare identității: de exemplu `cloud` folosește `KELION_CHANNEL_CLOUD_TOKEN`. `--token-env` poate selecta altă variabilă, dar identitatea autentificată trebuie să coincidă. CLI nu acceptă valori de token în argumente. HTTPS păstrează proxy-ul și verificarea TLS; redirecturile sunt refuzate pentru a evita transmiterea credențialelor către alt host. Nu există retry automat al mutațiilor.
 
 MCP stdio, pentru un client care poate lansa procese locale:
 
 ```bash
-python3 -B -m channel_bridge.shared_client --participant claude stdio
+python3 -B -m channel_bridge.shared_client --participant cloud stdio
 ```
 
-Clientul trebuie să păstreze variabilele injectate în memorie, fără dump de mediu. Exemplele pentru Claude Code și Claude Desktop sunt în `integrations/`; ele nu sunt instalate automat. Selectați calea reală a clientului și injectați privat propria credențială. Pentru Claude web se verifică mecanismul de conectori/auth suportat de contul real; existența fișierelor de configurare nu dovedește conectarea.
+Clientul trebuie să păstreze variabilele injectate în memorie, fără dump de mediu. Exemplul Codex este în `integrations/codex-cloud.mcp.toml.example`; nu este instalat automat. Selectați endpointul HTTPS publicat efectiv și injectați privat propria credențială. Existența configurației nu dovedește că procesul curent a încărcat conexiunea.
 
-## ChatGPT / Work / Kelion / Claude și WhatsApp
+## ChatGPT / Work / Kelion / cloud și WhatsApp
 
-Aplicațiile ChatGPT/Work/Kelion/Claude necesită instalarea unei conexiuni MCP/connector **suportate efectiv de fiecare produs**, cu autentificarea compatibilă configurată oficial. Suportul bearer al acestui host nu presupune că orice interfață ChatGPT acceptă un antet arbitrar; dacă produsul cere OAuth, se integrează identitatea/fluxul OAuth existent după verificarea contractului real. Acest pachet nu înregistrează aplicații și nu acordă granturi de cont.
+Aplicațiile ChatGPT/Work/Kelion/cloud necesită instalarea unei conexiuni MCP/connector **suportate efectiv de fiecare produs**, cu autentificarea compatibilă configurată oficial. Suportul bearer al acestui host nu presupune că orice interfață ChatGPT acceptă un antet arbitrar; dacă produsul cere OAuth, se integrează identitatea/fluxul OAuth existent după verificarea contractului real. Acest pachet nu înregistrează aplicații și nu acordă granturi de cont.
 
 La începutul fiecărei sesiuni conectate: citește inboxul, recitește textul real, confirmă hashul și păstrează ID-ul la răspuns. Un listener de serviciu poate folosi aceeași interfață, dar trebuie instalat în runtime-ul real și verificat. MCP nu injectează automat mesaje în conversații arbitrare sau sesiuni închise.
 
@@ -87,7 +87,7 @@ WhatsApp Kelion nu este identificat în sursa disponibilă. Înaintea integrări
 
 ## Dovezi de acceptare
 
-Testele locale exercită HTTP real și clienți în subprocessuri, nu serviciile reale ChatGPT/Work/Kelion/Claude/Contabo/WhatsApp:
+Testele locale exercită HTTP real și clienți în subprocessuri, nu serviciile reale ChatGPT/Work/Kelion/cloud/Contabo/WhatsApp:
 
 ```bash
 python3 -B -m unittest discover -s channel_bridge/tests -v
@@ -96,4 +96,4 @@ python3 -B -m unittest discover -s orchestration/tests -v
 
 Pentru închiderea cererii utilizatorului, păstrați pentru **fiecare mediu real**: identitate verificată, ID mesaj, SHA256 intrare, cerere recitită acolo, confirmare proprie, ID execuție, output efectiv, dovadă de verificare, răspunsul recitit în origine. WhatsApp necesită și ID-ul mesajului inbound/outbound și starea providerului. Repetați proba după restart/reconectare fără dublarea lucrării. Un test local, port deschis, health, mesaj stocat, ACK sau PR nu închide această acceptare.
 
-Referință verificată pentru configurația Claude Code și expansiunea variabilelor în `.mcp.json`: https://code.claude.com/docs/en/mcp . Exemplul de client stdio este verificat ca subprocess local din alt director, nu ca instalare într-o aplicație Claude reală.
+În acest runtime, `codex mcp add --help` confirmă configurarea unui endpoint HTTP cu `--bearer-token-env-var`. Configurarea se face numai după ce endpointul și credențiala sunt disponibile. Exemplul de client stdio este verificat ca subprocess local din alt director; probele locale nu certifică instalarea în aplicațiile reale.

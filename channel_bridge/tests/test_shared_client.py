@@ -20,7 +20,7 @@ class SharedClientTests(unittest.TestCase):
         self.assertIsNotNone(ChannelClient, 'Authenticated remote and stdio clients are missing')
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.tokens = {peer: secrets.token_urlsafe(32) for peer in ('chatgpt', 'work', 'kelion', 'claude', 'contabo')}
+        self.tokens = {peer: secrets.token_urlsafe(32) for peer in ('chatgpt', 'work', 'kelion', 'cloud', 'contabo')}
         self.server = make_server(Path(self.temp.name) / 'db.sqlite', 'owner', self.tokens, port=0)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -34,20 +34,20 @@ class SharedClientTests(unittest.TestCase):
 
     def test_clients_send_receive_ack_and_reply_over_real_http(self):
         kelion = ChannelClient(self.base, self.tokens['kelion'], expected_participant='kelion')
-        claude = ChannelClient(self.base, self.tokens['claude'], expected_participant='claude')
-        self.assertEqual(claude.health()['participant'], 'claude')
-        sent = kelion.send({'id': 'client-msg', 'correlation_id': 'task-1', 'text': 'Hello claude'})
-        received = claude.read(unread_only=True)['messages'][0]
+        cloud = ChannelClient(self.base, self.tokens['cloud'], expected_participant='cloud')
+        self.assertEqual(cloud.health()['participant'], 'cloud')
+        sent = kelion.send({'id': 'client-msg', 'correlation_id': 'task-1', 'text': 'Hello cloud'})
+        received = cloud.read(unread_only=True)['messages'][0]
         self.assertEqual(received['sha256'], sent['sha256'])
-        claude.ack(received['id'], received['sha256'])
-        claude.send({'id': 'client-reply', 'correlation_id': 'task-1', 'text': 'Actual reply', 'reply_to': received['id']})
+        cloud.ack(received['id'], received['sha256'])
+        cloud.send({'id': 'client-reply', 'correlation_id': 'task-1', 'text': 'Actual reply', 'reply_to': received['id']})
         self.assertEqual(kelion.read()['messages'][0]['text'], 'Actual reply')
-        self.assertEqual(kelion.get(sent['id'])['acknowledged_by'], ['claude'])
+        self.assertEqual(kelion.get(sent['id'])['acknowledged_by'], ['cloud'])
 
     def test_cli_read_and_stdio_mcp_are_real_subprocess_clients(self):
         ChannelClient(self.base, self.tokens['kelion']).send({'id': 'cli-msg', 'correlation_id': 'task-1', 'text': 'For client'})
-        env = dict(os.environ, KELION_CHANNEL_URL=self.base, KELION_CHANNEL_CLAUDE_TOKEN=self.tokens['claude'])
-        process = subprocess.run([sys.executable, '-B', '-m', 'channel_bridge.shared_client', 'read', '--unread-only'],
+        env = dict(os.environ, KELION_CHANNEL_URL=self.base, KELION_CHANNEL_CLOUD_TOKEN=self.tokens['cloud'])
+        process = subprocess.run([sys.executable, '-B', '-m', 'channel_bridge.shared_client', '--participant', 'cloud', 'read', '--unread-only'],
                                  env=env, capture_output=True, text=True, timeout=10)
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertEqual(json.loads(process.stdout)['messages'][0]['text'], 'For client')
@@ -56,18 +56,18 @@ class SharedClientTests(unittest.TestCase):
             {'jsonrpc': '2.0', 'method': 'notifications/initialized'},
             {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {'name': 'kelion_channel_read', 'arguments': {}}},
         ]
-        process = subprocess.run([sys.executable, '-B', str(Path(__file__).resolve().parents[1] / 'shared_client.py'), 'stdio'],
+        process = subprocess.run([sys.executable, '-B', str(Path(__file__).resolve().parents[1] / 'shared_client.py'), '--participant', 'cloud', 'stdio'],
             cwd=self.temp.name, input=''.join(json.dumps(x)+'\n' for x in messages), env=env, capture_output=True, text=True, timeout=10)
         self.assertEqual(process.returncode, 0, process.stderr)
         replies = [json.loads(line) for line in process.stdout.splitlines()]
         self.assertEqual(len(replies), 2)
         self.assertEqual(replies[0]['result']['serverInfo']['name'], 'kelion-shared-channel')
         self.assertEqual(replies[1]['result']['structuredContent']['messages'][0]['text'], 'For client')
-        self.assertNotIn(self.tokens['claude'], process.stdout + process.stderr)
+        self.assertNotIn(self.tokens['cloud'], process.stdout + process.stderr)
 
     def test_large_mcp_inbox_is_byte_bounded_and_can_be_fully_paginated(self):
         sender = ChannelClient(self.base, self.tokens['kelion'])
-        reader = ChannelClient(self.base, self.tokens['claude'])
+        reader = ChannelClient(self.base, self.tokens['cloud'])
         for i in range(24):
             sender.send({'id': f'large-{i}', 'correlation_id': 'task-1', 'text': '\x00' * 32000})
         after, ids = 0, []
@@ -85,8 +85,8 @@ class SharedClientTests(unittest.TestCase):
     def test_plaintext_remote_credentials_and_wrong_identity_are_refused(self):
         for url in ['http://example.com', 'https://user:pass@example.com', 'https://example.com/?token=bad', 'https://example.com/#fragment']:
             with self.assertRaises(ChannelClientError):
-                ChannelClient(url, self.tokens['claude'])
-        client = ChannelClient(self.base, self.tokens['claude'], expected_participant='contabo')
+                ChannelClient(url, self.tokens['cloud'])
+        client = ChannelClient(self.base, self.tokens['cloud'], expected_participant='contabo')
         with self.assertRaises(ChannelClientError):
             client.health()
         with self.assertRaises(ChannelClientError):

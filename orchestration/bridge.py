@@ -184,7 +184,7 @@ def main(argv=None):
     try:
         if opts.action == "prepare":
             obj = prepare(opts.task_id, opts.surface, opts.agent_id, opts.api_trigger_id,
-                          pathlib.Path(opts.input_file).read_text(encoding="utf-8"), opts.issue_url)
+                          pathlib.Path(opts.input_file).read_bytes().decode("utf-8"), opts.issue_url)
         elif opts.action == "trigger":
             if not opts.execute:
                 raise ValueError("Not executed; pass --execute after checking entitlement and costs")

@@ -1,5 +1,7 @@
 import json
 import hashlib
+import tempfile
+from unittest.mock import patch
 import sys
 import unittest
 from pathlib import Path
@@ -101,3 +103,20 @@ class BridgeTests(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
+
+
+class InputBytesRegressionTests(unittest.TestCase):
+    def test_prepare_preserves_crlf_for_dispatch_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source=Path(tmp)/'input.txt'; output=Path(tmp)/'envelope.json'
+            raw=b'first\r\nsecond\r\n'
+            source.write_bytes(raw)
+            argv=['bridge.py','prepare','--task-id','task-crlf','--surface','codex',
+                  '--agent-id','agt_test','--api-trigger-id','agtch_test',
+                  '--input-file',str(source),'--out',str(output)]
+            with patch.object(sys,'argv',argv):
+                self.assertEqual(bridge.main(),0)
+            envelope=json.loads(output.read_text())
+            self.assertEqual(envelope['input'].encode('utf-8'),raw)
+            receipt=bridge._trigger_transport(envelope,'MOCK',opener=lambda req,timeout:FakeResponse(202,{}))
+            self.assertEqual(receipt['input_sha256'],hashlib.sha256(raw).hexdigest())

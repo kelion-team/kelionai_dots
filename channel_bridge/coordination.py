@@ -11,8 +11,8 @@ from pathlib import Path
 import re
 
 TOKEN = r'[A-Za-z0-9_.:-]{1,160}'
-HEADER = re.compile(r'\[KC\] id=(?P<id>'+TOKEN+r') from=(?P<sender>claude|kelion|openai)'
-                    r' to=(?P<recipient>claude|kelion|openai) task=(?P<task>'+TOKEN+r')'
+HEADER = re.compile(r'\[KC\] id=(?P<id>'+TOKEN+r') from=(?P<sender>claude|kelion)'
+                    r' to=(?P<recipient>claude|kelion) task=(?P<task>'+TOKEN+r')'
                     r' type=(?P<kind>msg|ack|reply|done) ref=(?P<ref>'+TOKEN+r')')
 
 
@@ -26,14 +26,19 @@ def project(comments):
         if not match:
             warnings.append({'comment': comment.get('id'), 'reason': 'invalid_header'})
             continue
+        comment_id = comment.get('id')
+        if type(comment_id) is not int or comment_id <= 0:
+            warnings.append({'comment': comment_id, 'reason': 'invalid_comment_order_metadata'})
+            continue
         record = match.groupdict()
         mid = record['id']
         digest = hashlib.sha256(body.encode()).hexdigest()
         if mid in records:
             if records[mid]['sha256'] != digest:
                 conflicts.add(mid)
-            continue
-        record.update(sha256=digest, comment_url=comment.get('url'),
+            if records[mid]['sha256'] != digest or records[mid]['comment_id'] <= comment_id:
+                continue
+        record.update(comment_id=comment_id, sha256=digest, comment_url=comment.get('url'),
                       github_author=(comment.get('user') or {}).get('login'),
                       body=body, provenance_authenticated=False)
         records[mid] = record
@@ -52,6 +57,9 @@ def project(comments):
         parent = records.get(r['ref'])
         if parent is None or r['ref'] in conflicts:
             warnings.append({'id': mid, 'reason': 'unknown_or_conflicting_reference'})
+            continue
+        if r['comment_id'] <= parent['comment_id']:
+            warnings.append({'id': mid, 'reason': 'response_predates_parent'})
             continue
         if (r['task'] != parent['task'] or r['sender'] != parent['recipient']
                 or r['recipient'] != parent['sender']):
@@ -72,7 +80,7 @@ def project(comments):
             message['status'] = 'acknowledged_awaiting_result'
         if message['recipient'] == 'claude':
             message['migration'] = 'legacy_recipient_no_automatic_openai_alias'
-    return {'messages': list(messages.values()), 'warnings': warnings,
+    return {'messages': list(messages.values()), 'records': list(records.values()), 'warnings': warnings,
             'fully_verified': False, 'execution_started': False,
             'note': 'Header roles do not authenticate agents; no automatic resend or dispatch.'}
 

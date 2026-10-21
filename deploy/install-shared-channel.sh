@@ -55,7 +55,15 @@ for p in "${PEERS[@]}"; do
   var="KELION_CHANNEL_${p^^}_TOKEN"
   grep -q "^${var}=" "$ENV_FILE" || echo "${var}=$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$ENV_FILE"
 done
+# OAuth pentru ChatGPT: secretul pe care doar Caddy îl adaugă după logarea Google și emailul proprietarului
+grep -q '^KELION_CHANNEL_PROXY_SECRET=' "$ENV_FILE" || echo "KELION_CHANNEL_PROXY_SECRET=$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')" >> "$ENV_FILE"
+grep -q '^KELION_CHANNEL_OWNER_EMAILS=' "$ENV_FILE" || echo "KELION_CHANNEL_OWNER_EMAILS=${OWNER_EMAILS:-adrianenc11@gmail.com}" >> "$ENV_FILE"
 chmod 0600 "$ENV_FILE"; chown root:root "$ENV_FILE"
+# Caddy primește doar secretul de proxy, în fișierul lui (0600, citit de systemd ca root)
+if [[ -d /etc/caddy ]]; then
+  grep '^KELION_CHANNEL_PROXY_SECRET=' "$ENV_FILE" > /etc/caddy/kelion-channel-proxy.env
+  chmod 0600 /etc/caddy/kelion-channel-proxy.env; chown root:root /etc/caddy/kelion-channel-proxy.env
+fi
 log "chei: 5 medii în $ENV_FILE (doar root)"
 
 # 4. serviciu

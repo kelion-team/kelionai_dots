@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from .shared import SharedChannel, ChannelError, PARTICIPANTS
+from .oauth import OAuthServer, OAuthError
 
 MAX_BODY = 262144
 VERSIONS = ('2025-03-26', '2025-06-18')
@@ -138,7 +139,13 @@ def public_host(origin):
     return parsed.netloc.lower()
 
 
-def make_server(path, owner, tokens, *, port=8778, public_origin=None):
+WELL_KNOWN_RESOURCE = ('/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp',
+                       '/.well-known/oauth-protected-resource/kelion-channel/mcp')
+WELL_KNOWN_AS = ('/.well-known/oauth-authorization-server', '/.well-known/oauth-authorization-server/kelion-channel',
+                 '/.well-known/openid-configuration', '/.well-known/openid-configuration/kelion-channel')
+
+
+def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=None):
     if not isinstance(tokens, dict) or set(tokens) != set(PARTICIPANTS):
         raise ValueError('Separate credentials required for ' + ', '.join(PARTICIPANTS))
     if any(not isinstance(value, str) or len(value) < 32 or len(value) > 256 or not value.isascii() or any(c.isspace() for c in value) for value in tokens.values()):
@@ -155,10 +162,14 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None):
         def log_message(self, *_):
             pass  # Never log credentials, message text or URL parameters.
 
-        def respond(self, status, data=None):
-            body = b'' if data is None else json.dumps(data, ensure_ascii=False).encode()
+        def respond(self, status, data=None, headers=None, content_type='application/json; charset=utf-8', raw=None):
+            body = raw if raw is not None else (b'' if data is None else json.dumps(data, ensure_ascii=False).encode())
             self.send_response(status)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            for key, value in (headers or {}).items():
+                self.send_header(key, value)
+            if status == 401 and oauth is not None and 'WWW-Authenticate' not in (headers or {}):
+                self.send_header('WWW-Authenticate', oauth.www_authenticate())
+            self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
             self.send_header('X-Content-Type-Options', 'nosniff')
@@ -180,6 +191,13 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None):
                 origin = self.headers.get('Origin')
                 if origin is not None and origin not in {'http://127.0.0.1:' + str(self.server.server_port), canonical_origin}:
                     return self.respond(403, {'error': 'Invalid Origin'})
+                url = urlsplit(self.path)
+                if url.fragment:
+                    raise ChannelError('Fragments not allowed')
+                if oauth is not None:
+                    handled = self.oauth_route(url)
+                    if handled:
+                        return
                 if len(self.headers.get_all('Authorization', [])) != 1:
                     return self.respond(401, {'error': 'Authentication required'})
                 authorization = self.headers.get('Authorization', '')
@@ -187,11 +205,10 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None):
                 for name, token in tokens.items():
                     if hmac.compare_digest(authorization.encode(), ('Bearer ' + token).encode()):
                         principal = name
+                if principal is None and oauth is not None and authorization.startswith('Bearer '):
+                    principal = oauth.principal(authorization[7:])
                 if principal is None:
                     return self.respond(401, {'error': 'Authentication required'})
-                url = urlsplit(self.path)
-                if url.fragment:
-                    raise ChannelError('Fragments not allowed')
                 if self.command == 'GET':
                     if url.path == '/v1/health' and not url.query:
                         return self.respond(200, {'status': 'ok', 'participant': principal,
@@ -251,10 +268,68 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None):
                     result = mcp(channel, principal, body)
                     return self.respond(202 if result is None else 200, result)
                 return self.respond(404, {'error': 'Unknown endpoint'})
+            except OAuthError as error:
+                self.respond(error.status, {'error': error.error, 'error_description': error.description})
             except ChannelError as error:
                 self.respond(400, {'error': str(error)})
             except Exception:
                 self.respond(500, {'error': 'Channel service error'})
+
+        def read_form(self):
+            if self.headers.get('Transfer-Encoding') is not None or len(self.headers.get_all('Content-Length', [])) != 1:
+                raise OAuthError('invalid_request', 'Single bounded Content-Length required')
+            length = self.headers['Content-Length']
+            if not length.isdecimal() or not 0 < int(length) <= 16384:
+                raise OAuthError('invalid_request', 'Body size must be 1..16384 bytes')
+            raw = self.rfile.read(int(length))
+            kind = self.headers.get_content_type()
+            if kind == 'application/x-www-form-urlencoded':
+                return parse_qs(raw.decode('utf-8', 'strict'), keep_blank_values=True, max_num_fields=20)
+            if kind == 'application/json':
+                body = json.loads(raw)
+                if not isinstance(body, dict):
+                    raise OAuthError('invalid_request', 'JSON object required')
+                return body
+            raise OAuthError('invalid_request', 'Unsupported Content-Type')
+
+        def oauth_route(self, url):
+            # Public discovery and token endpoints; the consent page needs the owner's proxy sign-in.
+            path = url.path
+            if self.command == 'GET' and path in WELL_KNOWN_RESOURCE:
+                self.respond(200, oauth.protected_resource())
+                return True
+            if self.command == 'GET' and path in WELL_KNOWN_AS:
+                self.respond(200, oauth.authorization_server())
+                return True
+            if path == '/oauth/register' and self.command == 'POST':
+                body = self.read_form()
+                if not isinstance(body, dict) or isinstance(body.get('redirect_uris'), str):
+                    raise OAuthError('invalid_client_metadata', 'JSON client metadata required')
+                self.respond(201, oauth.register(body))
+                return True
+            if path == '/oauth/token' and self.command == 'POST':
+                form = self.read_form()
+                if not isinstance(form, dict) or not all(isinstance(v, list) for v in form.values()):
+                    raise OAuthError('invalid_request', 'Form-encoded body required')
+                self.respond(200, oauth.token(form), headers={'Pragma': 'no-cache'})
+                return True
+            if path == '/oauth/authorize' and self.command in ('GET', 'POST'):
+                if not oauth.owner_ok(self.headers):
+                    self.respond(403, {'error': 'access_denied', 'error_description': 'Owner sign-in through kelionai.app required'})
+                    return True
+                if self.command == 'GET':
+                    request = oauth.validate_request(parse_qs(url.query, keep_blank_values=True, max_num_fields=20))
+                    page = oauth.consent_page(request).encode()
+                    self.respond(200, raw=page, content_type='text/html; charset=utf-8',
+                                 headers={'X-Frame-Options': 'DENY', 'Content-Security-Policy':
+                                          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"})
+                    return True
+                form = self.read_form()
+                if not isinstance(form, dict) or not all(isinstance(v, list) for v in form.values()):
+                    raise OAuthError('invalid_request', 'Form-encoded body required')
+                self.respond(302, headers={'Location': oauth.approve(form)})
+                return True
+            return False
 
         do_GET = do_POST = do_PUT = do_DELETE = do_OPTIONS = process
 
@@ -270,7 +345,12 @@ def main():
     args = parser.parse_args()
     tokens = {peer: os.environ.get('KELION_CHANNEL_' + peer.upper() + '_TOKEN', '') for peer in PARTICIPANTS}
     os.umask(0o077)
-    server = make_server(args.state, args.owner, tokens, port=args.port, public_origin=args.public_origin)
+    oauth = None
+    if args.public_origin:
+        oauth = OAuthServer(args.state.with_name(args.state.stem + '.oauth.sqlite'), args.public_origin,
+                            proxy_secret=os.environ.get('KELION_CHANNEL_PROXY_SECRET', ''),
+                            owner_emails=os.environ.get('KELION_CHANNEL_OWNER_EMAILS', '').split(','))
+    server = make_server(args.state, args.owner, tokens, port=args.port, public_origin=args.public_origin, oauth=oauth)
     # Keep signal handling in the main thread; serve_forever runs in a child thread.
     import threading
     worker = threading.Thread(target=server.serve_forever, daemon=True)

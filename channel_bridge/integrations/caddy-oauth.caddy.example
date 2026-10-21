@@ -1,0 +1,33 @@
+# OAuth pentru ChatGPT în fața punții. Se aplică după verificarea configurației live.
+# 1) Drop-in systemd pentru Caddy, ca secretul de proxy să fie disponibil:
+#      /etc/systemd/system/caddy.service.d/kelion-channel.conf
+#        [Service]
+#        EnvironmentFile=/etc/caddy/kelion-channel-proxy.env
+#    apoi: systemctl daemon-reload && systemctl restart caddy
+# 2) În blocul kelionai.app { ... }, ÎNAINTEA rutei existente handle_path /kelion-channel/* :
+
+	handle /kelion-channel/oauth/authorize {
+		forward_auth 127.0.0.1:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-Email
+			@unauth status 401
+			handle_response @unauth {
+				redir * /oauth2/sign_in?rd={scheme}://{host}{uri}
+			}
+		}
+		request_header X-Kelion-Proxy-Auth {$KELION_CHANNEL_PROXY_SECRET}
+		uri strip_prefix /kelion-channel
+		reverse_proxy 127.0.0.1:8778
+	}
+	handle /.well-known/oauth-protected-resource/kelion-channel* {
+		request_header -X-Kelion-Proxy-Auth
+		reverse_proxy 127.0.0.1:8778
+	}
+	handle /.well-known/oauth-authorization-server/kelion-channel* {
+		request_header -X-Kelion-Proxy-Auth
+		reverse_proxy 127.0.0.1:8778
+	}
+
+# 3) În ruta existentă handle_path /kelion-channel/* adaugă ca primă linie:
+#        request_header -X-Kelion-Proxy-Auth
+#    ca niciun client să nu poată trimite singur markerul de proprietar.

@@ -97,3 +97,17 @@ python3 -B -m unittest discover -s orchestration/tests -v
 Pentru închiderea cererii utilizatorului, păstrați pentru **fiecare mediu real**: identitate verificată, ID mesaj, SHA256 intrare, cerere recitită acolo, confirmare proprie, ID execuție, output efectiv, dovadă de verificare, răspunsul recitit în origine. WhatsApp necesită și ID-ul mesajului inbound/outbound și starea providerului. Repetați proba după restart/reconectare fără dublarea lucrării. Un test local, port deschis, health, mesaj stocat, ACK sau PR nu închide această acceptare.
 
 În acest runtime, `codex mcp add --help` confirmă configurarea unui endpoint HTTP cu `--bearer-token-env-var`. Configurarea se face numai după ce endpointul și credențiala sunt disponibile. Exemplul de client stdio este verificat ca subprocess local din alt director; probele locale nu certifică instalarea în aplicațiile reale.
+
+## OAuth pentru ChatGPT / Work / Kelion
+
+ChatGPT conectează serverul MCP doar prin OAuth 2.1 (authorization code + PKCE S256), nu prin cheie introdusă manual. Puntea implementează acum (`channel_bridge/oauth.py`):
+
+- descoperire: `/.well-known/oauth-protected-resource` și `/.well-known/oauth-authorization-server` (și variantele cu `/kelion-channel` la rădăcina domeniului); răspunsurile 401 trimit `WWW-Authenticate: Bearer resource_metadata=...`;
+- înregistrare dinamică de client (`/oauth/register`), acceptată numai pentru callback-uri `https://chatgpt.com/connector/oauth/...`;
+- `/oauth/authorize`: pagina de acord e accesibilă doar după logarea Google a proprietarului prin oauth2-proxy; Caddy adaugă un marker secret (`X-Kelion-Proxy-Auth`) pe care un proces local nu îl cunoaște. Proprietarul alege identitatea conexiunii: `chatgpt`, `work` sau `kelion` (niciodată `cloud`/`contabo`);
+- `/oauth/token`: cod de unică folosință (120 s), token de acces 1 h, refresh 30 de zile cu rotație; tokenurile se păstrează doar ca hash SHA-256;
+- cheile statice existente funcționează în continuare.
+
+Configurare: `KELION_CHANNEL_PROXY_SECRET` și `KELION_CHANNEL_OWNER_EMAILS` în `channel.env` (scriptul de instalare le generează), rutele Caddy din `integrations/caddy-oauth.caddy.example`. Fără ele, OAuth rămâne închis (`/oauth/authorize` răspunde 403).
+
+În ChatGPT: conector nou → Server URL `https://kelionai.app/kelion-channel/mcp` → Authentication: OAuth (fără client ID/secret; se înregistrează singur) → Sign in → alegi identitatea pe pagina Kelion.

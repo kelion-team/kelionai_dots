@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kelion_channel": {
+      "type": "http",
+      "url": "https://kelionai.app/kelion-channel/mcp",
+      "headers": {
+        "Authorization": "Bearer ${KELION_CHANNEL_CLAUDE_TOKEN}"
+      }
+    }
+  }
+}

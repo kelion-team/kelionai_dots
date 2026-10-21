@@ -12,7 +12,7 @@ try:
 except ImportError:
     make_server = None
 
-PEERS = ('chatgpt', 'work', 'kelion', 'cloud', 'contabo')
+PEERS = ('chatgpt', 'work', 'kelion', 'claude', 'contabo')
 
 
 class SharedHTTPTests(unittest.TestCase):
@@ -55,12 +55,12 @@ class SharedHTTPTests(unittest.TestCase):
 
     def test_five_authenticated_clients_can_read_broadcast_and_reply(self):
         sent = self.request('kelion', '/v1/messages', {'id': 'broadcast', 'correlation_id': 'task-1', 'text': 'Urgent'}, 201)
-        for peer in ('chatgpt', 'work', 'cloud', 'contabo'):
+        for peer in ('chatgpt', 'work', 'claude', 'contabo'):
             messages = self.request(peer, '/v1/inbox')['messages']
             self.assertEqual(messages[0]['text'], 'Urgent')
             self.request(peer, '/v1/ack', {'id': sent['id'], 'sha256': messages[0]['sha256']})
         status = self.request('kelion', '/v1/message/broadcast')
-        self.assertEqual(status['acknowledged_by'], ['chatgpt', 'cloud', 'contabo', 'work'])
+        self.assertEqual(status['acknowledged_by'], ['chatgpt', 'claude', 'contabo', 'work'])
         self.request('contabo', '/v1/messages', {'id': 'reply', 'correlation_id': 'task-1', 'text': 'Contabo reply', 'reply_to': 'broadcast'}, 201)
         messages = self.request('kelion', '/v1/inbox')['messages']
         self.assertEqual(messages[0]['text'], 'Contabo reply')
@@ -68,28 +68,28 @@ class SharedHTTPTests(unittest.TestCase):
 
     def test_authentication_host_origin_and_identity_cannot_be_bypassed(self):
         self.request(None, '/v1/health', expected=401)
-        self.request('cloud', '/v1/health', expected=403, headers={'Host': 'attacker.example'})
-        self.request('cloud', '/v1/health', expected=403, headers={'Origin': 'https://attacker.example'})
-        self.request('cloud', '/v1/messages', {'id': 'spoof', 'correlation_id': 'task-1', 'text': 'bad', 'sender': 'contabo'}, 400)
-        health = self.request('cloud', '/v1/health')
-        self.assertEqual(health['participant'], 'cloud')
+        self.request('claude', '/v1/health', expected=403, headers={'Host': 'attacker.example'})
+        self.request('claude', '/v1/health', expected=403, headers={'Origin': 'https://attacker.example'})
+        self.request('claude', '/v1/messages', {'id': 'spoof', 'correlation_id': 'task-1', 'text': 'bad', 'sender': 'contabo'}, 400)
+        health = self.request('claude', '/v1/health')
+        self.assertEqual(health['participant'], 'claude')
         self.assertEqual(health['model_execution'], False)
         self.assertEqual(health['delivery_mode'], 'authenticated_client_readback')
         self.assertNotIn('token', json.dumps(health))
 
     def test_private_message_cannot_be_read_or_acked_by_other_identity(self):
-        sent = self.request('cloud', '/v1/messages', {'id': 'private', 'correlation_id': 'task-1', 'text': 'private text', 'recipients': ['contabo']}, 201)
+        sent = self.request('claude', '/v1/messages', {'id': 'private', 'correlation_id': 'task-1', 'text': 'private text', 'recipients': ['contabo']}, 201)
         self.request('work', '/v1/message/private', expected=400)
         self.request('work', '/v1/ack', {'id': 'private', 'sha256': sent['sha256']}, 400)
         self.assertEqual(self.request('work', '/v1/inbox')['messages'], [])
 
     def test_restart_preserves_dedup_and_per_recipient_ack(self):
         body = {'id': 'durable', 'correlation_id': 'task-1', 'text': 'Keep me'}
-        sent = self.request('cloud', '/v1/messages', body, 201)
+        sent = self.request('claude', '/v1/messages', body, 201)
         self.request('work', '/v1/ack', {'id': sent['id'], 'sha256': sent['sha256']})
         self.stop()
         self.start()
-        self.request('cloud', '/v1/messages', body, 201)
+        self.request('claude', '/v1/messages', body, 201)
         self.assertEqual(self.request('work', '/v1/inbox?unread_only=true')['messages'], [])
         self.assertEqual(len(self.request('contabo', '/v1/inbox')['messages']), 1)
 
@@ -108,13 +108,13 @@ class SharedHTTPTests(unittest.TestCase):
         self.assertEqual(received[0]['text'], 'From MCP')
         reply = rpc('chatgpt', 'tools/call', {'name': 'kelion_channel_ack', 'arguments': {'id': 'mcp', 'sha256': received[0]['sha256']}})
         self.assertEqual(reply['result']['structuredContent']['participant'], 'chatgpt')
-        forbidden = rpc('cloud', 'tools/call', {'name': 'run_model', 'arguments': {}})
+        forbidden = rpc('claude', 'tools/call', {'name': 'run_model', 'arguments': {}})
         self.assertIn('error', forbidden)
 
     def test_mcp_read_accepts_omitted_optional_arguments(self):
         request = {'jsonrpc': '2.0', 'id': 7, 'method': 'tools/call',
                    'params': {'name': 'kelion_channel_read'}}
-        reply = self.request('cloud', '/mcp', request,
+        reply = self.request('claude', '/mcp', request,
                              headers={'Accept': 'application/json, text/event-stream'})
         self.assertFalse(reply['result']['isError'])
         self.assertEqual(reply['result']['structuredContent']['messages'], [])
@@ -125,17 +125,17 @@ class SharedHTTPTests(unittest.TestCase):
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.base = 'http://127.0.0.1:' + str(self.server.server_port)
-        self.request('cloud', '/v1/health', headers={'Origin': 'https://kelionai.app'})
+        self.request('claude', '/v1/health', headers={'Origin': 'https://kelionai.app'})
 
     def test_invalid_unicode_is_a_bounded_client_error(self):
-        self.request('cloud', '/v1/messages', {'id': 'unicode', 'correlation_id': 'task-1', 'text': '\ud800'}, 400)
+        self.request('claude', '/v1/messages', {'id': 'unicode', 'correlation_id': 'task-1', 'text': '\ud800'}, 400)
 
     def test_invalid_configuration_and_bounded_request_parameters(self):
         with self.assertRaises(ValueError):
             make_server(self.path, 'owner', dict.fromkeys(PEERS, 'same' * 10), port=0)
         for query in ['limit=101', 'limit=true', 'after=-1', 'unread_only=wrong', 'sender=work', 'limit=2&limit=3']:
-            self.request('cloud', '/v1/inbox?' + query, expected=400)
-        self.request('cloud', '/v1/messages', {'id': 'big', 'correlation_id': 'task-1', 'text': 'x' * 270000}, 413)
+            self.request('claude', '/v1/inbox?' + query, expected=400)
+        self.request('claude', '/v1/messages', {'id': 'big', 'correlation_id': 'task-1', 'text': 'x' * 270000}, 413)
 
 
 if __name__ == '__main__':

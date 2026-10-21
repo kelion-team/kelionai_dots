@@ -140,7 +140,7 @@ def public_host(origin):
 
 def make_server(path, owner, tokens, *, port=8778, public_origin=None):
     if not isinstance(tokens, dict) or set(tokens) != set(PARTICIPANTS):
-        raise ValueError('Separate credentials required for chatgpt, work, kelion, cloud, contabo')
+        raise ValueError('Separate credentials required for chatgpt, work, kelion, claude, contabo')
     if any(not isinstance(value, str) or len(value) < 32 or len(value) > 256 or not value.isascii() or any(c.isspace() for c in value) for value in tokens.values()):
         raise ValueError('Each credential must contain 32..256 nonblank ASCII characters')
     if len(set(tokens.values())) != len(tokens):

@@ -1,5 +1,0 @@
-# Non-secret example. The URL must already be deployed and verified.
-# Use the supported project/user configuration location for the target runtime.
-[mcp_servers.kelion_channel]
-url = "https://kelionai.app/kelion-channel/mcp"
-bearer_token_env_var = "KELION_CHANNEL_CLOUD_TOKEN"

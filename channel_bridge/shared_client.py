@@ -7,6 +7,10 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
@@ -95,7 +99,7 @@ class ChannelClient:
                                                     'unread_only': str(unread_only).lower()}))
 
     def get(self, message_id):
-        from .shared import identifier
+        from channel_bridge.shared import identifier
         return self.request('/v1/message/' + identifier(message_id))
 
     def ack(self, message_id, sha256):
@@ -129,7 +133,7 @@ class ChannelClient:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-url', default=os.environ.get('KELION_CHANNEL_URL'))
-    parser.add_argument('--token-env', default='KELION_CHANNEL_CLOUD_TOKEN')
+    parser.add_argument('--token-env', default='KELION_CHANNEL_CLAUDE_TOKEN')
     parser.add_argument('--participant')
     commands = parser.add_subparsers(dest='operation', required=True)
     commands.add_parser('health')

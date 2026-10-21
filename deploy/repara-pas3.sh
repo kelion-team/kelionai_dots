@@ -9,7 +9,8 @@ RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
 POD=/opt/kelion-pod
 J=/var/lib/kelion-pod/pod.jsonl
 ts=$(date +%Y%m%d-%H%M%S)
-tmp=$(mktemp -d)
+tmp=$(mktemp -d) || echec "director temporar: creare eșuată; nimic schimbat."
+[ -n "$tmp" ] && [ -d "$tmp" ] || echec "director temporar invalid; nimic schimbat."
 [ "$(id -u)" = 0 ] || { echo "Rulează ca root."; exit 1; }
 if ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false'; then
   echo "OPRIT: e un apel în curs. Nimic schimbat. Rulează din nou după apel."; exit 1
@@ -24,7 +25,10 @@ inainte=$(wc -l < "$J")
 systemctl restart kelion-pod || echec "repornire eșuată. Backup: $bk"
 sleep 25
 if ! systemctl is-active -q kelion-pod || ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"ok": true'; then
-  echo "EȘEC: revin la backup"; cp -a "$bk/kelion_pod.py" "$bk/apel_invitat.py" "$POD/"; systemctl restart kelion-pod; exit 1
+  echo "EȘEC: revin la backup"
+  cp -a "$bk/kelion_pod.py" "$bk/apel_invitat.py" "$POD/" || echec "restaurare backup eșuată; nu repornesc. Backup: $bk"
+  systemctl restart kelion-pod || echec "repornire după restaurare eșuată. Backup: $bk"
+  exit 1
 fi
 echo "--- dovezi:"
 grep -c necunoscut_pe_ruta_invitat "$POD/kelion_pod.py" | sed 's/^/marcaje în cod: /'

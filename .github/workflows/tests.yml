@@ -29,6 +29,8 @@ jobs:
         run: python3 -B -m unittest discover -s whatsapp_grupuri/tests -v
       - name: Export
         run: python3 -B -m unittest discover -s tests -v
+      - name: Deploy fail-closed (servicii simulate, fără rețea)
+        run: python3 -B deploy/test_repara_fail_closed.py
       - name: Sintaxă scripturi de deploy
         run: |
           bash -n deploy/install-shared-channel.sh

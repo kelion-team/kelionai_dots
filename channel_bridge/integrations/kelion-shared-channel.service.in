@@ -1,0 +1,34 @@
+# Template only: replace @SERVICE_USER@, @SERVICE_GROUP@ and @CHECKOUT_ROOT@
+# using the verified existing Contabo service identity and reviewed checkout.
+[Unit]
+Description=Kelion authenticated shared message channel
+After=network.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+WorkingDirectory=@CHECKOUT_ROOT@
+EnvironmentFile=/etc/kelion-shared-channel/channel.env
+ExecStart=/usr/bin/python3 -B -m channel_bridge.shared_http --state /var/lib/kelion-shared-channel/channel.sqlite --owner kelion --port 8778 --public-origin https://kelionai.app
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+ReadWritePaths=/var/lib/kelion-shared-channel
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pasul 2 (21.10.2026), rulat de Adrian ca root pe server, o singură comandă:
+# Pasul 2 (21.10.2026), rulat ca root pe server de Kelion (admin) sau de Adrian, o singură comandă:
 #  A) așezarea companionului (robot sus, kelionDots sub el, Microfon stânga + Cameră dreapta) — fără repornire;
 #  B) locurile de apel nelogate în ChatGPT sunt recunoscute, cer logarea cu adresa corectă și revin singure după logare.
 # B repornește kelion-pod, deci se aplică DOAR fără apel în curs (altfel îl sare și spune să rulezi din nou).
@@ -35,7 +35,7 @@ fi
 pas "B) Locuri nelogate"
 if ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false'; then
   echo "SĂRIT: e un apel în curs. Rulează aceeași comandă din nou după apel (A nu se repetă)."
-  rm -rf "$tmp"; exit 0
+  rm -rf "$tmp"; exit 2   # nu e reușită: B nu s-a aplicat
 fi
 curl -fsSL "$RAW/repara_logare_locuri.py" -o "$tmp/r.py" || { echo "OPRIT: descărcare eșuată. Nimic schimbat la B."; exit 1; }
 python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || { echo "OPRIT: proba a picat. Nimic schimbat la B."; exit 1; }

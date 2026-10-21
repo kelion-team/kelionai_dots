@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 ROOTS = ('opt/kelion-pod', 'opt/kelion-brain', 'opt/kelion-control')
 CONFIGS = {'opt/kelion-pod/locuri.json','opt/kelion-control/platform-navigation.json', *(f'opt/kelion-control/assets/{x}.i18n.json' for x in ('portal','jobs','companion','navigation'))}
 EXTS = {'.py','.sh','.js','.mjs','.css','.html'}
-EXCLUDE = ('venv','.venv','__pycache__','backup*','*.backup-*','node_modules','modele','models','audit_jobs','chrome*','loc[0-9]*','capturi','.env*','*.env','.git')
+EXCLUDE = ('*venv','__pycache__','backup*','*.backup-*','node_modules','modele','models','audit_jobs','chrome*','loc[0-9]*','capturi','.env*','*.env','.git')
 TARGET = 'kelion-team/kelion-brain'
 URL = f'https://github.com/{TARGET}.git'
 MAX = 2*1024*1024
@@ -99,7 +99,14 @@ def redact(text):
 def prepare(base, output):
     base=Path(base).absolute(); output=Path(output).absolute(); check_parents(base); check_parents(output)
     output.mkdir(parents=True,exist_ok=True)
-    work=Path(tempfile.mkdtemp(prefix='copie-contabo-',dir=output)); (work/'server').mkdir(mode=0o700)
+    work=Path(tempfile.mkdtemp(prefix='copie-contabo-',dir=output))
+    try: return _prepare(base,work)
+    except BaseException:
+        # O pregătire oprită nu lasă în urmă o copie parțială care ar putea fi luată drept validă.
+        shutil.rmtree(work,ignore_errors=True); raise
+
+def _prepare(base, work):
+    (work/'server').mkdir(mode=0o700)
     excluded=[]
     def copy(p,rel,systemd=False):
         try:
@@ -180,7 +187,13 @@ def publish(work,expected):
         if token.encode() in (repo/'.git/config').read_bytes(): raise Stop('Token detectat în configurația git')
         branch='copie/contabo-'+uuid.uuid4().hex
         git('-C',str(repo),'checkout','-b',branch)
-        verify(work,expected); copy_verified(work/'server',repo/'server',approved)
+        verify(work,expected)
+        dest=repo/'server'
+        if os.path.lexists(dest):
+            # Sincronizare repetată: copia anterioară e înlocuită integral; ștergerile intră în commit prin git add.
+            if dest.is_symlink() or not dest.is_dir(): raise Stop('server/ din depozit nu este director obișnuit')
+            shutil.rmtree(dest)
+        copy_verified(work/'server',dest,approved)
         # Întregul conținut adăugat este cel revizuit. Nu adăugăm alte rapoarte sau fișiere.
         if manifest(repo/'server')!=approved: raise Stop('Staging schimbat înainte de git add')
         git('-C',str(repo),'add','--','server')

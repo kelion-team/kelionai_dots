@@ -1,0 +1,26 @@
+name: Pod diagnostic evidence
+on:
+  pull_request:
+    paths:
+      - 'deploy/repara_dovezi_pod.py'
+      - 'deploy/test_repara_dovezi_pod.py'
+      - '.github/workflows/pod-diagnostics.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/repara_dovezi_pod.py'
+      - 'deploy/test_repara_dovezi_pod.py'
+      - '.github/workflows/pod-diagnostics.yml'
+permissions:
+  contents: read
+jobs:
+  diagnostic-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Mocked capture and pactl diagnostics
+        run: python3 -B -m unittest discover -s deploy -p test_repara_dovezi_pod.py -v

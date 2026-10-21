@@ -43,6 +43,17 @@ class ExportTests(unittest.TestCase):
         (self.base/'opt/kelion-pod/node_modules').mkdir()
         os.mkfifo(self.base/'opt/kelion-pod/node_modules/fifo')
         work,h=self.prepare();self.assertEqual(len(e.verify(work,h)),1)
+    def test_named_venv_pruned(self):
+        # Cazul real de pe Contabo (21.10.2026): /opt/kelion-control/jobs-venv/bin/python este legătură simbolică.
+        self.put('opt/kelion-control/jobs-venv/pyvenv.cfg','home = /usr/bin\n')
+        (self.base/'opt/kelion-control/jobs-venv/bin').mkdir()
+        (self.base/'opt/kelion-control/jobs-venv/bin/python').symlink_to('/usr/bin/python3')
+        self.put('opt/kelion-control/jobs-venv/lib/x.py','ignored')
+        work,h=self.prepare(); self.assertEqual([x['path'] for x in e.verify(work,h)],['opt/kelion-pod/app.py'])
+    def test_failed_prepare_leaves_no_partial_copy(self):
+        (self.base/'opt/kelion-pod/link.py').symlink_to('app.py')
+        with self.assertRaises(e.Stop): self.prepare()
+        self.assertEqual(list(self.out.iterdir()),[])
     def test_symlink_source_stops(self):
         (self.base/'opt/kelion-pod/link.py').symlink_to('app.py')
         with self.assertRaises(e.Stop): self.prepare()
@@ -98,6 +109,9 @@ class ExportTests(unittest.TestCase):
             return real_run(['git',*map(str,args)],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         local('init','--bare',remote);local('init','-b','main',seed)
         (seed/'README.md').write_text('Fictional fixture only')
+        # O copie anterioară deja unită: fișierul vechi trebuie să dispară din ramura nouă.
+        (seed/'server/opt/kelion-pod').mkdir(parents=True); (seed/'server/opt/kelion-pod/vechi.py').write_text('old')
+        (seed/'server/opt/kelion-pod/app.py').write_text('print("old")\n')
         local('-C',seed,'add','.');local('-C',seed,'-c','user.name=Fixture','-c','user.email=fixture@localhost','commit','-m','initial')
         local('-C',seed,'push',remote,'main');local('--git-dir',remote,'symbolic-ref','HEAD','refs/heads/main')
         before=local('--git-dir',remote,'rev-parse','main').stdout
@@ -120,6 +134,8 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(len(branches),1)
         blob=local('--git-dir',remote,'show',branches[0]+':server/opt/kelion-pod/app.py').stdout
         self.assertEqual(blob,b'print("hello")\n')
+        tree=local('--git-dir',remote,'ls-tree','-r','--name-only',branches[0],'--','server').stdout.decode().split()
+        self.assertEqual(tree,['server/opt/kelion-pod/app.py'])
         self.assertNotIn(fake,output.getvalue())
         self.assertTrue(any('push' in c for c in calls))
 

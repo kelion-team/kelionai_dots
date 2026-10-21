@@ -41,5 +41,11 @@ jobs:
           bash -n deploy/repara-pas3.sh
           bash -n deploy/repara-tot.sh
           bash -n deploy/instaleaza-grupuri.sh
+          bash -n deploy/verifica-grupuri-whatsapp.sh
           python3 -m py_compile deploy/repara_grupuri.py
           python3 -m py_compile deploy/repara_necunoscuti.py
+      - name: Export sigur (safe-export)
+        working-directory: deploy/safe-export
+        run: |
+          python3 -B -m unittest test_export_safe.py -v
+          bash -n copie-server-in-github.sh

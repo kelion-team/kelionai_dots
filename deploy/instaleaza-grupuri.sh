@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Grupurile WhatsApp cu Kelion (Adrian, 21.10.2026) — rulat de Adrian ca root, o singură comandă.
+# Grupurile WhatsApp cu Kelion (Adrian, 21.10.2026) — rulat ca root de Kelion (admin pe server) sau de Adrian, o singură comandă.
 #  1. Verifică întâi condiția Meta (Official Business Account). Dacă nu e îndeplinită: oprire, nimic schimbat.
 #  2. Doar fără apel în curs (kelion-whatsapp transmite și apelurile către pod).
 #  3. Probă pe copie, backup, instalare, repornire kelion-whatsapp, verificare; la eșec revine singur.
 # După instalare, scrie-i lui Kelion pe WhatsApp: «grup nou Familie», apoi «grup nou Prieteni» (primești linkurile).
 set -euo pipefail
-REF="${KELION_REF:-fix/locuri-asteptare-sunet}"
+REF="${KELION_REF:-}"
+[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat."; exit 1; }
 RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF"
 DIR=/opt/kelion-brain
 ts=$(date +%Y%m%d-%H%M%S)
@@ -34,6 +35,8 @@ python3 -B "$tmp/repara_grupuri.py" "$DIR" "$tmp/nou"
 cp "$tmp/whatsapp_grupuri.py" "$tmp/nou/" && (cd "$tmp/nou" && python3 -B -c 'import whatsapp_grupuri as G; assert G.cerere_pentru_kelion("Kelion, salut tuturor") and G.cerere_pentru_kelion("salut") is None; print("modul OK")')
 
 echo "== 4/4 Backup, instalare, repornire"
+# A doua verificare, imediat înainte de instalare: un apel început în timpul pregătirii oprește totul.
+curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"apel_in_curs": false' || { echo "OPRIT: a început un apel. Nimic instalat."; exit 1; }
 bk="$DIR/backup-grupuri-$ts"; mkdir -p "$bk"; cp -a "$DIR/whatsapp.py" "$bk/"
 install -o brain -g brain -m 644 "$tmp/whatsapp_grupuri.py" "$DIR/whatsapp_grupuri.py"
 install -o brain -g brain -m 644 "$tmp/nou/whatsapp.py" "$DIR/whatsapp.py"

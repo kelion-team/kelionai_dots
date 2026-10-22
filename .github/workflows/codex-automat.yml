@@ -1,0 +1,62 @@
+name: Codex automat
+
+# Când un PR are teste roșii sau comentarii de recenzie nerezolvate, cere singur lui Codex (abonamentul ChatGPT Business,
+# fără cheie API, fără plăți suplimentare) să repare. Nu face merge, nu atinge serverul, nu folosește secrete.
+# Cel mult 3 cereri pe PR și una pe commit, ca să nu intre în buclă.
+on:
+  workflow_run:
+    workflows: ["Teste"]
+    types: [completed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  cere-codex:
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'failure')
+      || (github.event_name == 'pull_request_review' && github.event.review.state != 'approved' && github.event.review.user.login != 'github-actions[bot]')
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const MAX = 3;
+            const { owner, repo } = context.repo;
+            let nr, sha, motiv;
+            if (context.eventName === 'workflow_run') {
+              const run = context.payload.workflow_run;
+              sha = run.head_sha;
+              const prs = run.pull_requests && run.pull_requests.length ? run.pull_requests
+                : (await github.rest.repos.listPullRequestsAssociatedWithCommit({ owner, repo, commit_sha: sha })).data;
+              if (!prs.length) { core.info('niciun PR pentru acest commit'); return; }
+              nr = prs[0].number;
+              motiv = `@codex testele CI («Teste») au picat pe commitul ${sha.slice(0, 7)}: ${run.html_url}\n` +
+                      'Repară exact ce pică în acest PR, cu schimbarea minimă, fără alte modificări, și urcă reparația pe ramura acestui PR.';
+            } else {
+              const pr = context.payload.pull_request;
+              nr = pr.number; sha = pr.head.sha;
+              const fire = await github.graphql(`query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){
+                reviewThreads(first:100){nodes{isResolved}}}}}`, { o: owner, r: repo, n: nr });
+              const deschise = fire.repository.pullRequest.reviewThreads.nodes.filter(t => !t.isResolved).length;
+              if (!deschise) { core.info('niciun comentariu de recenzie nerezolvat'); return; }
+              motiv = `@codex rezolvă cele ${deschise} comentarii de recenzie nerezolvate din acest PR (commit ${sha.slice(0, 7)}), ` +
+                      'cu schimbarea minimă, și urcă reparația pe ramura acestui PR.';
+            }
+            const comentarii = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: nr, per_page: 100 });
+            const ale_mele = comentarii.filter(c => (c.body || '').includes('<!-- codex-automat -->'));
+            if (ale_mele.some(c => c.body.includes(`commit:${sha}`))) { core.info('deja cerut pentru acest commit'); return; }
+            if (ale_mele.length >= MAX) {
+              if (!ale_mele.some(c => c.body.includes('escaladat'))) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: nr,
+                  body: `<!-- codex-automat --> escaladat commit:${sha}\nCodex a primit deja ${MAX} cereri pe acest PR și tot nu e verde. E nevoie de Adrian sau de Kelion.` });
+              }
+              return;
+            }
+            await github.rest.issues.createComment({ owner, repo, issue_number: nr,
+              body: `${motiv}\n\n<!-- codex-automat --> commit:${sha} (cererea ${ale_mele.length + 1}/${MAX})` });
+            core.info(`cerut lui Codex pe PR #${nr}`);

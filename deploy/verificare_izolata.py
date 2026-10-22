@@ -137,8 +137,22 @@ def _e_test(cale):
             or any(p in ("test", "tests", "__tests__", "fixtures", "testdata") for p in parti[:-1]))
 
 
+def _marime_rev(d, rev):
+    """Mărimea necomprimată a arborelui din commit (blob-uri), înainte de extragere."""
+    total = 0
+    for linie in _git(d, "ls-tree", "-r", "-l", "-z", rev).split(b"\0"):
+        parti = linie.split(None, 4)
+        if len(parti) >= 4 and parti[3].isdigit():
+            total += int(parti[3])
+    return total
+
+
 def _extrage(d, rev, tinta):
-    """git archive <rev> | tar -x, în flux (fără să țină arhiva în memorie); apoi fără .git, secrete și legături."""
+    """git archive <rev> | tar -x, în flux (fără să țină arhiva în memorie); apoi fără .git, secrete și legături.
+    Limita de mărime se verifică pe arborele din commit, nu pe directorul de lucru."""
+    m = _marime_rev(d, rev)
+    if m > LIMITA_OCTETI:
+        raise RuntimeError(f"commitul {rev[:10]} are {m // 1048576} MB > {LIMITA_OCTETI // 1048576} MB")
     os.makedirs(tinta)
     g = subprocess.Popen(["git", "-C", d, "-c", "core.hooksPath=/dev/null", "archive", "--format=tar", rev],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_git_env())
@@ -148,9 +162,12 @@ def _extrage(d, rev, tinta):
     if g.wait(timeout=60) or t.returncode:
         raise RuntimeError(f"git archive {rev[:10]}: {err or t.stderr.decode(errors='replace')[:160]}")
     for r, dirs, files in os.walk(tinta, topdown=True):
-        for x in [x for x in dirs if x in DIRS_EXCLUSE]:
-            shutil.rmtree(os.path.join(r, x), ignore_errors=True)
-        dirs[:] = [x for x in dirs if x not in DIRS_EXCLUSE]
+        for x in list(dirs):
+            cale = os.path.join(r, x)
+            if os.path.islink(cale):          # legături spre directoare: scoase, ca nimic să nu se scrie în afara copiei
+                os.unlink(cale); dirs.remove(x)
+            elif x in DIRS_EXCLUSE:
+                shutil.rmtree(cale, ignore_errors=True); dirs.remove(x)
         for f in files:
             if sensibil(f) or os.path.islink(os.path.join(r, f)):
                 os.unlink(os.path.join(r, f))
@@ -160,11 +177,39 @@ def _extrage(d, rev, tinta):
         shutil.copytree(nm, os.path.join(tinta, "node_modules"), symlinks=True)
 
 
-def _pune_testele(cap, baza, schimbate):
+def _sub(radacina, rel):
+    """Calea rel în radacina, refuzată dacă iese din ea sau trece printr-o legătură simbolică."""
+    if not rel or rel.startswith("/") or ".." in rel.split("/"):
+        raise RuntimeError(f"cale nesigura: {rel[:80]}")
+    cale = radacina
+    for p in rel.split("/")[:-1]:
+        cale = os.path.join(cale, p)
+        if os.path.islink(cale):
+            raise RuntimeError(f"cale prin legatura simbolica: {rel[:80]}")
+    dst = os.path.join(radacina, rel)
+    if not os.path.realpath(dst).startswith(os.path.realpath(radacina) + os.sep):
+        raise RuntimeError(f"cale in afara copiei: {rel[:80]}")
+    return dst
+
+
+def _teste_curate(cap, schimbate, tinta):
+    """Copia testelor din commit, făcută ÎNAINTE de rularea «verde» (care ar putea să-și modifice propriile teste)."""
+    os.makedirs(tinta)
     for rel in schimbate:
-        if not _e_test(rel) or sensibil(rel) or ".." in rel.split("/"):
+        if not _e_test(rel) or sensibil(rel):
             continue
-        src, dst = os.path.join(cap, rel), os.path.join(baza, rel)
+        src = _sub(cap, rel)
+        if os.path.isfile(src) and not os.path.islink(src):
+            dst = _sub(tinta, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(src, dst)
+
+
+def _pune_testele(curate, baza, schimbate):
+    for rel in schimbate:
+        if not _e_test(rel) or sensibil(rel):
+            continue
+        src, dst = _sub(curate, rel), _sub(baza, rel)
         if os.path.isfile(src) and not os.path.islink(src):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(src, dst)
@@ -216,6 +261,9 @@ def verifica(d, lid="", limita=LIMITA_S, rulare=ruleaza_limitat):
         try:
             if commit:
                 _extrage(d, commit, cap)
+                if baza:   # testele din commit, păstrate neatinse înainte ca rularea «verde» să le poată modifica
+                    schimbate = [os.fsdecode(x) for x in _git(d, "diff", "--name-only", "-z", baza, commit).split(b"\0") if x]
+                    _teste_curate(cap, schimbate, os.path.join(tmp, "teste-curate"))
             else:
                 shutil.copytree(d, cap, symlinks=True, ignore=_ignora)
             cmd = comanda_test(cap) or cmd
@@ -231,9 +279,8 @@ def verifica(d, lid="", limita=LIMITA_S, rulare=ruleaza_limitat):
             return (f"PARTIAL (fara dovada rosu->verde: receiptul lucrarii {lid} nu are base_commit/commit): testele trec "
                     f"in {dur} s, dar nu se poate arata ca picau inainte; iesire: {iesire}")
         try:
-            schimbate = [os.fsdecode(x) for x in _git(d, "diff", "--name-only", "-z", baza, commit).split(b"\0") if x]
             _extrage(d, baza, os.path.join(tmp, "baza"))
-            _pune_testele(cap, os.path.join(tmp, "baza"), schimbate)
+            _pune_testele(os.path.join(tmp, "teste-curate"), os.path.join(tmp, "baza"), schimbate)
             cmd_baza = comanda_test(os.path.join(tmp, "baza")) or cmd
             cod_b, iesire_b = _ruleaza(rulare, os.path.join(tmp, "baza"), cmd_baza, termen - time.monotonic())
         except (OSError, RuntimeError, subprocess.SubprocessError) as e:

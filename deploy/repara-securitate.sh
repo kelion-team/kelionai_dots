@@ -65,6 +65,6 @@ install -o root -g root -m 755 "$tmp/kelion-aproba-livrare" "$SBIN" || revino "i
 install -d -o root -g root -m 755 /var/lib/kelion-livrare || revino "directorul aprobărilor nu a putut fi creat"
 python3 -c "import ast,sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]" "$DIR/coada-lucru.py" $(for f in $MODULE; do echo "$DIR/$f"; done) \
   || revino "compilare eșuată"
-grep -q "(22.10) livrare doar cu aprobare" "$DIR/coada-lucru.py" || revino "poarta de aprobare lipsește din coada instalată"
+grep -q "(22.10) livrare doar cu aprobare v2" "$DIR/coada-lucru.py" || revino "poarta de aprobare (v2) lipsește din coada instalată"
 systemctl start kelion-coada.timer && TIMER_OPRIT=0 || { echo "PARȚIAL: instalat, dar timerul cozii NU a pornit: systemctl start kelion-coada.timer" >&2; exit 2; }
 echo "GATA. Backup $bk. Livrarea pe live cere acum aprobarea: kelion-aproba-livrare <lucrare> (lista: kelion-aproba-livrare --lista)."

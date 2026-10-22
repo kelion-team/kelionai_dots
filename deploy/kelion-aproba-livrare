@@ -41,6 +41,9 @@ def _sub_lacat(a, director):
         for k, v in sorted((d.get("lucrari") or {}).items()):
             print(k, v.get("ora", ""))
         return 0
+    if a[0] in d.get("lucrari", {}):
+        print(f"DEJA APROBAT: livrarea lucrarii {a[0]}; aprobarea existenta ramane neschimbata.")
+        return 0
     d.setdefault("lucrari", {})[a[0]] = {"ora": time.strftime("%Y-%m-%d %H:%M:%S"), "de": "Adrian"}
     fd, tmp = tempfile.mkstemp(dir=director, prefix=".aprobari-")
     with os.fdopen(fd, "w", encoding="utf-8") as h:

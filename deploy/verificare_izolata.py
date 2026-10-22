@@ -22,7 +22,7 @@ LIMITA_IESIRE = 64 * 1024
 ETC = ("/etc/alternatives", "/etc/ssl", "/etc/ca-certificates", "/etc/passwd", "/etc/group", "/etc/nsswitch.conf", "/etc/hosts",
        "/etc/ld.so.cache", "/etc/localtime", "/etc/mime.types", "/etc/python3", "/etc/python3.12", "/etc/bash.bashrc")
 INDICIU = "test.sh ruleaza izolat (copie, fara retea, fara /opt /var /etc/kelion*); verificarile pe live merg in proba-live.sh"
-DIRS_EXCLUSE = {".kelion", "__pycache__", ".git", ".ssh", ".gnupg", ".aws", ".config", "node_modules"}
+DIRS_EXCLUSE = {".kelion", "__pycache__", ".git", ".ssh", ".gnupg", ".aws", ".config"}
 NUME_SENSIBILE = {"auth.json", "credentials.json", "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa", ".netrc", ".git-credentials",
                   ".pypirc", ".npmrc"}
 EXT_SENSIBILE = (".pem", ".key", ".p12", ".pfx", ".keystore")
@@ -105,9 +105,12 @@ def ruleaza_limitat(argv, timeout=LIMITA_S, env=None, **_):
     return subprocess.CompletedProcess(argv, p.returncode, b"".join(coada)[-LIMITA_IESIRE:].decode("utf-8", "replace"), "")
 
 
+def _git_env():
+    return {"PATH": "/usr/bin:/bin", "HOME": "/tmp", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "LC_ALL": "C"}
+
+
 def _git(d, *a):
-    env = {"PATH": "/usr/bin:/bin", "HOME": "/tmp", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null", "LC_ALL": "C"}
-    r = subprocess.run(["git", "-C", d, "-c", "core.hooksPath=/dev/null", *a], capture_output=True, timeout=120, env=env)
+    r = subprocess.run(["git", "-C", d, "-c", "core.hooksPath=/dev/null", *a], capture_output=True, timeout=120, env=_git_env())
     if r.returncode:
         raise RuntimeError(f"git {a[0]}: {r.stderr.decode(errors='replace').strip()[:160]}")
     return r.stdout
@@ -126,17 +129,24 @@ def _receipt(d, lid):
 
 
 def _e_test(cale):
+    """Teste și tot ce le susține (conftest, fixture-uri, date de test): se pun peste codul vechi la proba «roșu»."""
     parti = cale.split("/")
     n = parti[-1]
-    return (n == "test.sh" or n.startswith("test_") or n.endswith(("_test.py", ".test.js", ".spec.js", ".test.ts", ".spec.ts"))
-            or any(p in ("test", "tests", "__tests__") for p in parti[:-1]))
+    return (n in ("test.sh", "conftest.py", "pytest.ini") or n.startswith("test_")
+            or n.endswith(("_test.py", ".test.js", ".spec.js", ".test.ts", ".spec.ts"))
+            or any(p in ("test", "tests", "__tests__", "fixtures", "testdata") for p in parti[:-1]))
 
 
-def _copie_baza(d, baza, cap, tinta):
-    """Codul de dinainte de lucrare + testele lucrării (cele schimbate în lucrare), fără .git și fără secrete."""
+def _extrage(d, rev, tinta):
+    """git archive <rev> | tar -x, în flux (fără să țină arhiva în memorie); apoi fără .git, secrete și legături."""
     os.makedirs(tinta)
-    arhiva = _git(d, "archive", "--format=tar", baza)
-    subprocess.run(["tar", "-x", "-C", tinta], input=arhiva, check=True, capture_output=True, timeout=120)
+    g = subprocess.Popen(["git", "-C", d, "-c", "core.hooksPath=/dev/null", "archive", "--format=tar", rev],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=_git_env())
+    t = subprocess.run(["tar", "-x", "-C", tinta], stdin=g.stdout, capture_output=True, timeout=300)
+    g.stdout.close()
+    err = g.stderr.read().decode(errors="replace")[:160]; g.stderr.close()
+    if g.wait(timeout=60) or t.returncode:
+        raise RuntimeError(f"git archive {rev[:10]}: {err or t.stderr.decode(errors='replace')[:160]}")
     for r, dirs, files in os.walk(tinta, topdown=True):
         for x in [x for x in dirs if x in DIRS_EXCLUSE]:
             shutil.rmtree(os.path.join(r, x), ignore_errors=True)
@@ -144,11 +154,17 @@ def _copie_baza(d, baza, cap, tinta):
         for f in files:
             if sensibil(f) or os.path.islink(os.path.join(r, f)):
                 os.unlink(os.path.join(r, f))
-    schimbate = [os.fsdecode(x) for x in _git(d, "diff", "--name-only", "-z", baza, cap).split(b"\0") if x]
+    # dependențele instalate (node_modules) nu sunt în git și sandboxul n-are rețea: se iau din proiect, ca testele să poată rula
+    nm = os.path.join(d, "node_modules")
+    if os.path.isdir(nm) and not os.path.islink(nm):
+        shutil.copytree(nm, os.path.join(tinta, "node_modules"), symlinks=True)
+
+
+def _pune_testele(cap, baza, schimbate):
     for rel in schimbate:
         if not _e_test(rel) or sensibil(rel) or ".." in rel.split("/"):
             continue
-        src, dst = os.path.join(d, rel), os.path.join(tinta, rel)
+        src, dst = os.path.join(cap, rel), os.path.join(baza, rel)
         if os.path.isfile(src) and not os.path.islink(src):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copyfile(src, dst)
@@ -156,7 +172,21 @@ def _copie_baza(d, baza, cap, tinta):
             os.unlink(dst)
 
 
+# un «roșu» care vine din pregătire (import, colectare, fișier lipsă), nu din aserțiune, nu dovedește reparația
+PREGATIRE = ("ModuleNotFoundError", "ImportError", "SyntaxError", "IndentationError", "No such file or directory",
+             "command not found", "ERROR collecting", "errors during collection", "fixture '", "Cannot find module",
+             "MODULE_NOT_FOUND", "not found in rootdir", "Permission denied")
+
+
+def _rosu_din_pregatire(cmd, cod, iesire):
+    if cmd[-2:] == ["pytest", "-q"] and cod in (2, 3, 4, 5):
+        return True
+    return any(m in iesire for m in PREGATIRE)
+
+
 def _ruleaza(rulare, copie, cmd, limita):
+    if limita <= 0:
+        return 124, "timpul verificarii s-a terminat inainte de aceasta rulare"
     try:
         p = rulare(argv_bwrap(copie, cmd), capture_output=True, text=True, timeout=limita, env={"PATH": "/usr/bin:/bin"})
         return p.returncode, " ".join(((p.stdout or "") + (p.stderr or "")).split())[-700:]
@@ -166,8 +196,11 @@ def _ruleaza(rulare, copie, cmd, limita):
 
 
 def verifica(d, lid="", limita=LIMITA_S, rulare=ruleaza_limitat):
-    """Un rând: verdictul, apoi dovada. Nu ridică excepții pentru proiecte fără teste sau prea mari."""
-    t0 = time.time()
+    """Un rând: verdictul, apoi dovada. Nu ridică excepții pentru proiecte fără teste sau prea mari.
+    Cu receipt: «verde» se rulează pe commitul din receipt (nu pe directorul de lucru, care se poate schimba), «roșu» pe
+    base_commit + testele din același commit. O singură limită de timp pentru ambele rulări."""
+    t0 = time.monotonic()
+    termen = t0 + limita
     if not os.path.isdir(d):
         return f"INDISPONIBIL: proiectul {d} nu exista"
     cmd = comanda_test(d)
@@ -176,35 +209,46 @@ def verifica(d, lid="", limita=LIMITA_S, rulare=ruleaza_limitat):
     m = marime(d)
     if m > LIMITA_OCTETI:
         return f"PARTIAL (proiect prea mare pentru copia izolata: {m // 1048576} MB > {LIMITA_OCTETI // 1048576} MB)"
+    baza, commit = _receipt(d, lid)
     tmp = tempfile.mkdtemp(prefix="kelion-verif-")
     try:
         cap = os.path.join(tmp, "cap")
-        shutil.copytree(d, cap, symlinks=True, ignore=_ignora)
         try:
-            cod, iesire = _ruleaza(rulare, cap, cmd, limita)
+            if commit:
+                _extrage(d, commit, cap)
+            else:
+                shutil.copytree(d, cap, symlinks=True, ignore=_ignora)
+            cmd = comanda_test(cap) or cmd
+            cod, iesire = _ruleaza(rulare, cap, cmd, termen - time.monotonic())
         except OSError as e:
             return f"INDISPONIBIL: bwrap nu a putut porni ({type(e).__name__}: {str(e)[:120]})"
-        dur = round(time.time() - t0, 1)
+        except (RuntimeError, subprocess.SubprocessError) as e:
+            return f"INDISPONIBIL: commitul {str(commit)[:10]} nu s-a putut extrage ({str(e)[:120]})"
+        dur = round(time.monotonic() - t0, 1)
         if cod != 0:
             return f"ESUAT (izolat, lucrarea {lid}): teste cod {cod} in {dur} s; {INDICIU}; iesire: {iesire}"
-        baza, commit = _receipt(d, lid)
         if not baza:
-            return (f"PARTIAL (fara dovada rosu->verde: receiptul lucrarii {lid} nu are base_commit/commit): testele trec pe lucrare "
+            return (f"PARTIAL (fara dovada rosu->verde: receiptul lucrarii {lid} nu are base_commit/commit): testele trec "
                     f"in {dur} s, dar nu se poate arata ca picau inainte; iesire: {iesire}")
         try:
-            _copie_baza(d, baza, commit, os.path.join(tmp, "baza"))
+            schimbate = [os.fsdecode(x) for x in _git(d, "diff", "--name-only", "-z", baza, commit).split(b"\0") if x]
+            _extrage(d, baza, os.path.join(tmp, "baza"))
+            _pune_testele(cap, os.path.join(tmp, "baza"), schimbate)
             cmd_baza = comanda_test(os.path.join(tmp, "baza")) or cmd
-            cod_b, iesire_b = _ruleaza(rulare, os.path.join(tmp, "baza"), cmd_baza, limita)
+            cod_b, iesire_b = _ruleaza(rulare, os.path.join(tmp, "baza"), cmd_baza, termen - time.monotonic())
         except (OSError, RuntimeError, subprocess.SubprocessError) as e:
             return f"PARTIAL (fara dovada rosu->verde: codul de dinainte ({baza[:10]}) nu s-a putut pregati: {type(e).__name__}: {str(e)[:120]})"
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    dur = round(time.time() - t0, 1)
+    dur = round(time.monotonic() - t0, 1)
     if cod_b == 0:
         return (f"PARTIAL (testele trec si pe codul de dinainte {baza[:10]}: nu dovedesc reparatia; adauga un test care pica fara ea) "
                 f"lucrarea {lid}; iesire: {iesire}")
     if cod_b == 124:
         return f"PARTIAL (pe codul de dinainte {baza[:10]} testele au depasit timpul: dovada rosu->verde neconcludenta) lucrarea {lid}"
+    if _rosu_din_pregatire(cmd_baza, cod_b, iesire_b):
+        return (f"PARTIAL (pe codul de dinainte {baza[:10]} testele pica la pregatire, nu la verificare: dovada rosu->verde "
+                f"neconcludenta) lucrarea {lid}; iesire: {iesire_b[-300:]}")
     return (f"VERIFICAT (izolat, rosu->verde, lucrarea {lid}): teste '{' '.join(cmd[-2:])}' pica pe {baza[:10]} (cod {cod_b}) si trec pe "
             f"{commit[:10]} (cod 0), in {dur} s pe copii fara retea si fara secrete; iesire: {iesire} "
             "| NEVERIFICAT aici: comportamentul pe live (proba-live.sh la livrare) si paginile (tester)")

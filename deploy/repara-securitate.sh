@@ -16,7 +16,12 @@ ts=$(date +%Y%m%d-%H%M%S)
 [ "$(id -u)" = 0 ] || echec "rulează ca root."
 tmp=$(mktemp -d) && [ -d "$tmp" ] || echec "director temporar; nimic schimbat."
 TIMER_OPRIT=0
-curata() { [ "$TIMER_OPRIT" = 1 ] && systemctl start kelion-coada.timer; rm -rf "$tmp"; }
+curata() {   # timerul cozii pornit din nou garantat; dacă nu pornește, se spune clar (coada nu rămâne oprită pe tăcute)
+  if [ "$TIMER_OPRIT" = 1 ] && ! systemctl start kelion-coada.timer; then
+    echo "ATENȚIE: timerul cozii NU a pornit din nou; coada e OPRITĂ. Rulează: systemctl start kelion-coada.timer" >&2
+  fi
+  rm -rf "$tmp"
+}
 trap curata EXIT
 MODULE="preluare_redistribuire.py verificare_izolata.py copie_live.py"
 for f in $MODULE repara_livrare_aprobata.py kelion-aproba-livrare; do
@@ -57,6 +62,7 @@ for f in $MODULE coada-lucru.py; do
   install -o brain -g brain -m 644 "$tmp/nou/$f" "$DIR/$f" || revino "instalare $f eșuată"
 done
 install -o root -g root -m 755 "$tmp/kelion-aproba-livrare" "$SBIN" || revino "instalare $SBIN eșuată"
+install -d -o root -g root -m 755 /var/lib/kelion-livrare || revino "directorul aprobărilor nu a putut fi creat"
 python3 -c "import ast,sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]" "$DIR/coada-lucru.py" $(for f in $MODULE; do echo "$DIR/$f"; done) \
   || revino "compilare eșuată"
 grep -q "(22.10) livrare doar cu aprobare" "$DIR/coada-lucru.py" || revino "poarta de aprobare lipsește din coada instalată"

@@ -79,6 +79,10 @@ class Aproba(unittest.TestCase):
         d = json.loads(apr.read_text()); self.assertEqual(d["skilluri"], {"x": 1}); self.assertIn("20261022-080000-abcd", d["lucrari"])
         r = subprocess.run([sys.executable, str(AICI / "kelion-aproba-livrare"), "../rau"], capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 2)
+        lipsa = Path(tempfile.mkdtemp()) / "nou" / "aprobari.json"   # directorul starii nu exista inca
+        r = subprocess.run([sys.executable, str(AICI / "kelion-aproba-livrare"), "20261022-080000-abcd"], capture_output=True, text=True,
+                           env=dict(os.environ, KELION_APROBARI=str(lipsa)))
+        self.assertEqual(r.returncode, 0, r.stdout); self.assertIn("20261022-080000-abcd", json.loads(lipsa.read_text())["lucrari"])
 
 
 if __name__ == "__main__":

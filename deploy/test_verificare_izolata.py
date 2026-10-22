@@ -16,17 +16,18 @@ def proiect(test="echo ok"):
 class Fals:
     """Ruleaza «testul» in procesul de test: verdictul vine din functia data (copia proiectului -> cod)."""
     def __init__(self, cod=0, out="ok", ex=None, judeca=None):
-        self.cod, self.out, self.ex, self.judeca, self.argvs, self.copii = cod, out, ex, judeca, [], []
+        self.cod, self.out, self.ex, self.judeca, self.argvs, self.copii, self.timeouts = cod, out, ex, judeca, [], [], []
 
     def __call__(self, argv, **kw):
-        self.argvs.append(argv)
+        self.argvs.append(argv); self.timeouts.append(kw.get("timeout"))
         copie = argv[argv.index("--bind") + 1]
         self.copii.append(sorted(str(x.relative_to(copie)) for x in Path(copie).rglob("*")))
         Path(copie, "scris-de-test.txt").write_text("x")   # testul scrie in copie, nu in proiect
         if self.ex:
             raise self.ex
-        cod = self.judeca(Path(copie)) if self.judeca else self.cod
-        return subprocess.CompletedProcess(argv, cod, self.out, "")
+        r = self.judeca(Path(copie)) if self.judeca else self.cod
+        cod, out = r if isinstance(r, tuple) else (r, self.out)
+        return subprocess.CompletedProcess(argv, cod, out, "")
 
 
 def git_proiect(cod_baza, cod_lucrare, test_in_lucrare=True):
@@ -99,6 +100,28 @@ class Teste(unittest.TestCase):
         self.assertEqual(p.returncode, 0); self.assertLessEqual(len(p.stdout), VI.LIMITA_IESIRE)
         with self.assertRaises(subprocess.TimeoutExpired):
             VI.ruleaza_limitat(["/usr/bin/sleep", "5"], timeout=1)
+
+    def test_se_testeaza_commitul_din_receipt_nu_directorul_de_lucru(self):
+        d = git_proiect("def f(a, b):\n    return a - b\n", "def f(a, b):\n    return a * b\n")   # commit stricat
+        Path(d, "aduna.py").write_text("def f(a, b):\n    return a + b\n")                          # reparat doar in director
+        t = VI.verifica(d, "L1", rulare=Fals(judeca=judeca_aduna))
+        self.assertTrue(t.startswith("ESUAT"), t)
+
+    def test_rosu_din_pregatire_nu_e_dovada(self):
+        d = git_proiect("def f(a, b):\n    return a - b\n", "def f(a, b):\n    return a + b\n")
+        judeca = lambda c: 0 if "a + b" in (c / "aduna.py").read_text() else (1, "ModuleNotFoundError: No module named 'x'")
+        t = VI.verifica(d, "L1", rulare=Fals(judeca=judeca))
+        self.assertTrue(t.startswith("PARTIAL") and "pregatire" in t, t)
+
+    def test_dependentele_instalate_ajung_in_copii_si_limita_e_comuna(self):
+        d = git_proiect("def f(a, b):\n    return a - b\n", "def f(a, b):\n    return a + b\n")
+        Path(d, "node_modules", "pachet").mkdir(parents=True); Path(d, "node_modules", "pachet", "index.js").write_text("//")
+        f = Fals(judeca=judeca_aduna)
+        t = VI.verifica(d, "L1", limita=50, rulare=f)
+        self.assertTrue(t.startswith("VERIFICAT"), t)
+        for c in f.copii:
+            self.assertIn("node_modules/pachet/index.js", c)
+        self.assertLessEqual(f.timeouts[1], f.timeouts[0]); self.assertLessEqual(f.timeouts[0], 50)
 
     @unittest.skipUnless(shutil.which("bwrap"), "bwrap lipseste")
     def test_bwrap_real(self):

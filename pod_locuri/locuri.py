@@ -104,6 +104,7 @@ class Manager:
         self.lock = threading.RLock()
         self._alerta_la = None
         self._anulate = set()
+        self._alocari = {}  # cereri în curs per apel; anularea le acoperă pe toate
 
     # ------------------------------------------------------------ capacitate
     def _active(self):
@@ -176,8 +177,19 @@ class Manager:
         până la asteapta_s secunde în loc să fie refuzat. None doar când toate locurile posibile sunt ocupate
         sau nimic nu s-a pregătit în timp (atunci: «ocupat» + alertă)."""
         with self.lock:
+            self._alocari[apel_id] = self._alocari.get(apel_id, 0) + 1
+        try:
+            return self._aloca(apel_id, asteapta_s)
+        finally:
+            with self.lock:
+                self._alocari[apel_id] -= 1
+                if not self._alocari[apel_id]:
+                    del self._alocari[apel_id]
+                    self._anulate.discard(apel_id)
+
+    def _aloca(self, apel_id, asteapta_s):
+        with self.lock:
             self.config.actualizeaza()               # o configurare schimbată chiar acum se vede la acest apel
-            self._anulate.discard(apel_id)
         if asteapta_s is None:
             asteapta_s = float(self.config.valori.get("asteptare_loc_s", 15))
         termen = time.monotonic() + max(0.0, asteapta_s)
@@ -186,7 +198,6 @@ class Manager:
         while True:
             with self.lock:
                 if apel_id in self._anulate:         # apelul s-a terminat cât aștepta: nu mai ocupă niciun loc
-                    self._anulate.discard(apel_id)
                     self.executor.jurnal({"ev": "alocare_anulata", "apel": apel_id})
                     return None
                 for loc in self.locuri.values():
@@ -227,13 +238,14 @@ class Manager:
 
     def elibereaza(self, apel_id):
         with self.lock:
+            if apel_id in self._alocari:
+                self._anulate.add(apel_id)
             for loc in self.locuri.values():
                 if loc.apel == apel_id:
                     loc.apel = None
                     self._schimba(loc, PORNIRE)   # pagina se reîmprospătează, apoi redevine «pregatit»
                     self._verifica(loc)
                     return loc
-            self._anulate.add(apel_id)            # încă așteaptă un loc: aloca() renunță
             return None
 
     def stare(self):

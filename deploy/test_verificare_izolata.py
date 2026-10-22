@@ -118,7 +118,7 @@ class Teste(unittest.TestCase):
         Path(d, "node_modules", "pachet").mkdir(parents=True); Path(d, "node_modules", "pachet", "index.js").write_text("//")
         f = Fals(judeca=judeca_aduna)
         t = VI.verifica(d, "L1", limita=50, rulare=f)
-        self.assertTrue(t.startswith("VERIFICAT"), t)
+        self.assertTrue(t.startswith("PARTIAL") and "node_modules" in t, t)   # dependente nelegate de commit: nu e dovada
         for c in f.copii:
             self.assertIn("node_modules/pachet/index.js", c)
         self.assertLessEqual(f.timeouts[1], f.timeouts[0]); self.assertLessEqual(f.timeouts[0], 50)

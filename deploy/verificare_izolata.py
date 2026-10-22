@@ -249,6 +249,11 @@ def verifica(d, lid="", limita=LIMITA_S, rulare=ruleaza_limitat):
     if _rosu_din_pregatire(cmd_baza, cod_b, iesire_b):
         return (f"PARTIAL (pe codul de dinainte {baza[:10]} testele pica la pregatire, nu la verificare: dovada rosu->verde "
                 f"neconcludenta) lucrarea {lid}; iesire: {iesire_b[-300:]}")
+    if os.path.isdir(os.path.join(d, "node_modules")):
+        # (recenzia Codex la #93) dependențele instalate nu sunt legate de niciun commit: executantul le-ar putea fi schimbat
+        # după receipt, deci un «verde» cu ele nu e dovadă despre commit
+        return (f"PARTIAL (rosu->verde obtinut cu node_modules din proiect, nelegat de commit: dependentele pot fi modificate de "
+                f"executant) lucrarea {lid}; pica pe {baza[:10]} (cod {cod_b}), trec pe {commit[:10]}; iesire: {iesire}")
     return (f"VERIFICAT (izolat, rosu->verde, lucrarea {lid}): teste '{' '.join(cmd[-2:])}' pica pe {baza[:10]} (cod {cod_b}) si trec pe "
             f"{commit[:10]} (cod 0), in {dur} s pe copii fara retea si fara secrete; iesire: {iesire} "
             "| NEVERIFICAT aici: comportamentul pe live (proba-live.sh la livrare) si paginile (tester)")

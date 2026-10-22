@@ -19,9 +19,16 @@ def porneste(s, text):
     os.makedirs(lucrari, exist_ok=True)
     lid = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
     return lid, text
+def receptie(s, ultima, ora):
+    if ultima:
+        noutate(f"Coada: rezultat initial pentru sarcina {s['id']}",
+                f"Rezultat: {(s.get('raspuns') or '')[:1500]}",
+                push=False, cheie=f"coada:{s['id']}:rezultat-initial:{ultima['id']}")
+        return True
 def oprita(s, ultima, ora):
     if ultima:
-        noutate("t", "d",
+        noutate(f"Coada: executie initiala oprita pentru sarcina {s['id']}",
+                f"Sarcina {s['id']}, proiect {s['proiect']}: {s['motiv_blocare']}",
                 push=False, cheie=f"coada:{s['id']}:rezultat-initial:{ultima['id']}")
         return True
 def neverificata(s, v, ora):
@@ -80,6 +87,8 @@ class Teste(unittest.TestCase):
         self.assertTrue(text.startswith("NOTA PRELUARE")); self.assertTrue(text.endswith("SARCINA"))
         s = {"id": "S1", "proiect": "p", "sarcina": "fa", "istoric": [], "motiv_blocare": "Activare new-only: reluarea automata este oprita; dirty project"}
         self.assertTrue(ns["oprita"](s, {"id": "L1"}, "ora")); self.assertEqual(s["inlocuita_de"], "NOU1")
+        ok = {"id": "S3", "proiect": "p", "sarcina": "fa", "istoric": [], "motiv_blocare": "Executie confirmata fizic prin receptie si commit"}
+        self.assertTrue(ns["receptie"](ok, {"id": "L2"}, "ora")); self.assertNotIn("inlocuita_de", ok)   # reusita nu se reface
         s2 = ns["neverificata"]({"id": "S2", "proiect": "p", "sarcina": "fa", "istoric": []}, {"text": "fara test.sh"}, "ora")
         self.assertEqual(s2["redistribuita_in"], "NOU1")
         nv = {}; exec((d / "verifica-site.py").read_text(), nv)

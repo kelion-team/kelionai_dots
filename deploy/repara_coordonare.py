@@ -47,8 +47,10 @@ COADA = [
      '    except Exception as e:\n'
      '        s.setdefault("istoric", []).append(f"{time.strftime(\'%Y-%m-%d %H:%M\')} preluare fisiere necomise esuata: {type(e).__name__}: {str(e)[:160]}")\n'
      '    lid = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]\n'),
-    ("redistribuire după execuția oprită",
+    ("redistribuire după execuția oprită",   # doar execuția OPRITĂ; «Executie confirmata fizic…» (reușită, nevalidată) NU se reface
+     '                f"Sarcina {s[\'id\']}, proiect {s[\'proiect\']}: {s[\'motiv_blocare\']}",\n'
      '                push=False, cheie=f"coada:{s[\'id\']}:rezultat-initial:{ultima[\'id\']}")\n        return True\n',
+     '                f"Sarcina {s[\'id\']}, proiect {s[\'proiect\']}: {s[\'motiv_blocare\']}",\n'
      '                push=False, cheie=f"coada:{s[\'id\']}:rezultat-initial:{ultima[\'id\']}")\n'
      '        _redistribuie(s, s["motiv_blocare"], ora)   # (22.10) blocata -> sarcina noua cu motivul, pana la rezolvare sau escaladare\n'
      '        return True\n'),

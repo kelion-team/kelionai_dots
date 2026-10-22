@@ -54,6 +54,13 @@ class ExportTests(unittest.TestCase):
         (self.base/'opt/kelion-pod/link.py').symlink_to('app.py')
         with self.assertRaises(e.Stop): self.prepare()
         self.assertEqual(list(self.out.iterdir()),[])
+    def test_work_directory_pruned(self):
+        # opt/kelion-brain/work: copii de lucru/revizie, inclusiv legături; nu intră în copie și nu opresc pregătirea.
+        self.put('opt/kelion-brain/work/review/candidate.py','print(1)')
+        (self.base/'opt/kelion-brain/work/link.py').symlink_to('/fictional')
+        self.put('opt/kelion-brain/brain.py','print(2)')
+        work,h=self.prepare()
+        self.assertEqual([x['path'] for x in e.verify(work,h)],['opt/kelion-brain/brain.py','opt/kelion-pod/app.py'])
     def test_symlink_source_stops(self):
         (self.base/'opt/kelion-pod/link.py').symlink_to('app.py')
         with self.assertRaises(e.Stop): self.prepare()

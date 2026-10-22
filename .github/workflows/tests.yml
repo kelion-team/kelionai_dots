@@ -48,6 +48,9 @@ jobs:
           python3 -m py_compile deploy/repara_registru_procedura.py deploy/inchide_pasi_orfani.py
           python3 -B -m unittest deploy/test_repara_registru_procedura.py -v
           python3 -B -m unittest deploy/test_inchide_pasi_orfani.py -v
+          bash -n deploy/repara-coordonare.sh
+          python3 -B -m unittest deploy/test_preluare_redistribuire.py -v
+          python3 -B -m unittest deploy/test_repara_coordonare.py -v
           bash -n deploy/repara-bucle.sh
           python3 -B -m unittest deploy/test_repara_bucle_remediere.py -v
           bash -n deploy/repara-curatenie.sh

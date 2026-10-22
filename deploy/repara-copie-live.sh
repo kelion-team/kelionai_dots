@@ -25,8 +25,10 @@ prob=$(cd /tmp && runuser -u brain -- python3 -B -c "import sys; sys.path.insert
 echo "proba copiei: $prob"
 echo "fișiere care seamănă a secrete (necopiate): $(grep -c '^- ' "$tmp/pr/.kelion/live/INDEX.md" 2>/dev/null || echo 0)"
 bk="$DIR/backup-copie-live-$ts"; mkdir -p "$bk" && cp -a "$DIR/coada-lucru.py" "$bk/" || echec "backup eșuat. Nimic schimbat."
-revino() {
-  ok=1; cp -a "$bk/coada-lucru.py" "$DIR/" || ok=0; rm -f "$DIR/copie_live.py" || ok=0
+if [ -e "$DIR/copie_live.py" ]; then cp -a "$DIR/copie_live.py" "$bk/" || echec "backup copie_live.py eșuat. Nimic schimbat."; fi
+revino() {   # la o reinstalare, modulul vechi se pune înapoi (nu se șterge)
+  ok=1; cp -a "$bk/coada-lucru.py" "$DIR/" || ok=0
+  if [ -e "$bk/copie_live.py" ]; then cp -a "$bk/copie_live.py" "$DIR/" || ok=0; else rm -f "$DIR/copie_live.py" || ok=0; fi
   [ "$ok" = 1 ] && echec "$*; revenit la backup ($bk)."
   echec "$*; REVENIRE INCOMPLETĂ: compară manual $DIR/coada-lucru.py cu $bk"
 }

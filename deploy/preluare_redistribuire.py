@@ -51,11 +51,21 @@ def preia_necomise(d, sid):
         return "", []
     sens = [p for p in toate if sensibil(p)]
     bune = [p for p in toate if p not in sens]
+    pregatite = [os.fsdecode(p) for p in _git(d, "diff", "--cached", "--no-ext-diff", "--no-textconv", "--name-only", "-z").split(b"\0") if p]
+    if pregatite:
+        # Indexul pregătit de altcineva nu se atinge: un «git add» ar suprascrie versiunea pregătită, iar un commit ar lua tot indexul
+        # (inclusiv un .env deja pregătit). Lucrul în proiect rămâne blocat până decide Adrian.
+        return (f"ATENTIE: proiectul are {len(pregatite)} fisiere deja pregatite pentru commit ({', '.join(pregatite[:8])}). "
+                "Nu au fost atinse, ca sa nu se piarda versiunea pregatita si sa nu intre un secret intr-un commit. "
+                "Raporteaza-i lui Adrian ce sunt; nu le citi continutul."), sorted(set(sens) | set(pregatite))
     nota = ""
     if bune:
-        _git(d, "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul", intrare=b"\0".join(os.fsencode(p) for p in bune))
+        lista = b"\0".join(os.fsencode(p) for p in bune)
+        _git(d, "add", "-A", "--pathspec-from-file=-", "--pathspec-file-nul", intrare=lista)
+        # commit doar pe căile filtrate (nu tot indexul)
         _git(d, "-c", "user.name=Kelion", "-c", "user.email=kelion@localhost", "-c", "commit.gpgsign=false", "commit", "--no-verify", "-q",
-             "-m", f"Kelion: preluate {len(bune)} fișiere necomise înainte de sarcina {sid} (nimic șters)")
+             "-m", f"Kelion: preluate {len(bune)} fișiere necomise înainte de sarcina {sid} (nimic șters)",
+             "--pathspec-from-file=-", "--pathspec-file-nul", intrare=lista)
         sha = _git(d, "rev-parse", "--short=10", "HEAD").decode().strip()
         nota = (f"NOTA PRELUARE: in proiect erau {len(bune)} fisiere necomise ({', '.join(bune[:8])}{' ...' if len(bune) > 8 else ''}), "
                 f"lasate de o lucrare sau un diagnostic anterior. Au fost salvate in commitul {sha} inainte de aceasta lucrare. "
@@ -76,12 +86,13 @@ def redistribuie(s, motiv, adauga, noutate, salveaza, ora=None):
     initiala = s.get("sarcina_initiala") or s.get("sarcina") or ""
     motiv = str(motiv or s.get("motiv_blocare") or "necunoscut")
     if gen >= MAX_GENERATII or motiv.startswith(FARA_REDISTRIBUIRE):
-        s["escaladata"] = time.time()
-        s.setdefault("istoric", []).append(f"{ora} ESCALADATA catre Adrian dupa {gen + 1} incercari: {motiv[:300]}")
         noutate(f"ESCALADARE: sarcina {rad} nu s-a putut rezolva automat ({gen + 1} incercari)",
                 f"Proiect {s.get('proiect')}. Ultimul motiv al blocarii: {motiv[:700]}. Sarcina initiala: {initiala[:600]}. "
                 "Spune-i lui Adrian exact ce blocheaza si ce decizie sau actiune ii cere; nu o prezenta ca rezolvata.",
                 push=True, cheie=f"coada:escaladare:{rad}")
+        # marcată abia după ce anunțul a plecat: dacă anunțul pică, sarcina rămâne eligibilă și escaladarea se reîncearcă
+        s["escaladata"] = time.time()
+        s.setdefault("istoric", []).append(f"{ora} ESCALADATA catre Adrian dupa {gen + 1} incercari: {motiv[:300]}")
         return None
     istoric = " | ".join(str(x) for x in (s.get("istoric") or [])[-4:])
     text = (f"REDISTRIBUIRE {gen + 1}/{MAX_GENERATII} a sarcinii {rad}: incercarea {s['id']} s-a blocat.\n"
@@ -102,8 +113,14 @@ def redistribuie(s, motiv, adauga, noutate, salveaza, ora=None):
 
 
 def cheie_defect(s):
-    """Grupează sarcinile blocate care sunt același defect (cifrele, orele și id-urile nu contează)."""
+    """Grupează sarcinile blocate care sunt același defect. La alertele verificatorului cifrele nu contează (sunt măsurători);
+    la celelalte se scot doar datele, orele și id-urile de sarcină: «portul 8001» și «portul 8002» rămân sarcini diferite."""
     t = str(s.get("sarcina_initiala") or s.get("sarcina") or "")
     m = re.search(r"a gasit o problema: (.*?) \(", t)
-    baza = m.group(1) if m else t[:200]
-    return (s.get("proiect"), re.sub(r"\d+([.,:\-]\d+)*", "#", baza.lower()).strip())
+    if m:
+        return (s.get("proiect"), re.sub(r"\d+([.,:\-]\d+)*", "#", m.group(1).lower()).strip())
+    baza = t[:200].lower()
+    baza = re.sub(r"\b\d{8}-\d{6}-[0-9a-f]{4}\b", "#id", baza)
+    baza = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\.\d{1,2}\.\d{4}\b", "#data", baza)
+    baza = re.sub(r"\b\d{1,2}:\d{2}(:\d{2})?\b", "#ora", baza)
+    return (s.get("proiect"), baza.strip())

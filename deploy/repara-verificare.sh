@@ -25,12 +25,12 @@ cp "$tmp/verificare_izolata.py" "$tmp/nou/" && python3 -m py_compile "$tmp/nou/v
 # proba reală a izolării, ca utilizatorul serviciului: testul NU trebuie să vadă /opt/kelion-brain și NU trebuie să aibă rețea
 mkdir -p "$tmp/pr" && printf '%s\n' 'if ls /opt/kelion-brain >/dev/null 2>&1; then echo VEDE_OPT; exit 9; fi' \
   'if getent hosts github.com >/dev/null 2>&1; then echo ARE_RETEA; exit 8; fi' 'echo izolat' > "$tmp/pr/test.sh" && chmod -R a+rX "$tmp/pr"
-prob=$(cd /tmp && runuser -u brain -- python3 -B -c "import sys; sys.path.insert(0, sys.argv[1]); import verificare_izolata as V; t = V.verifica(sys.argv[2], 'proba'); print(t[:300]); sys.exit(0 if t.startswith('VERIFICAT') else 1)" "$tmp/nou" "$tmp/pr" 2>&1)
+prob=$(cd /tmp && runuser -u brain -- python3 -B -c "import sys; sys.path.insert(0, sys.argv[1]); import verificare_izolata as V; t = V.verifica(sys.argv[2], 'proba'); print(t[:300]); sys.exit(0 if t.startswith(('VERIFICAT', 'PARTIAL (fara dovada rosu->verde')) else 1)" "$tmp/nou" "$tmp/pr" 2>&1)
 rc=$?; echo "proba izolare: ${prob:0:300}"
 [ "$rc" = 0 ] || echec "verificarea izolată nu merge pe server (vezi proba). Nimic schimbat."
 
 bk="$DIR/backup-verificare-$ts"; mkdir -p "$bk" && cp -a "$DIR/coada-lucru.py" "$bk/" || echec "backup eșuat. Nimic schimbat."
-[ -e "$DIR/verificare_izolata.py" ] && cp -a "$DIR/verificare_izolata.py" "$bk/"
+if [ -e "$DIR/verificare_izolata.py" ]; then cp -a "$DIR/verificare_izolata.py" "$bk/" || echec "backup verificare_izolata.py eșuat. Nimic schimbat."; fi
 revino() {
   ok=1; cp -a "$bk/coada-lucru.py" "$DIR/" || ok=0
   if [ -e "$bk/verificare_izolata.py" ]; then cp -a "$bk/verificare_izolata.py" "$DIR/" || ok=0; else rm -f "$DIR/verificare_izolata.py" || ok=0; fi

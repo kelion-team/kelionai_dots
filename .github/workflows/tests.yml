@@ -55,6 +55,9 @@ jobs:
           python3 -B -m unittest deploy/test_verificare_izolata.py -v
           bash -n deploy/repara-copie-live.sh
           python3 -B -m unittest deploy/test_copie_live.py -v
+          bash -n deploy/repara-securitate.sh
+          python3 -m py_compile deploy/repara_livrare_aprobata.py deploy/kelion-aproba-livrare
+          python3 -B -m unittest deploy/test_repara_livrare_aprobata.py -v
           bash -n deploy/repara-laptop-retras.sh
           python3 -B -m unittest deploy/laptop/test_laptop_retras.py -v
           bash -n deploy/repara-bucle.sh

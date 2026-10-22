@@ -15,8 +15,15 @@ trap 'rm -rf "$tmp"' EXIT
 curl -fsSL "$RAW/repara_registru_procedura.py" -o "$tmp/r.py" || echec "descărcare eșuată. Nimic schimbat."
 python3 -B "$tmp/r.py" "$DIR" "$tmp/nou" || echec "proba a picat. Nimic schimbat."
 bk="$DIR/backup-registru-$ts"; mkdir -p "$bk" && cp -a "$DIR/coada-lucru.py" "$DIR/cerinte/registru-zi.json" "$bk/" || echec "backup eșuat."
-install -o brain -g brain -m 644 "$tmp/nou/coada-lucru.py" "$DIR/coada-lucru.py" || { cp -a "$bk/coada-lucru.py" "$DIR/"; echec "instalare eșuată; revenit."; }
-install -o brain -g brain -m 644 "$tmp/nou/cerinte/registru-zi.json" "$DIR/cerinte/registru-zi.json" || { cp -a "$bk/coada-lucru.py" "$DIR/"; cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; echec "instalare eșuată; revenit."; }
-python3 -m py_compile "$DIR/coada-lucru.py" || { cp -a "$bk/coada-lucru.py" "$DIR/"; cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; echec "compilare eșuată; revenit."; }
+revino() {   # ambele fișiere înapoi; o restaurare eșuată se spune explicit
+  if cp -a "$bk/coada-lucru.py" "$DIR/" && cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; then
+    echec "$*; revenit la backup ($bk)."
+  fi
+  echec "$*; REVENIRE INCOMPLETĂ: verifică manual $DIR/coada-lucru.py și $DIR/cerinte/registru-zi.json față de $bk"
+}
+install -o brain -g brain -m 644 "$tmp/nou/coada-lucru.py" "$DIR/coada-lucru.py" || revino "instalare coada-lucru.py eșuată"
+install -o brain -g brain -m 644 "$tmp/nou/cerinte/registru-zi.json" "$DIR/cerinte/registru-zi.json" || revino "instalare registru eșuată"
+python3 -m py_compile "$DIR/coada-lucru.py" || revino "compilare eșuată"
+[ -r "$DIR/cerinte/procedura-nou.md" ] || revino "cerinte/procedura-nou.md lipsește: lucrările s-ar opri toate"
 echo "dovadă: $(grep -c 'A12 (22.10)' "$DIR/coada-lucru.py") marcaj în coada-lucru.py; registru actualizat; backup $bk"
 echo "GATA. La următoarea verificare (max 10 min) R17, R20, R33, A4, A12 sunt verificate în fișierele corecte."

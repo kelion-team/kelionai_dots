@@ -59,15 +59,27 @@ def proba(dest):
     return "conexiunea CDP se închide la orice ieșire (și la excepții), în ambele locuri"
 
 
+# Prima versiune (aplicată pe 22.10 la 03:22) închidea conexiunea paznicului doar la return; o readucem la forma
+# inițială și aplicăm forma care închide și la excepții.
+V1_PAZNIC = ("        rez = {\"logat\": logat, \"buton_apel\": buton, \"url\": pg.url[:60]}\n"
+             "        await b.close()   # doar deconectare + ștergerea directorului temporar; Chrome rămâne\n"
+             "        return rez\n")
+ORIGINAL_RETURN = "        return {\"logat\": logat, \"buton_apel\": buton, \"url\": pg.url[:60]}\n"
+MARCAJE = {"pod_locuri/executor_server.py": "contextlib.closing(", "paznic.py": "stiva.push_async_callback(b.close)"}
+
+
 if __name__ == "__main__":
     sursa, dest = sys.argv[1], sys.argv[2]
-    if MARCAJ in open(os.path.join(sursa, "pod_locuri/executor_server.py"), encoding="utf-8").read():
+    texte = {f: open(os.path.join(sursa, f), encoding="utf-8").read() for f in R}
+    if all(MARCAJE[f] in t for f, t in texte.items()):
         raise SystemExit("DEJA APLICAT.")
+    if V1_PAZNIC in texte["paznic.py"]:
+        texte["paznic.py"] = texte["paznic.py"].replace(V1_PAZNIC, ORIGINAL_RETURN)
     for fisier, inl in R.items():
-        text = aplica(open(os.path.join(sursa, fisier), encoding="utf-8").read(), inl, fisier)
+        text = texte[fisier] if MARCAJE[fisier] in texte[fisier] else aplica(texte[fisier], inl, fisier)
         cale = os.path.join(dest, fisier)
         os.makedirs(os.path.dirname(cale), exist_ok=True)
         open(cale, "w", encoding="utf-8").write(text)
         py_compile.compile(cale, doraise=True)
-    print(f"OK: {sum(len(v) for v in R.values())} reparații, compilare reușită.")
+    print("OK: reparații aplicate (fișierele deja reparate au rămas neschimbate), compilare reușită.")
     print("OK proba:", proba(dest))

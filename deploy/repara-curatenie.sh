@@ -28,7 +28,11 @@ revino() {   # orice eșec după prima instalare: ambele fișiere înapoi, apoi 
 install -m 644 "$tmp/nou/pod_locuri/executor_server.py" "$POD/pod_locuri/executor_server.py" || revino "instalare executor_server.py"
 install -m 644 "$tmp/nou/paznic.py" "$POD/paznic.py" || revino "instalare paznic.py"
 rm -rf "$POD/pod_locuri/__pycache__" "$POD/__pycache__"
-systemctl restart kelion-pod || revino "repornirea kelion-pod"
+if cmp -s "$bk/pod_locuri/executor_server.py" "$POD/pod_locuri/executor_server.py"; then
+  echo "executor_server.py era deja reparat: fără repornire (paznic.py rulează din timer, nu cere repornire)"
+else
+  systemctl restart kelion-pod || revino "repornirea kelion-pod"
+fi
 sleep 25
 if ! systemctl is-active -q kelion-pod || ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"ok": true'; then
   revino "podul nu e sănătos după repornire"

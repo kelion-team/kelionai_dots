@@ -51,6 +51,21 @@ class Teste(unittest.TestCase):
         r2, _ = self.ruleaza(str(dest))
         self.assertNotEqual(r2.returncode, 0); self.assertIn("DEJA APLICAT", r2.stdout + r2.stderr)
 
+    def test_actualizare_de_la_prima_versiune(self):
+        v1_ex = EXEC.replace("            from playwright.sync_api import sync_playwright\n",
+                             "            import contextlib\n            from playwright.sync_api import sync_playwright\n").replace(
+            "                with sync_playwright() as pw:\n                    browser = pw.chromium.connect_over_cdp(f\"http://127.0.0.1:{loc.port_cdp}\", timeout=3000)\n",
+            "                with sync_playwright() as pw, contextlib.closing(\n                        pw.chromium.connect_over_cdp(f\"http://127.0.0.1:{loc.port_cdp}\", timeout=3000)) as browser:\n")
+        v1_pz = PAZ.replace('        return {"logat": logat, "buton_apel": buton, "url": pg.url[:60]}\n',
+            '        rez = {"logat": logat, "buton_apel": buton, "url": pg.url[:60]}\n'
+            '        await b.close()   # doar deconectare + ștergerea directorului temporar; Chrome rămâne\n'
+            '        return rez\n')
+        r, dest = self.ruleaza(self.sursa(ex=v1_ex, pz=v1_pz))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual((dest / "pod_locuri/executor_server.py").read_text(), v1_ex)
+        pz = (dest / "paznic.py").read_text()
+        self.assertIn("stiva.push_async_callback(b.close)", pz); self.assertNotIn("return rez", pz)
+
     def test_text_schimbat_nu_scrie_nimic(self):
         r, dest = self.ruleaza(self.sursa(ex=EXEC.replace("timeout=3000", "timeout=5000")))
         self.assertNotEqual(r.returncode, 0); self.assertIn("OPRIT", r.stdout + r.stderr)

@@ -23,7 +23,11 @@ ora = time.strftime("%Y-%m-%d %H:%M")
 LIMITA = time.time() - 48 * 3600
 blocate = [s for s in Q.toate() if s.get("stare") == "blocata" and not s.get("inlocuita_de") and not s.get("asteapta_aprobare")
            and not s.get("escaladata") and s.get("creat", 0) > LIMITA
-           and str(s.get("motiv_blocare", "")).startswith(("Activare new-only", "NEVERIFICATA"))]
+           and (str(s.get("motiv_blocare", "")).startswith(("Activare new-only", "NEVERIFICATA"))
+                or (str(s.get("motiv_blocare", "")).startswith(("Executie confirmata fizic", "Receptie neverificata"))
+                    and s.get("proiect") in ("kelion-remediere", "kelion-tester-remediere")))]   # S5: executate dar neverificate (doar remedierea automata)
+altele = [s for s in Q.toate() if s.get("stare") == "blocata" and not s.get("inlocuita_de") and s.get("creat", 0) > LIMITA
+          and str(s.get("motiv_blocare", "")).startswith("Executie confirmata fizic") and s.get("proiect") not in ("kelion-remediere", "kelion-tester-remediere")]
 grupe = {}
 for s in sorted(blocate, key=lambda x: x.get("creat", 0)):
     grupe.setdefault(PR.cheie_defect(s), []).append(s)
@@ -48,3 +52,5 @@ print(f"sarcini blocate repuse la analiză (48 h): {len(blocate)}; defecte disti
       f"«nicio lucrare blocata» închise ca urmare: {meta}")
 for x in noi:
     print("  " + x)
+if altele:   # sarcinile venite de la Kelion/ChatGPT: executate, neverificate; nu le relansez singur (decide Kelion sau Adrian)
+    print(f"executate dar neverificate, din alte proiecte (nerepuse): {len(altele)}: " + ", ".join(f"{s['id']} ({s['proiect']})" for s in altele[:10]))

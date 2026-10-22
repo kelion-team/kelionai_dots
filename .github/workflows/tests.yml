@@ -53,6 +53,8 @@ jobs:
           python3 -B -m unittest deploy/test_repara_coordonare.py -v
           bash -n deploy/repara-verificare.sh
           python3 -B -m unittest deploy/test_verificare_izolata.py -v
+          bash -n deploy/repara-copie-live.sh
+          python3 -B -m unittest deploy/test_copie_live.py -v
           bash -n deploy/repara-bucle.sh
           python3 -B -m unittest deploy/test_repara_bucle_remediere.py -v
           bash -n deploy/repara-curatenie.sh

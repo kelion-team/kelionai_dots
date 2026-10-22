@@ -69,10 +69,18 @@ def copiaza(sursa, tinta, sarite):
 
 def sincronizeaza(proiect, surse=SURSE, senzori=SENZORI):
     """Copia proaspătă în <proiect>/.kelion/live/. Întoarce nota pentru executant."""
-    live = os.path.join(proiect, ".kelion", "live")
-    if os.path.isdir(live):
-        for r, dirs, files in os.walk(live):
-            os.chmod(r, 0o755)
+    kelion = os.path.join(proiect, ".kelion")
+    live = os.path.join(kelion, "live")
+    # (22.10, recenzia Codex la #89) o legătură simbolică pusă de executant în loc de .kelion sau .kelion/live ar face ca
+    # chmod/rmtree să lucreze ÎN AFARA proiectului: legătura se scoate, nu se urmează
+    for c in (kelion, live):
+        if os.path.islink(c):
+            os.unlink(c)
+    os.makedirs(kelion, exist_ok=True)
+    if os.path.lexists(live):
+        for r, dirs, files in os.walk(live, followlinks=False):
+            if not os.path.islink(r):
+                os.chmod(r, 0o755)
         shutil.rmtree(live)
     os.makedirs(live)
     sarite, total = [], 0
@@ -80,12 +88,20 @@ def sincronizeaza(proiect, surse=SURSE, senzori=SENZORI):
         if os.path.isdir(sursa):
             total += copiaza(sursa, os.path.join(live, nume), sarite)
     os.makedirs(os.path.join(live, "senzori"), exist_ok=True)
-    for f in senzori:
+    for f in senzori:   # (22.10) și senzorii trec prin filtrul de secrete (un mesaj de eroare poate conține o cheie)
         try:
-            shutil.copyfile(f, os.path.join(live, "senzori", os.path.basename(f)))
-            total += 1
+            with open(f, "rb") as h:
+                date = h.read(MAX_OCTETI + 1)
         except OSError:
-            pass
+            continue
+        if len(date) > MAX_OCTETI or SECRET.search(date):
+            sarite.append(os.path.join("senzori", os.path.basename(f)))
+            continue
+        dst = os.path.join(live, "senzori", os.path.basename(f))
+        with open(dst, "wb") as h:
+            h.write(date)
+        os.chmod(dst, 0o444)
+        total += 1
     ora = time.strftime("%Y-%m-%d %H:%M:%S")
     with open(os.path.join(live, "INDEX.md"), "w", encoding="utf-8") as h:
         h.write(f"# Copia live ({ora})\n\nDoar de citit. {total} fișiere. Baza pentru diagnostic și pentru livrare.json "

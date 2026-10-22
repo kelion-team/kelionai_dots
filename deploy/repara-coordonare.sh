@@ -23,9 +23,10 @@ cp "$tmp/preluare_redistribuire.py" "$tmp/nou/" && python3 -m py_compile "$tmp/n
 
 bk="$DIR/backup-coordonare-$ts"; mkdir -p "$bk/cerinte" || echec "backup eșuat."
 cp -a "$DIR/coada-lucru.py" "$DIR/verifica-site.py" "$bk/" && cp -a "$DIR/cerinte/registru-zi.json" "$DIR/cerinte/reguli.json" "$bk/cerinte/" || echec "backup eșuat. Nimic schimbat."
-[ -e "$DIR/preluare_redistribuire.py" ] && cp -a "$DIR/preluare_redistribuire.py" "$bk/"
-[ -e "$DIR/cerinte/coordonare-21-10.md" ] && cp -a "$DIR/cerinte/coordonare-21-10.md" "$bk/cerinte/"
-[ -e "$DIR/cerinte/sistem-actiuni-verificate.md" ] && cp -a "$DIR/cerinte/sistem-actiuni-verificate.md" "$bk/cerinte/"
+# o copie opțională care eșuează oprește instalarea: altfel revino() ar lua lipsa ei drept «fișierul nu exista» și l-ar șterge
+if [ -e "$DIR/preluare_redistribuire.py" ]; then cp -a "$DIR/preluare_redistribuire.py" "$bk/" || echec "backup eșuat. Nimic schimbat."; fi
+if [ -e "$DIR/cerinte/coordonare-21-10.md" ]; then cp -a "$DIR/cerinte/coordonare-21-10.md" "$bk/cerinte/" || echec "backup eșuat. Nimic schimbat."; fi
+if [ -e "$DIR/cerinte/sistem-actiuni-verificate.md" ]; then cp -a "$DIR/cerinte/sistem-actiuni-verificate.md" "$bk/cerinte/" || echec "backup eșuat. Nimic schimbat."; fi
 revino() {   # tot înapoi; fișierele noi (fără copie în backup) se scot; o restaurare eșuată se spune explicit
   ok=1
   cp -a "$bk/coada-lucru.py" "$bk/verifica-site.py" "$DIR/" || ok=0

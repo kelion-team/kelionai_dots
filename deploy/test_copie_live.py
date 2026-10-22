@@ -42,6 +42,25 @@ def porneste(s, text, d):
 
 
 class Patch(unittest.TestCase):
+    def test_senzor_cu_secret_nu_se_copiaza(self):
+        sen = Path(tempfile.mkdtemp()) / "tester-ui.json"; sen.write_text('{"err": "token sk-' + "b" * 30 + '"}')
+        proiect = Path(tempfile.mkdtemp())
+        CL.sincronizeaza(str(proiect), surse=(), senzori=(str(sen),))
+        self.assertFalse((proiect / ".kelion" / "live" / "senzori" / "tester-ui.json").exists())
+        self.assertIn("senzori/tester-ui.json", (proiect / ".kelion" / "live" / "INDEX.md").read_text())
+
+    def test_legatura_simbolica_nu_e_urmata(self):
+        afara = Path(tempfile.mkdtemp()); (afara / "sub").mkdir(); os.chmod(afara / "sub", 0o700); (afara / "f.txt").write_text("x")
+        proiect = Path(tempfile.mkdtemp()); (proiect / ".kelion").mkdir()
+        os.symlink(afara, proiect / ".kelion" / "live")
+        CL.sincronizeaza(str(proiect), surse=(), senzori=())
+        self.assertTrue((afara / "f.txt").exists())                       # nimic sters in afara proiectului
+        self.assertEqual(oct(os.stat(afara / "sub").st_mode & 0o777), "0o700")   # nimic schimbat in afara
+        self.assertFalse(os.path.islink(proiect / ".kelion" / "live"))
+        k2 = Path(tempfile.mkdtemp()); p2 = Path(tempfile.mkdtemp()); os.symlink(k2, p2 / ".kelion")
+        CL.sincronizeaza(str(p2), surse=(), senzori=())
+        self.assertFalse(os.path.islink(p2 / ".kelion")); self.assertEqual(list(k2.iterdir()), [])
+
     def test_patch_si_rerulare(self):
         s = Path(tempfile.mkdtemp()); (s / "coada-lucru.py").write_text(COADA)
         d = Path(tempfile.mkdtemp())

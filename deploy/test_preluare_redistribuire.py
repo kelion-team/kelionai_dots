@@ -24,6 +24,22 @@ class Preluare(unittest.TestCase):
         self.assertIn("preluate 2 fișiere necomise înainte de sarcina S1", log)
         self.assertEqual(Path(d, ".env").read_text(), "K=1")
 
+    def test_env_deja_pregatit_nu_intra_in_commit(self):
+        d = repo(); g = lambda *a: subprocess.run(["git", "-C", d, *a], check=True, capture_output=True)
+        Path(d, ".env").write_text("SECRET=1"); g("add", ".env"); Path(d, "a.txt").write_text("2")
+        inainte = subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout
+        nota, sens = PR.preia_necomise(d, "S3")
+        self.assertIn("deja pregatite", nota); self.assertIn(".env", sens)
+        self.assertEqual(subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout, inainte)
+        self.assertNotIn(".env", subprocess.run(["git", "-C", d, "ls-tree", "-r", "--name-only", "HEAD"], capture_output=True, text=True).stdout)
+
+    def test_versiunea_pregatita_nu_e_suprascrisa(self):
+        d = repo(); g = lambda *a: subprocess.run(["git", "-C", d, *a], check=True, capture_output=True)
+        Path(d, "a.txt").write_text("PREGATIT"); g("add", "a.txt"); Path(d, "a.txt").write_text("1")
+        PR.preia_necomise(d, "S4")
+        idx = subprocess.run(["git", "-C", d, "show", ":a.txt"], capture_output=True, text=True).stdout
+        self.assertEqual(idx, "PREGATIT")
+
     def test_curat_si_fara_git(self):
         self.assertEqual(PR.preia_necomise(repo(), "S"), ("", []))
         self.assertEqual(PR.preia_necomise(tempfile.mkdtemp(), "S"), ("", []))
@@ -60,6 +76,20 @@ class Redistribuire(unittest.TestCase):
     def test_conectare_nefacuta_se_escaladeaza_direct(self):
         s = {"id": "S2", "proiect": "p", "sarcina": "y"}
         self.assertIsNone(self.r(s, "CONECTARE NEFACUTA: login")); self.assertEqual(self.noi, []); self.assertTrue(s["escaladata"])
+
+    def test_escaladarea_se_marcheaza_doar_dupa_anunt(self):
+        s = {"id": "S5", "proiect": "p", "sarcina": "y", "generatie": 3}
+        def pica(*a, **k): raise OSError("canal oprit")
+        with self.assertRaises(OSError):
+            PR.redistribuie(s, "tot blocat", self.adauga, pica, self.salvate.append, "ora")
+        self.assertNotIn("escaladata", s)
+        self.assertIsNone(self.r(s, "tot blocat")); self.assertTrue(s["escaladata"])
+
+    def test_cheie_defect_pastreaza_parametrii_numerici(self):
+        a = {"proiect": "k", "sarcina": "Configureaza portul 8001 la 10:15 pe 2026-10-22"}
+        b = {"proiect": "k", "sarcina": "Configureaza portul 8002 la 11:40 pe 2026-10-21"}
+        c = {"proiect": "k", "sarcina": "Configureaza portul 8001 la 12:00 pe 2026-10-23"}
+        self.assertNotEqual(PR.cheie_defect(a), PR.cheie_defect(b)); self.assertEqual(PR.cheie_defect(a), PR.cheie_defect(c))
 
     def test_cheie_defect_ignora_cifrele(self):
         a = {"proiect": "k", "sarcina": "Verificarea automata a site-ului Kelion a gasit o problema: Locatia (acum 3743 min)."}

@@ -124,7 +124,7 @@ class DeployFailureTests(unittest.TestCase):
             with self.subTest(step=step):
                 result, events, files = self.run_script(step, ref=None)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn('KELION_REF', result.stdout)
+                self.assertIn('KELION_REF', result.stderr)
                 self.assertEqual(events, [])
                 self.assertTrue(all(v == 'original\n' for v in files.values()))
 
@@ -217,7 +217,7 @@ class DeployFailureTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(events, [])
                     self.assertTrue(all(v == 'original\n' for v in files.values()))
-                    self.assertIn('KELION_REF', result.stdout)
+                    self.assertIn('KELION_REF', result.stderr)
 
     def test_new_call_during_preparation_stops_before_backup_install_restart(self):
         for step in (2, 3):

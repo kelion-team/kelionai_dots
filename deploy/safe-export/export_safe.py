@@ -6,6 +6,8 @@ from urllib.request import Request, urlopen
 ROOTS = ('opt/kelion-pod', 'opt/kelion-brain', 'opt/kelion-control')
 CONFIGS = {'opt/kelion-pod/locuri.json','opt/kelion-control/platform-navigation.json', *(f'opt/kelion-control/assets/{x}.i18n.json' for x in ('portal','jobs','companion','navigation'))}
 EXTS = {'.py','.sh','.js','.mjs','.css','.html'}
+# Directoare de lucru/revizie (copii, candidați, teste), nu cod live: în afara copiei.
+EXCLUDE_PATHS = ('opt/kelion-brain/work',)
 EXCLUDE = ('*venv','__pycache__','backup*','*.backup-*','node_modules','modele','models','audit_jobs','chrome*','loc[0-9]*','capturi','.env*','*.env','.git')
 TARGET = 'kelion-team/kelion-brain'
 URL = f'https://github.com/{TARGET}.git'
@@ -35,13 +37,13 @@ def regular_read(p):
         if (after.st_dev,after.st_ino,after.st_ctime_ns)!=(b.st_dev,b.st_ino,b.st_ctime_ns): raise Stop('Fișier înlocuit după citire')
         return data
     finally: os.close(fd)
-def tree_files(root, exclusions=()):
+def tree_files(root, exclusions=(), skip=()):
     root=Path(root); check_parents(root)
     if not stat.S_ISDIR(root.lstat().st_mode): raise Stop('Rădăcină invalidă')
     def visit(d):
         with os.scandir(d) as entries: items=sorted(entries,key=lambda e:e.name)
         for e in items:
-            if any(fnmatch.fnmatch(e.name, pattern) for pattern in exclusions): continue
+            if any(fnmatch.fnmatch(e.name, pattern) for pattern in exclusions) or e.path in skip: continue
             s=e.stat(follow_symlinks=False)
             if stat.S_ISDIR(s.st_mode):
                 check_parents(e.path); yield from visit(Path(e.path))
@@ -122,7 +124,7 @@ def _prepare(base, work):
         source=base/root
         if not source.exists(): raise Stop(f'Lipsește rădăcina aprobată: {root}')
         # Excluderile sunt eliminate înainte de stat/descent; staging rămâne strict.
-        for p in tree_files(source, EXCLUDE):
+        for p in tree_files(source, EXCLUDE, {str(base/x) for x in EXCLUDE_PATHS}):
             rel=p.relative_to(base).as_posix(); parts=p.relative_to(source).parts
             if any(fnmatch.fnmatch(part,pat) for part in parts for pat in EXCLUDE): continue
             if p.suffix in EXTS or rel in CONFIGS: copy(p,rel)

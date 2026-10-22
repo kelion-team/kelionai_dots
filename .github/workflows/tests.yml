@@ -44,6 +44,8 @@ jobs:
           bash -n deploy/verifica-grupuri-whatsapp.sh
           python3 -m py_compile deploy/repara_grupuri.py
           python3 -m py_compile deploy/repara_necunoscuti.py
+          bash -n deploy/repara-verificator.sh
+          python3 -B -m unittest deploy/test_repara_verificator.py -v
       - name: Export sigur (safe-export)
         working-directory: deploy/safe-export
         run: |

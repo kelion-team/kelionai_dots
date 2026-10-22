@@ -61,6 +61,36 @@ class Teste(unittest.TestCase):
         finally:
             os.environ.pop("KELION_LIVRARE_AUTOMATA")
 
+    def test_asteptare_veche_pe_skilluri_primeste_si_aprobarea_lucrarii(self):
+        ns = self.ns(); lid = "20261022-080000-abcd"
+        s = {"id": "S1", "proiect": "p", "istoric": [], "live": {"lucrare": lid, "stare": "asteapta-aprobare", "aprobari_cerute": [{"sha256": "skill1"}]}}
+        ns["etapa_live"](s, {"id": lid}, "ora")
+        self.assertEqual({x["sha256"] for x in s["live"]["aprobari_cerute"]}, {"skill1", "lucrare:" + lid})
+        self.assertEqual(len(ns["ANUNTURI"]), 1); self.assertTrue(s["istoric"])
+        self.apr.write_text(json.dumps({"skilluri": {"skill1": {}}, "lucrari": {lid: {}}}))
+        ns["etapa_live"](s, {"id": lid}, "ora")
+        self.assertEqual(s["live"]["stare"], "cerut")
+
+    def test_livrarea_automata_reia_ce_astepta_doar_aprobarea_lucrarii(self):
+        ns = self.ns(); lid = "20261022-080000-abcd"; s = {"id": "S1", "proiect": "p", "istoric": []}
+        ns["etapa_live"](s, {"id": lid}, "ora"); self.assertEqual(s["live"]["stare"], "asteapta-aprobare")
+        os.environ["KELION_LIVRARE_AUTOMATA"] = "1"
+        try:
+            ns2 = self.ns(); ns2["etapa_live"](s, {"id": lid}, "ora")
+            self.assertEqual(s["live"]["stare"], "cerut")
+        finally:
+            os.environ.pop("KELION_LIVRARE_AUTOMATA")
+
+    def test_v2_se_aplica_peste_v1_instalat(self):
+        sys.path.insert(0, str(AICI)); import repara_livrare_aprobata as P
+        t = COADA
+        for _, vechi, nou in P.COADA:
+            t = t.replace(vechi, nou)
+        self.assertIn(P.MARCAJ, t); self.assertNotIn(P.MARCAJ2, t)
+        t2, schimbat = P.aplica(t)
+        self.assertTrue(schimbat); self.assertIn(P.MARCAJ2, t2)
+        self.assertEqual(P.aplica(t2), (t2, False))
+
     def test_rerulare_si_ancora_lipsa(self):
         r = subprocess.run([sys.executable, "-B", str(AICI / "repara_livrare_aprobata.py"), str(self.dst), str(tempfile.mkdtemp())], capture_output=True, text=True)
         self.assertIn("DEJA APLICAT", r.stdout)

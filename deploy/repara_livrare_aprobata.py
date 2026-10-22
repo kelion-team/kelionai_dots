@@ -40,14 +40,43 @@ COADA = [
 ]
 
 
+MARCAJ2 = "(22.10) livrare doar cu aprobare v2"
+# v2 (recenzia Codex la #93): o așteptare veche (skill-uri) pentru aceeași lucrare primește și aprobarea lucrării, cu anunț;
+# cu KELION_LIVRARE_AUTOMATA=1 o lucrare care aștepta doar aprobarea lucrării pornește singură.
+COADA2 = [
+    ("poarta v2",
+     '        if not (L.get("lucrare") == lid and L.get("stare") == "asteapta-aprobare"):\n'
+     '            cerute = [{"dest": f"livrarea pe live a lucrarii {lid}", "sha256": "lucrare:" + lid}]\n'
+     '            s["live"] = {"lucrare": lid, "stare": "asteapta-aprobare", "aprobari_cerute": cerute, "cerut": acum}\n',
+     '        # (22.10) livrare doar cu aprobare v2: o asteptare veche (skill-uri) a aceleiasi lucrari primeste si aprobarea lucrarii\n'
+     '        jeton = "lucrare:" + lid\n'
+     '        vechi = list(L.get("aprobari_cerute") or []) if (L.get("lucrare") == lid and L.get("stare") == "asteapta-aprobare") else []\n'
+     '        if not any(x.get("sha256") == jeton for x in vechi):\n'
+     '            cerute = vechi + [{"dest": f"livrarea pe live a lucrarii {lid}", "sha256": jeton}]\n'
+     '            s["live"] = dict(L if L.get("lucrare") == lid else {}, lucrare=lid, stare="asteapta-aprobare", aprobari_cerute=cerute, cerut=acum)\n'),
+    ("reluare cu livrarea automata",
+     '    if L.get("lucrare") != lid or (L.get("stare") == "amanat" and acum >= L.get("urmatoarea", 0)) or aprobat_acum:\n',
+     '    reluare_automata = LIVRARE_AUTOMATA and L.get("lucrare") == lid and L.get("stare") == "asteapta-aprobare" and \\\n'
+     '        {x.get("sha256") for x in L.get("aprobari_cerute") or []} - _aprobate() <= {"lucrare:" + lid}\n'
+     '    if L.get("lucrare") != lid or (L.get("stare") == "amanat" and acum >= L.get("urmatoarea", 0)) or aprobat_acum or reluare_automata:\n'),
+]
+
+
 def aplica(t):
-    if MARCAJ in t:
-        return t, False
-    for nume, vechi, nou in COADA:
-        if t.count(vechi) != 1:
-            raise SystemExit(f"OPRIT: coada-lucru.py: «{nume}» găsit de {t.count(vechi)} ori. Nu s-a scris nimic.")
-        t = t.replace(vechi, nou)
-    return t, True
+    schimbat = False
+    if MARCAJ not in t:
+        for nume, vechi, nou in COADA:
+            if t.count(vechi) != 1:
+                raise SystemExit(f"OPRIT: coada-lucru.py: «{nume}» găsit de {t.count(vechi)} ori. Nu s-a scris nimic.")
+            t = t.replace(vechi, nou)
+        schimbat = True
+    if MARCAJ2 not in t:
+        for nume, vechi, nou in COADA2:
+            if t.count(vechi) != 1:
+                raise SystemExit(f"OPRIT: coada-lucru.py: «{nume}» găsit de {t.count(vechi)} ori. Nu s-a scris nimic.")
+            t = t.replace(vechi, nou)
+        schimbat = True
+    return t, schimbat
 
 
 if __name__ == "__main__":

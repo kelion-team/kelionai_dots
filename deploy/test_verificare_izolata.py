@@ -123,6 +123,42 @@ class Teste(unittest.TestCase):
             self.assertIn("node_modules/pachet/index.js", c)
         self.assertLessEqual(f.timeouts[1], f.timeouts[0]); self.assertLessEqual(f.timeouts[0], 50)
 
+    def test_testul_care_se_modifica_singur_nu_dovedeste(self):
+        d = git_proiect("def f(a, b):\n    return a + b\n", "def f(a, b):\n    return a + b  # nimic reparat\n")
+        def judeca(c):
+            t = (c / "test.sh").read_text()
+            if "exit 1" in t:
+                return 1
+            (c / "test.sh").write_text("exit 1\n")   # «verde» isi strica testul ca baza sa pice
+            return 0
+        t = VI.verifica(d, "L1", rulare=Fals(judeca=judeca))
+        self.assertFalse(t.startswith("VERIFICAT"), t)
+
+    def test_legatura_spre_director_in_baza_nu_scrie_afara(self):
+        afara = Path(tempfile.mkdtemp())
+        d = tempfile.mkdtemp(); g = lambda *a: subprocess.run(["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t", *a], check=True, capture_output=True)
+        g("init", "-q"); Path(d, "aduna.py").write_text("def f(a, b):\n    return a - b\n"); os.symlink(afara, Path(d, "tests"))
+        g("add", "-A"); g("commit", "-qm", "baza"); baza = subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        os.unlink(Path(d, "tests")); Path(d, "tests").mkdir(); Path(d, "tests", "test_x.py").write_text("x")
+        Path(d, "aduna.py").write_text("def f(a, b):\n    return a + b\n"); Path(d, "test.sh").write_text("true\n")
+        g("add", "-A"); g("commit", "-qm", "lucrare"); cap = subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        Path(d, ".kelion", "lucrari").mkdir(parents=True)
+        Path(d, ".kelion", "lucrari", "L1.receipt.json").write_text(json.dumps({"base_commit": baza, "commit": cap}))
+        VI.verifica(d, "L1", rulare=Fals(judeca=lambda c: 0 if "a + b" in (c / "aduna.py").read_text() else 1))
+        self.assertEqual(list(afara.iterdir()), [])
+
+    def test_limita_de_marime_pe_commit(self):
+        d = git_proiect("def f(a, b):\n    return a - b\n", "def f(a, b):\n    return a + b\n")
+        vechi = VI.LIMITA_OCTETI
+        try:
+            VI.LIMITA_OCTETI = 10 ** 9
+            m = VI._marime_rev(d, "HEAD"); self.assertGreater(m, 0)
+            VI.LIMITA_OCTETI = m - 1
+            t = VI.verifica(d, "L1", rulare=Fals(judeca=judeca_aduna))
+            self.assertFalse(t.startswith("VERIFICAT"), t)
+        finally:
+            VI.LIMITA_OCTETI = vechi
+
     @unittest.skipUnless(shutil.which("bwrap"), "bwrap lipseste")
     def test_bwrap_real(self):
         d = proiect("ls /opt/kelion-brain 2>/dev/null && exit 9; getent hosts github.com && exit 8; echo izolat")

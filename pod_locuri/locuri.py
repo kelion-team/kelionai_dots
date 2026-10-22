@@ -32,6 +32,11 @@ DOTS_URL = "https://chatgpt.com/dots/home"
 LOGIN_URL = "https://chatgpt.com/auth/login"
 
 
+def valideaza_apel_id(apel_id):
+    if not isinstance(apel_id, str) or not apel_id.strip():
+        raise ValueError("apel_id trebuie sa fie un identificator text nevid")
+
+
 @dataclass
 class Loc:
     numar: int
@@ -176,6 +181,7 @@ class Manager:
         """Primul loc pregătit. Dacă un loc doar se pregătește (ex. reîncărcare după apelul anterior), apelul AȘTEAPTĂ
         până la asteapta_s secunde în loc să fie refuzat. None doar când toate locurile posibile sunt ocupate
         sau nimic nu s-a pregătit în timp (atunci: «ocupat» + alertă)."""
+        valideaza_apel_id(apel_id)
         with self.lock:
             self._alocari[apel_id] = self._alocari.get(apel_id, 0) + 1
         try:
@@ -237,6 +243,7 @@ class Manager:
             self._dormi(0.5)
 
     def elibereaza(self, apel_id):
+        valideaza_apel_id(apel_id)
         with self.lock:
             if apel_id in self._alocari:
                 self._anulate.add(apel_id)

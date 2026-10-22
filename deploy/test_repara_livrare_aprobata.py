@@ -100,6 +100,32 @@ class Teste(unittest.TestCase):
 
 
 class Aproba(unittest.TestCase):
+    def test_reaprobare_nu_rescrie_aprobarea_existenta(self):
+        # Exercise the real lock and main route; only root identity is simulated.
+        import importlib.machinery
+        import importlib.util
+        from unittest.mock import patch
+        loader = importlib.machinery.SourceFileLoader("aproba_retry", str(AICI / "kelion-aproba-livrare"))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        lid = "20261022-080000-abcd"
+        with tempfile.TemporaryDirectory() as directory:
+            approvals = Path(directory) / "aprobari.json"
+            original = json.dumps({"skilluri": {"x": 1}, "lucrari": {
+                lid: {"ora": "2026-10-22 08:00:00", "de": "Adrian", "nota": "pastrata"},
+                "20261022-090000-beef": {"ora": "alta aprobare"}}}).encode()
+            approvals.write_bytes(original)
+            before = approvals.stat()
+            with patch.object(module, "APROBARI", str(approvals)), \
+                 patch.object(module.os, "geteuid", return_value=0), \
+                 patch.object(module.tempfile, "mkstemp", side_effect=AssertionError("retry rewrote approval")):
+                self.assertEqual(module.main([lid]), 0)
+                self.assertEqual(module.main([lid]), 0)
+            self.assertEqual(approvals.read_bytes(), original)
+            self.assertEqual(approvals.stat().st_ino, before.st_ino)
+            self.assertEqual(approvals.stat().st_mtime_ns, before.st_mtime_ns)
+
     @unittest.skipUnless(os.geteuid() == 0, "doar ca root")
     def test_aproba_pastreaza_skilluri(self):
         apr = Path(tempfile.mkdtemp()) / "aprobari.json"; apr.write_text(json.dumps({"skilluri": {"x": 1}}))

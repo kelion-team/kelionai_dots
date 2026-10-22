@@ -8,6 +8,8 @@
   Registrul (cerinte/registru-zi.json) se actualizează să verifice acolo. Aceasta e dovadă de cod, nu probă live.
 - A4: nav.js arată deja pe fiecare buton dovada de fișier și de funcționare («Fișier verificat; funcționare
   neconfirmată» / «Ultimul test funcțional a trecut», liniile 465-490); registrul căuta alt text («funcționare dovedită»).
+- R5: registrul cerea «BUCLA» în coada-lucru.py; detectarea buclei e în verificator și tester (PR #81, aplicat 03:41).
+- «contine» e regex în verifica-site.py: «test.sh (OBLIGATORIU» a stricat verificarea R33 (paranteză nepereche). Acum e escapat.
 - A12: procedura-nou.md nu mai era citită nicăieri. coada-lucru.py o adaugă acum la instrucțiunile fiecărei lucrări.
 
   python3 repara_registru_procedura.py SURSA DESTINATIE   (SURSA = /opt/kelion-brain)
@@ -21,7 +23,11 @@ VERIFICA = {
     "R17": {"tip": "fisier", "cale": ["/opt/kelion-brain/transfer_automat.py", "/opt/kelion-brain/coada-lucru.py"],
             "contine": ["def declanseaza_kelion", "def porneste_supraveghetor"]},
     "R20": {"tip": "fisier", "cale": ["/opt/kelion-brain/brain.py"], "contine": ["Plasa de siguranta", "CLASIFICA_ROL_CERERE"]},
-    "R33": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py"], "contine": ["kelion-pregateste-livrare", "test.sh (OBLIGATORIU"]},
+    "R33": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py"], "contine": ["kelion-pregateste-livrare", r"Adauga test\.sh \(OBLIGATORIU"]},
+    # R5 (22.10): «contine» e expresie regulată în verifica-site.py (re.search). Bucla de remediere e oprită în
+    # verifica-site.py (cheie fără cifre) și tester-ui.py (semnătură 24 h), nu în coada-lucru.py, unde «BUCLA» nu a existat.
+    "R5": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py", "/opt/kelion-brain/verifica-site.py", "/opt/kelion-brain/tester-ui.py"],
+           "contine": ["MAX_INCERCARI", "FARA_PROGRES_S", "cheie fără cifre", r"stare_rep = OUT"]},
     "A4": {"tip": "fisier", "cale": ["/var/www/kelion/app/nav.js"],
            "contine": ["Ultimul test funcțional a trecut", "Fișier verificat; funcționare neconfirmată"]},
     "A12": {"tip": "fisier", "cale": ["/opt/kelion-brain/cerinte/procedura-nou.md", "/opt/kelion-brain/coada-lucru.py"],
@@ -61,4 +67,4 @@ if __name__ == "__main__":
     py_compile.compile(os.path.join(dest, "coada-lucru.py"), doraise=True)
     with open(os.path.join(dest, "cerinte", "registru-zi.json"), "w", encoding="utf-8") as h:
         json.dump(reg, h, ensure_ascii=False, indent=1)
-    print("OK: coada-lucru.py (A12) + registru (R17, R20, R33, A4, A12), compilare reușită.")
+    print("OK: coada-lucru.py (A12) + registru (R5, R17, R20, R33, A4, A12), compilare reușită.")

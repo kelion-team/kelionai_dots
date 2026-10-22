@@ -19,7 +19,7 @@ class Teste(unittest.TestCase):
     def test_procedura_in_instructiuni_si_registru(self):
         s = Path(tempfile.mkdtemp()); (s / "cerinte").mkdir()
         (s / "coada-lucru.py").write_text(COADA)
-        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"cerinte": [{"id": i, "verifica": {}} for i in ("R17", "R20", "R33", "A12", "R1")]}))
+        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"cerinte": [{"id": i, "verifica": {}} for i in ("R17", "R20", "R33", "A4", "A12", "R1")]}))
         d = Path(tempfile.mkdtemp())
         r = subprocess.run([sys.executable, "-B", str(SCRIPT), str(s), str(d)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

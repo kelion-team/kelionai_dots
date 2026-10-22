@@ -19,4 +19,4 @@ install -o brain -g brain -m 644 "$tmp/nou/coada-lucru.py" "$DIR/coada-lucru.py"
 install -o brain -g brain -m 644 "$tmp/nou/cerinte/registru-zi.json" "$DIR/cerinte/registru-zi.json" || { cp -a "$bk/coada-lucru.py" "$DIR/"; cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; echec "instalare eșuată; revenit."; }
 python3 -m py_compile "$DIR/coada-lucru.py" || { cp -a "$bk/coada-lucru.py" "$DIR/"; cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; echec "compilare eșuată; revenit."; }
 echo "dovadă: $(grep -c 'A12 (22.10)' "$DIR/coada-lucru.py") marcaj în coada-lucru.py; registru actualizat; backup $bk"
-echo "GATA. La următoarea verificare (max 10 min) R17, R20, R33, A12 sunt verificate în fișierele corecte."
+echo "GATA. La următoarea verificare (max 10 min) R17, R20, R33, A4, A12 sunt verificate în fișierele corecte."

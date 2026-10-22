@@ -6,6 +6,8 @@
     R20 rolul de rezervă: brain.py «Plasa de siguranta» + CLASIFICA_ROL_CERERE (apel haiku separat);
     R33 livrarea prin flux: coada-lucru.py cere kelion-pregateste-livrare și test.sh OBLIGATORIU la validare.
   Registrul (cerinte/registru-zi.json) se actualizează să verifice acolo. Aceasta e dovadă de cod, nu probă live.
+- A4: nav.js arată deja pe fiecare buton dovada de fișier și de funcționare («Fișier verificat; funcționare
+  neconfirmată» / «Ultimul test funcțional a trecut», liniile 465-490); registrul căuta alt text («funcționare dovedită»).
 - A12: procedura-nou.md nu mai era citită nicăieri. coada-lucru.py o adaugă acum la instrucțiunile fiecărei lucrări.
 
   python3 repara_registru_procedura.py SURSA DESTINATIE   (SURSA = /opt/kelion-brain)
@@ -20,6 +22,8 @@ VERIFICA = {
             "contine": ["def declanseaza_kelion", "def porneste_supraveghetor"]},
     "R20": {"tip": "fisier", "cale": ["/opt/kelion-brain/brain.py"], "contine": ["Plasa de siguranta", "CLASIFICA_ROL_CERERE"]},
     "R33": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py"], "contine": ["kelion-pregateste-livrare", "OBLIGATORIU"]},
+    "A4": {"tip": "fisier", "cale": ["/var/www/kelion/app/nav.js"],
+           "contine": ["Ultimul test funcțional a trecut", "Fișier verificat; funcționare neconfirmată"]},
     "A12": {"tip": "fisier", "cale": ["/opt/kelion-brain/cerinte/procedura-nou.md", "/opt/kelion-brain/coada-lucru.py"],
             "contine": ["procedura-nou.md"]},
 }
@@ -56,4 +60,4 @@ if __name__ == "__main__":
     py_compile.compile(os.path.join(dest, "coada-lucru.py"), doraise=True)
     with open(os.path.join(dest, "cerinte", "registru-zi.json"), "w", encoding="utf-8") as h:
         json.dump(reg, h, ensure_ascii=False, indent=1)
-    print("OK: coada-lucru.py (A12) + registru (R17, R20, R33, A12), compilare reușită.")
+    print("OK: coada-lucru.py (A12) + registru (R17, R20, R33, A4, A12), compilare reușită.")

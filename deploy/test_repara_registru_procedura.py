@@ -26,8 +26,11 @@ class Teste(unittest.TestCase):
         (d / "cerinte" / "procedura-nou.md").write_text("PROCEDURA KELION")
         ns = {"__file__": str(d / "coada-lucru.py")}; exec((d / "coada-lucru.py").read_text(), ns)
         self.assertEqual(ns["delegare_rol"]({}), ("ROL", "PREFIX\n\nPROCEDURA KELION"))
+        (d / "cerinte" / "procedura-nou.md").unlink()
+        rol, pref = ns["delegare_rol"]({})
+        self.assertIn("indisponibila", rol); self.assertTrue(pref.startswith("OPRESTE"))
         reg = {x["id"]: x for x in json.loads((d / "cerinte" / "registru-zi.json").read_text())["cerinte"]}
-        self.assertIn("Plasa de siguranta", reg["R20"]["verifica"]["contine"]); self.assertEqual(reg["R1"]["verifica"], {})
+        self.assertIn("Plasa de siguranta", reg["R20"]["verifica"]["contine"]); self.assertIn("test.sh (OBLIGATORIU", reg["R33"]["verifica"]["contine"]); self.assertEqual(reg["R1"]["verifica"], {})
 
 
 if __name__ == "__main__":

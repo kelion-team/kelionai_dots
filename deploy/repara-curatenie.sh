@@ -37,9 +37,19 @@ inainte=$(numara)
 # Doar directoarele GOALE, ale utilizatorului brain, mai vechi de 10 minute (resturile vechii scurgeri).
 find /tmp -maxdepth 1 -name 'playwright-artifacts-*' -user brain -empty -mmin +10 -delete
 dupa_curatare=$(numara)
-sleep 120
-dupa_2min=$(numara)
+marcaj="$tmp/marcaj"; touch "$marcaj"
+sleep 180
+# Doar directoarele goale apărute după curățare și mai vechi de 1 minut (nu cele ale unei probe în curs).
+noi=$(find /tmp -maxdepth 1 -name 'playwright-artifacts-*' -user brain -empty -newer "$marcaj" -mmin +1 | wc -l)
 echo "--- dovezi:"
-echo "directoare goale: înainte $inainte, după curățare $dupa_curatare, după încă 2 minute $dupa_2min (vechiul ritm: ~19 în 2 minute)"
-curl -s -m 5 http://127.0.0.1:8095/sanatate | head -c 250; echo
+echo "directoare goale: înainte $inainte, după curățare $dupa_curatare; rămase noi în 3 minute: $noi (vechiul ritm: ~28)"
+sanatate=$(curl -s -m 5 http://127.0.0.1:8095/sanatate); echo "${sanatate:0:250}"
+problema=""
+grep -q '"ok": true' <<<"$sanatate" || problema="podul nu mai e sănătos după 3 minute"
+[ "$noi" -le 2 ] || problema="scurgerea continuă ($noi directoare noi în 3 minute)"
+if [ -n "$problema" ]; then
+  # Nu repornim peste un apel început între timp: revenirea se face manual, după apel.
+  liber || echec "$problema; e un apel în curs, deci NU repornesc. După apel: cp -a $bk/pod_locuri/executor_server.py $POD/pod_locuri/ && cp -a $bk/paznic.py $POD/ && systemctl restart kelion-pod"
+  revino "$problema"
+fi
 echo "GATA. Backup: $bk"

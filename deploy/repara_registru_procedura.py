@@ -21,7 +21,7 @@ VERIFICA = {
     "R17": {"tip": "fisier", "cale": ["/opt/kelion-brain/transfer_automat.py", "/opt/kelion-brain/coada-lucru.py"],
             "contine": ["def declanseaza_kelion", "def porneste_supraveghetor"]},
     "R20": {"tip": "fisier", "cale": ["/opt/kelion-brain/brain.py"], "contine": ["Plasa de siguranta", "CLASIFICA_ROL_CERERE"]},
-    "R33": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py"], "contine": ["kelion-pregateste-livrare", "OBLIGATORIU"]},
+    "R33": {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py"], "contine": ["kelion-pregateste-livrare", "test.sh (OBLIGATORIU"]},
     "A4": {"tip": "fisier", "cale": ["/var/www/kelion/app/nav.js"],
            "contine": ["Ultimul test funcțional a trecut", "Fișier verificat; funcționare neconfirmată"]},
     "A12": {"tip": "fisier", "cale": ["/opt/kelion-brain/cerinte/procedura-nou.md", "/opt/kelion-brain/coada-lucru.py"],
@@ -33,8 +33,9 @@ COADA = [("procedura-nou.md în fiecare lucrare",
           "        try:   # A12 (22.10): procedura pentru orice componentă nouă intră în instrucțiunile fiecărei lucrări\n"
           "            cale = os.path.join(os.path.dirname(os.path.abspath(__file__)), \"cerinte\", \"procedura-nou.md\")\n"
           "            prefix = (prefix + \"\\n\\n\" if prefix else \"\") + open(cale, encoding=\"utf-8\").read()\n"
-          "        except OSError:\n"
-          "            pass\n"
+          "        except OSError as eroare_proc:   # fail-closed: fara procedura, lucrarea se opreste si raporteaza\n"
+          "            return (efectiv + ales + f\" (procedura-nou.md indisponibila: {type(eroare_proc).__name__})\",\n"
+          "                    \"OPRESTE: cerinte/procedura-nou.md lipseste sau nu poate fi citita. Nu lucra; raporteaza BLOCAT cu acest motiv.\")\n"
           "        return efectiv + ales, prefix\n")]
 MARCAJ = "A12 (22.10)"
 

@@ -19,7 +19,7 @@ class Teste(unittest.TestCase):
     def test_procedura_in_instructiuni_si_registru(self):
         s = Path(tempfile.mkdtemp()); (s / "cerinte").mkdir()
         (s / "coada-lucru.py").write_text(COADA)
-        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"cerinte": [{"id": i, "verifica": {}} for i in ("R17", "R20", "R33", "A4", "A12", "R1")]}))
+        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"cerinte": [{"id": i, "verifica": {}} for i in ("R5", "R17", "R20", "R33", "A4", "A12", "R1")]}))
         d = Path(tempfile.mkdtemp())
         r = subprocess.run([sys.executable, "-B", str(SCRIPT), str(s), str(d)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -30,7 +30,17 @@ class Teste(unittest.TestCase):
         rol, pref = ns["delegare_rol"]({})
         self.assertIn("indisponibila", rol); self.assertTrue(pref.startswith("OPRESTE"))
         reg = {x["id"]: x for x in json.loads((d / "cerinte" / "registru-zi.json").read_text())["cerinte"]}
-        self.assertIn("Plasa de siguranta", reg["R20"]["verifica"]["contine"]); self.assertIn("test.sh (OBLIGATORIU", reg["R33"]["verifica"]["contine"]); self.assertEqual(reg["R1"]["verifica"], {})
+        self.assertIn("Plasa de siguranta", reg["R20"]["verifica"]["contine"]); self.assertEqual(reg["R1"]["verifica"], {}); self.assertEqual(reg["R1"]["verifica"], {})
+
+    def test_contine_e_regex_valid_si_gaseste_textul_live(self):
+        import importlib.util, re
+        spec = importlib.util.spec_from_file_location("r", SCRIPT); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+        for i, v in m.VERIFICA.items():
+            for p in v["contine"]:
+                re.compile(p)   # verifica-site.py folosește re.search
+        live = 'Adauga test.sh (OBLIGATORIU, si pentru "'   # coada-lucru.py linia 496 (22.10)
+        self.assertTrue(re.search(m.VERIFICA["R33"]["contine"][1], live))
+        self.assertTrue(re.search(m.VERIFICA["R5"]["contine"][3], "    stare_rep = OUT + \".reparatie\""))
 
 
 if __name__ == "__main__":

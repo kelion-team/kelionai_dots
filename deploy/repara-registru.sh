@@ -1,38 +1,7 @@
 #!/usr/bin/env bash
-# R5/R17/R20/R33/A12 (22.10.2026): registrul verifică funcțiile acolo unde sunt acum; procedura-nou.md intră în fiecare lucrare.
-# Rulat ca root de Kelion (admin pe server) sau de Adrian. Fără repornire: coada-lucru.py e citit din nou la următoarea pornire
-# a supraveghetorului cozii (și de verificator la fiecare rulare). Re-rulabil: coada-lucru.py deja reparat rămâne neschimbat.
-# R32: pașii «in executie» cu procesul mort sunt marcați «esuat» (cu motiv), după un backup al jurnalului.
-set -uo pipefail
-echec() { echo "OPRIT: $*" >&2; exit 1; }
-REF="${KELION_REF:-}"
-[[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "OPRIT: setează KELION_REF=<commit complet, 40 hex>. Nimic schimbat." >&2; exit 1; }
-RAW="https://raw.githubusercontent.com/kelion-team/kelionai_dots/$REF/deploy"
-DIR=/opt/kelion-brain
-ts=$(date +%Y%m%d-%H%M%S)
-[ "$(id -u)" = 0 ] || echec "rulează ca root."
-tmp=$(mktemp -d) && [ -d "$tmp" ] || echec "director temporar; nimic schimbat."
-trap 'rm -rf "$tmp"' EXIT
-curl -fsSL "$RAW/repara_registru_procedura.py" -o "$tmp/r.py" || echec "descărcare eșuată. Nimic schimbat."
-curl -fsSL "$RAW/inchide_pasi_orfani.py" -o "$tmp/o.py" || echec "descărcare eșuată. Nimic schimbat."
-chmod 755 "$tmp"; chmod 644 "$tmp/o.py"
-python3 -B "$tmp/r.py" "$DIR" "$tmp/nou" || echec "proba a picat. Nimic schimbat."
-bk="$DIR/backup-registru-$ts"; mkdir -p "$bk" && cp -a "$DIR/coada-lucru.py" "$DIR/cerinte/registru-zi.json" "$bk/" || echec "backup eșuat."
-revino() {   # ambele fișiere înapoi; o restaurare eșuată se spune explicit
-  if cp -a "$bk/coada-lucru.py" "$DIR/" && cp -a "$bk/registru-zi.json" "$DIR/cerinte/"; then
-    echec "$*; revenit la backup ($bk)."
-  fi
-  echec "$*; REVENIRE INCOMPLETĂ: verifică manual $DIR/coada-lucru.py și $DIR/cerinte/registru-zi.json față de $bk"
-}
-install -o brain -g brain -m 644 "$tmp/nou/coada-lucru.py" "$DIR/coada-lucru.py" || revino "instalare coada-lucru.py eșuată"
-install -o brain -g brain -m 644 "$tmp/nou/cerinte/registru-zi.json" "$DIR/cerinte/registru-zi.json" || revino "instalare registru eșuată"
-python3 -m py_compile "$DIR/coada-lucru.py" || revino "compilare eșuată"
-[ -r "$DIR/cerinte/procedura-nou.md" ] || revino "cerinte/procedura-nou.md lipsește: lucrările s-ar opri toate"
-JUR="$DIR/work/jurnal-cereri.sqlite3"   # totul ca brain: root nu creează fișiere -wal/-shm cu alt proprietar
-echo "OK: registru aplicat (criterii de verificare = dovadă de cod, nu probă live)."
-echo "registru: backup $bk"
-install -d -o brain -g brain "$bk/jurnal" || { echo "PARȚIAL: registrul e aplicat; pașii orfani NU (director backup)." >&2; exit 2; }
-runuser -u brain -- python3 -B -c "import sqlite3,sys; sqlite3.connect(sys.argv[1], timeout=30).backup(sqlite3.connect(sys.argv[2]))" \
-  "$JUR" "$bk/jurnal/jurnal-cereri.sqlite3" || { echo "PARȚIAL: registrul e aplicat; backup jurnal eșuat, pașii orfani NU au fost atinși." >&2; exit 2; }
-runuser -u brain -- python3 -B "$tmp/o.py" "$JUR" || { echo "PARȚIAL: registrul e aplicat; închiderea pașilor orfani a EȘUAT (jurnal neschimbat, tranzacție anulată; backup $bk/jurnal)." >&2; exit 2; }
-echo "GATA. La următoarea verificare (max 10 min) se vede rezultatul pentru R5, R17, R20, R32, R33, A4, A12."
+# Disabled before any read/download/install: the repository does not contain the
+# complete queue/caller contract or a verified journal/process identity contract.
+# A pinned revision does not supply those missing preconditions. No override.
+set -euo pipefail
+printf '%s\n' 'OPRIT: reparația registrului și închiderea pașilor sunt dezactivate: lipsesc sursele complete ale cozii, schema verificată și identitatea proceselor. Nimic citit sau modificat pe server; nicio cerință declarată îndeplinită.' >&2
+exit 1

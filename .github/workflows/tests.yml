@@ -46,6 +46,8 @@ jobs:
           python3 -m py_compile deploy/repara_necunoscuti.py
           bash -n deploy/repara-registru.sh
           python3 -B -m unittest deploy/test_repara_registru_procedura.py -v
+          bash -n deploy/repara-bucle.sh
+          python3 -B -m unittest deploy/test_repara_bucle_remediere.py -v
           bash -n deploy/repara-curatenie.sh
           python3 -B -m unittest deploy/test_repara_curatenie_playwright.py -v
       - name: Export sigur (safe-export)

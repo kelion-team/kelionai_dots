@@ -157,8 +157,9 @@ class ExecutorServer:
             with urllib.request.urlopen(f"http://127.0.0.1:{loc.port_cdp}/json", timeout=3) as r:
                 pagini = json.load(r)
         except (OSError, ValueError):
-            # În modul login Chrome nu are CDP: cât timp rulează, așteaptă logarea lui Adrian.
-            return LOGIN_NECESAR if proc is not None and proc.poll() is None and loc.numar != 1 else PORNIRE
+            # Modul login este tratat mai sus. CDP poate lipsi temporar la
+            # pornire; nu este dovadă de delogare și nu justifică un restart.
+            return PORNIRE
         urls = [p.get("url", "") for p in pagini if p.get("type") == "page"]
         if any("/auth/" in u or "/login" in u for u in urls):
             return LOGIN_NECESAR

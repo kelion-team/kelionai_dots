@@ -49,14 +49,15 @@ jobs:
             }
             const comentarii = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: nr, per_page: 100 });
             const ale_mele = comentarii.filter(c => (c.body || '').includes('<!-- codex-automat -->'));
-            if (ale_mele.some(c => c.body.includes(`commit:${sha}`))) { core.info('deja cerut pentru acest commit'); return; }
-            if (ale_mele.length >= MAX) {
+            const cereri = ale_mele.filter(c => !c.body.includes('escaladat'));
+            if (cereri.length >= MAX) {
               if (!ale_mele.some(c => c.body.includes('escaladat'))) {
                 await github.rest.issues.createComment({ owner, repo, issue_number: nr,
                   body: `<!-- codex-automat --> escaladat commit:${sha}\nCodex a primit deja ${MAX} cereri pe acest PR și tot nu e verde. E nevoie de Adrian sau de Kelion.` });
               }
               return;
             }
+            if (cereri.some(c => c.body.includes(`commit:${sha}`))) { core.info('deja cerut pentru acest commit'); return; }
             await github.rest.issues.createComment({ owner, repo, issue_number: nr,
-              body: `${motiv}\n\n<!-- codex-automat --> commit:${sha} (cererea ${ale_mele.length + 1}/${MAX})` });
+              body: `${motiv}\n\n<!-- codex-automat --> commit:${sha} (cererea ${cereri.length + 1}/${MAX})` });
             core.info(`cerut lui Codex pe PR #${nr}`);

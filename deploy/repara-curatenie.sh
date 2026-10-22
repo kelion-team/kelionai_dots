@@ -19,15 +19,19 @@ python3 -B "$tmp/r.py" "$POD" "$tmp/nou" || echec "proba a picat. Nimic schimbat
 liber || echec "a început un apel în timpul pregătirii. Nimic instalat."
 bk="$POD/backup-curatenie-$ts"
 mkdir -p "$bk/pod_locuri" && cp -a "$POD/pod_locuri/executor_server.py" "$bk/pod_locuri/" && cp -a "$POD/paznic.py" "$bk/" || echec "backup eșuat; nu instalez."
-install -m 644 "$tmp/nou/pod_locuri/executor_server.py" "$POD/pod_locuri/executor_server.py" || echec "instalare eșuată. Backup: $bk"
-install -m 644 "$tmp/nou/paznic.py" "$POD/paznic.py" || echec "instalare paznic eșuată. Backup: $bk"
+revino() {   # orice eșec după prima instalare: ambele fișiere înapoi, apoi repornire pe codul vechi
+  echo "EȘEC: $*; revin la backup" >&2
+  cp -a "$bk/pod_locuri/executor_server.py" "$POD/pod_locuri/" && cp -a "$bk/paznic.py" "$POD/" || echec "restaurare eșuată; nu repornesc. Backup: $bk"
+  rm -rf "$POD/pod_locuri/__pycache__" "$POD/__pycache__"
+  systemctl restart kelion-pod; exit 1
+}
+install -m 644 "$tmp/nou/pod_locuri/executor_server.py" "$POD/pod_locuri/executor_server.py" || revino "instalare executor_server.py"
+install -m 644 "$tmp/nou/paznic.py" "$POD/paznic.py" || revino "instalare paznic.py"
 rm -rf "$POD/pod_locuri/__pycache__" "$POD/__pycache__"
-systemctl restart kelion-pod || echec "repornire eșuată. Backup: $bk"
+systemctl restart kelion-pod || revino "repornirea kelion-pod"
 sleep 25
 if ! systemctl is-active -q kelion-pod || ! curl -s -m 5 http://127.0.0.1:8095/sanatate | grep -q '"ok": true'; then
-  echo "EȘEC: revin la backup"
-  cp -a "$bk/pod_locuri/executor_server.py" "$POD/pod_locuri/" && cp -a "$bk/paznic.py" "$POD/" || echec "restaurare eșuată; nu repornesc. Backup: $bk"
-  systemctl restart kelion-pod; exit 1
+  revino "podul nu e sănătos după repornire"
 fi
 inainte=$(numara)
 # Doar directoarele GOALE, ale utilizatorului brain, mai vechi de 10 minute (resturile vechii scurgeri).

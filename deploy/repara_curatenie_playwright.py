@@ -24,11 +24,16 @@ R = {
          "                        pw.chromium.connect_over_cdp(f\"http://127.0.0.1:{loc.port_cdp}\", timeout=3000)) as browser:\n"),
     ],
     "paznic.py": [
-        ("paznicul închide conexiunea CDP",
-         "        return {\"logat\": logat, \"buton_apel\": buton, \"url\": pg.url[:60]}\n",
-         "        rez = {\"logat\": logat, \"buton_apel\": buton, \"url\": pg.url[:60]}\n"
-         "        await b.close()   # doar deconectare + ștergerea directorului temporar; Chrome rămâne\n"
-         "        return rez\n"),
+        ("paznicul închide conexiunea CDP la orice ieșire",
+         "    from playwright.async_api import async_playwright\n"
+         "    async with async_playwright() as p:\n"
+         "        b = await p.chromium.connect_over_cdp(CDP)\n",
+         "    import contextlib\n"
+         "    from playwright.async_api import async_playwright\n"
+         "    # stiva se închide prima (și la excepții): close() doar deconectează și șterge directorul; Chrome rămâne\n"
+         "    async with async_playwright() as p, contextlib.AsyncExitStack() as stiva:\n"
+         "        b = await p.chromium.connect_over_cdp(CDP)\n"
+         "        stiva.push_async_callback(b.close)\n"),
     ],
 }
 MARCAJ = "contextlib.closing("
@@ -50,8 +55,8 @@ def proba(dest):
     pz = open(os.path.join(dest, "paznic.py"), encoding="utf-8").read()
     fn = next(n for n in ast.walk(ast.parse(pz)) if isinstance(n, ast.AsyncFunctionDef) and n.name == "chrome")
     src = ast.get_source_segment(pz, fn)
-    assert src.index("await b.close()") < src.index("return rez")
-    return "proba CDP se închide la orice ieșire; paznicul închide conexiunea înainte de return"
+    assert "stiva.push_async_callback(b.close)" in src and "AsyncExitStack() as stiva" in src
+    return "conexiunea CDP se închide la orice ieșire (și la excepții), în ambele locuri"
 
 
 if __name__ == "__main__":

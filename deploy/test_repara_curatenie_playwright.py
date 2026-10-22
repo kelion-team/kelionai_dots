@@ -44,7 +44,7 @@ class Teste(unittest.TestCase):
         ex = (dest / "pod_locuri/executor_server.py").read_text()
         self.assertIn("contextlib.closing(", ex)
         self.assertNotIn("browser = pw.chromium.connect_over_cdp", ex)
-        self.assertIn("await b.close()", (dest / "paznic.py").read_text())
+        self.assertIn("stiva.push_async_callback(b.close)", (dest / "paznic.py").read_text())
 
     def test_a_doua_rulare_refuzata(self):
         r, dest = self.ruleaza(self.sursa())
@@ -55,6 +55,20 @@ class Teste(unittest.TestCase):
         r, dest = self.ruleaza(self.sursa(ex=EXEC.replace("timeout=3000", "timeout=5000")))
         self.assertNotEqual(r.returncode, 0); self.assertIn("OPRIT", r.stdout + r.stderr)
         self.assertEqual(list(dest.iterdir()), [])
+
+
+class InchidereLaExceptie(unittest.TestCase):
+    def test_stiva_inchide_si_la_exceptie(self):
+        import asyncio, contextlib
+        inchis = []
+        class B:
+            async def close(self): inchis.append(1)
+        async def chrome():
+            async with contextlib.AsyncExitStack() as stiva:
+                b = B(); stiva.push_async_callback(b.close)
+                raise RuntimeError("pagina a picat")
+        with self.assertRaises(RuntimeError): asyncio.run(chrome())
+        self.assertEqual(inchis, [1])
 
 
 if __name__ == "__main__":

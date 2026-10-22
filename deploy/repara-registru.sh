@@ -29,11 +29,10 @@ install -o brain -g brain -m 644 "$tmp/nou/cerinte/registru-zi.json" "$DIR/cerin
 python3 -m py_compile "$DIR/coada-lucru.py" || revino "compilare eșuată"
 [ -r "$DIR/cerinte/procedura-nou.md" ] || revino "cerinte/procedura-nou.md lipsește: lucrările s-ar opri toate"
 JUR="$DIR/work/jurnal-cereri.sqlite3"   # totul ca brain: root nu creează fișiere -wal/-shm cu alt proprietar
-if install -d -o brain -g brain "$bk/jurnal" && runuser -u brain -- python3 -B -c \
-     "import sqlite3,sys; sqlite3.connect(sys.argv[1], timeout=30).backup(sqlite3.connect(sys.argv[2]))" "$JUR" "$bk/jurnal/jurnal-cereri.sqlite3"; then
-  runuser -u brain -- python3 -B "$tmp/o.py" "$JUR" || echo "ATENȚIE: pașii orfani nu s-au putut închide (registrul e aplicat). Backup jurnal: $bk/jurnal" >&2
-else
-  echo "ATENȚIE: backup-ul jurnalului a eșuat; pașii orfani NU au fost atinși (registrul e aplicat)." >&2
-fi
-echo "dovadă: $(grep -c 'A12 (22.10)' "$DIR/coada-lucru.py") marcaj în coada-lucru.py; registru actualizat; backup $bk"
-echo "GATA. La următoarea verificare (max 10 min) R5, R17, R20, R33, A4, A12 sunt verificate în fișierele corecte."
+echo "OK: registru aplicat (criterii de verificare = dovadă de cod, nu probă live)."
+echo "registru: backup $bk"
+install -d -o brain -g brain "$bk/jurnal" || { echo "PARȚIAL: registrul e aplicat; pașii orfani NU (director backup)." >&2; exit 2; }
+runuser -u brain -- python3 -B -c "import sqlite3,sys; sqlite3.connect(sys.argv[1], timeout=30).backup(sqlite3.connect(sys.argv[2]))" \
+  "$JUR" "$bk/jurnal/jurnal-cereri.sqlite3" || { echo "PARȚIAL: registrul e aplicat; backup jurnal eșuat, pașii orfani NU au fost atinși." >&2; exit 2; }
+runuser -u brain -- python3 -B "$tmp/o.py" "$JUR" || { echo "PARȚIAL: registrul e aplicat; închiderea pașilor orfani a EȘUAT (jurnal neschimbat, tranzacție anulată; backup $bk/jurnal)." >&2; exit 2; }
+echo "GATA. La următoarea verificare (max 10 min) se vede rezultatul pentru R5, R17, R20, R32, R33, A4, A12."

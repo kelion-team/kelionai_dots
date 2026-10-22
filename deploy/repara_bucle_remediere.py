@@ -46,8 +46,17 @@ R = {
 MARCAJ = {"verifica-site.py": "cheie fără cifre/ore", "tester-ui.py": "stare_rep = OUT"}
 
 
+# Dacă patch-ul de diagnostic al lui Kelion (scripts/legacy-tester-audit, PR #70) e aplicat întâi, condiția testerului
+# devine «if reparabile and ...»: aceeași reparație se aplică și acolo.
+VARIANTE = [('    if defecte and os.environ.get("KELION_TESTER_REPARA", "1") == "1":\n',
+             '    if reparabile and os.environ.get("KELION_TESTER_REPARA", "1") == "1":\n')]
+
+
 def aplica(text, inl, fisier):
     for nume, vechi, nou in inl:
+        for a, b in VARIANTE:
+            if vechi == a and text.count(a) == 0 and text.count(b) == 1:
+                vechi, nou = b, nou.replace("if defecte and not repetat and", "if reparabile and not repetat and")
         n = text.count(vechi)
         if n != 1:
             raise SystemExit(f"OPRIT: {fisier}: «{nume}» găsit de {n} ori (trebuie exact 1). Nu s-a scris nimic.")

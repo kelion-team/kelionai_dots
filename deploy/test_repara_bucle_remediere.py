@@ -54,6 +54,14 @@ class Teste(unittest.TestCase):
         ns["main"](["/app/cerinte.html: datele nu se afiseaza"])
         self.assertEqual(len(ns["PUSE"]), 2)
 
+    def test_dupa_patchul_lui_kelion(self):
+        (self.d / "tester-ui.py").write_text(TES.format(out=self.out).replace(
+            '    if defecte and os.environ.get("KELION_TESTER_REPARA", "1") == "1":',
+            '    reparabile = defecte\n    if reparabile and os.environ.get("KELION_TESTER_REPARA", "1") == "1":'))
+        ns = {}; exec((self.aplica() / "tester-ui.py").read_text(), ns)
+        ns["main"](["a 1"]); ns["main"](["a 2"])
+        self.assertEqual(len(ns["PUSE"]), 1)
+
     def test_a_doua_rulare_refuzata(self):
         dest = self.aplica()
         r = subprocess.run([sys.executable, "-B", str(SCRIPT), str(dest), tempfile.mkdtemp()], capture_output=True, text=True)

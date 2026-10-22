@@ -50,7 +50,7 @@ class Teste(unittest.TestCase):
     def sursa(self):
         s = Path(tempfile.mkdtemp()); (s / "cerinte").mkdir()
         (s / "coada-lucru.py").write_text(COADA); (s / "verifica-site.py").write_text(VERIF)
-        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"descriere": "x", "cerinte": [{"id": "R1"}, {"id": "K1", "vechi": 1}]}))
+        (s / "cerinte" / "registru-zi.json").write_text(json.dumps({"descriere": "x", "cerinte": [{"id": "R1"}, {"id": "K1", "vechi": 1}, {"id": "R5", "verifica": {"contine": ["BUCLA"]}}]}))
         (s / "cerinte" / "reguli.json").write_text(json.dumps({"versiune": 3, "fisiere_obligatorii": ["roluri.md"], "informative": [], "tipuri": {}, "reguli": []}))
         return s
 
@@ -64,18 +64,25 @@ class Teste(unittest.TestCase):
         d = self.ruleaza(self.sursa())
         reg = json.loads((d / "cerinte" / "registru-zi.json").read_text())["cerinte"]
         ids = [x["id"] for x in reg]
-        self.assertEqual(len(ids), len(set(ids))); self.assertEqual(len(reg), 2 + 26)
+        self.assertEqual(len(ids), len(set(ids))); self.assertEqual(len(reg), 3 + 26 + 6)
         self.assertNotIn("vechi", reg[1])
-        for i in ("K1", "K10", "P1", "P7", "I1", "I4", "M1", "M6"):
+        for i in ("K1", "K10", "P1", "P7", "I1", "I4", "M1", "M6", "S1", "S6"):
             self.assertIn(i, ids)
-        self.assertTrue(all(x["actiune"].startswith("CHATGPT:") for x in reg if x["id"][0] in "KPIM"))
+        self.assertTrue(all(x["actiune"].startswith("CHATGPT:") for x in reg if x["id"][0] in "KPIMS"))
+        import re
+        r5 = next(x for x in reg if x["id"] == "R5")["verifica"]
+        for pat in r5["contine"]:
+            re.compile(pat)
+        self.assertTrue(re.search(r5["contine"][1], '        _redistribuie(s, s["motiv_blocare"], ora)   # (22.10)'))
+        self.assertIn("sistem-actiuni-verificate.md", json.loads((d / "cerinte" / "reguli.json").read_text())["informative"])
+        self.assertTrue((d / "cerinte" / "sistem-actiuni-verificate.md").exists())
         man = json.loads((d / "cerinte" / "reguli.json").read_text())
         self.assertIn("coordonare-21-10.md", man["fisiere_obligatorii"]); self.assertIn("coordonare-21-10.md", man["informative"])
         self.assertTrue((d / "cerinte" / "coordonare-21-10.md").read_text().startswith("# Cerințe obligatorii"))
         # re-rulare pe rezultat: nimic dublat
         d2 = self.ruleaza(d)
         self.assertEqual((d2 / "coada-lucru.py").read_text(), (d / "coada-lucru.py").read_text())
-        self.assertEqual(len(json.loads((d2 / "cerinte" / "registru-zi.json").read_text())["cerinte"]), 28)
+        self.assertEqual(len(json.loads((d2 / "cerinte" / "registru-zi.json").read_text())["cerinte"]), 35)
         # comportament: proiect murdar preluat; blocata -> redistribuita; neverificata -> redistribuita; cheia defectului disparut stearsa
         sys.path.insert(0, str(AICI)); os.environ["T_COADA"] = tempfile.mkdtemp()
         ns = {"__name__": "c"}; exec((d / "coada-lucru.py").read_text(), ns)

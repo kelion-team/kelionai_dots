@@ -19,6 +19,7 @@ import shutil
 import sys
 
 MD = "coordonare-21-10.md"
+MD_SISTEM = "sistem-actiuni-verificate.md"   # informativ (harta componentelor), nu obligatoriu
 MARCAJ_COADA = "(22.10) fisiere necomise"
 MARCAJ_VERIF = "(22.10) defect disparut"
 
@@ -119,6 +120,23 @@ NOI = [
     _c("M5", "Limitele WhatsApp, ale serviciului vocal si ale serverului verificate separat; intai doua apeluri izolate, apoi capacitate masurata (nicio dovada pentru 1.000)", PAR, CH + "masoara, nu estima"),
     _c("M6", "Fiecare cerinta ramane deschisa pana la proba reala si intoarcerea rezultatului verificabil", PAR, CH + "nu inchizi nicio cerinta fara proba"),
 ]
+S = "22.10 04:24 (sistemul care transforma rationamentul in actiuni verificate)"
+NOI += [
+    _c("S1", "Inventar real: ce unelte, cod si conexiuni exista si ce poate face fiecare (exista: catalog_unelte; lipseste: proba de functionare la pornire)", S,
+       CH + "foloseste catalog_unelte si spune ce e doar listat si ce e probat; vezi cerinte/sistem-actiuni-verificate.md"),
+    _c("S2", "Planificare: obiectivul descompus, lipsurile gasite, solutiile comparate inainte de alegere (exista: mod-gandire, procedura-nou, roluri; lipseste: planul salvat pe cerere)", S,
+       CH + "la fiecare cerere scrii planul (pasi, lipsuri, variante, alegerea si motivul) in conversatie si in lucrare"),
+    _c("S3", "Constructor de unelte: adaptoarele si scripturile lipsa create si testate izolat (exista: lucrare.py in proiect git separat; lipseste: testarea in sandbox)", S,
+       CH + "uneltele noi se fac prin coada (lucreaza_in_proiect), cu test.sh; nu le declara testate pana la S5"),
+    _c("S4", "Executie cu feedback: fiecare pas urmarit, abordarea schimbata la esec, buclele detectate, fara repetari oarbe (exista: supraveghetorul cozii + redistribuirea din 22.10)", S,
+       CH + "la o sarcina redistribuita citesti motivul blocarii si schimbi abordarea"),
+    _c("S5", "Verificare independenta: rezultatul comparat cu cerinta, nu cu mesajul «succes» (exista pentru site si registru; pentru lucrari e OPRITA in modul new-only: lipseste etapa de sandbox)", S,
+       CH + "nu spui «rezolvat» pentru o lucrare doar executata; spui «executata, neverificata» pana exista verificarea independenta"),
+    _c("S6", "Memorie de lucru persistenta: planul, dovezile si solutiile validate pastrate (exista: jurnal-cereri, coada, proiecte git, brain_memorie; lipseste: planul si biblioteca de solutii validate)", S,
+       CH + "inainte de o sarcina noua cauti in jurnal si in proiecte ce s-a facut deja; nu reincepi de la zero"),
+]
+VERIFICA_R5 = {"tip": "fisier", "cale": ["/opt/kelion-brain/coada-lucru.py", "/opt/kelion-brain/preluare_redistribuire.py", "/opt/kelion-brain/verifica-site.py"],
+               "contine": ["FARA_PROGRES_S", r'_redistribuie\(s, s\["motiv_blocare"\], ora\)', "MAX_GENERATII", "cheie fără cifre"]}
 
 
 def inlocuieste(text, lista, nume_fisier):
@@ -145,11 +163,14 @@ if __name__ == "__main__":
             reg["cerinte"][ids[c["id"]]] = c
         else:
             reg["cerinte"].append(c)
+    for x in reg["cerinte"]:   # R5: reluarea reala e acum redistribuirea (new-only a oprit reluarea veche cu BUCLA)
+        if x["id"] == "R5":
+            x["verifica"] = VERIFICA_R5
     man = json.load(open(os.path.join(sursa, "cerinte", "reguli.json"), encoding="utf-8"))
-    for camp in ("fisiere_obligatorii", "informative"):
+    for camp, fis in (("fisiere_obligatorii", MD), ("informative", MD), ("informative", MD_SISTEM)):
         man.setdefault(camp, [])
-        if MD not in man[camp]:
-            man[camp].append(MD)
+        if fis not in man[camp]:
+            man[camp].append(fis)
     for nume, text in (("coada-lucru.py", coada), ("verifica-site.py", verif)):
         open(os.path.join(dest, nume), "w", encoding="utf-8").write(text)
         py_compile.compile(os.path.join(dest, nume), doraise=True)
@@ -157,4 +178,6 @@ if __name__ == "__main__":
         with open(os.path.join(dest, "cerinte", nume), "w", encoding="utf-8") as h:
             json.dump(d, h, ensure_ascii=False, indent=1)
     shutil.copyfile(md, os.path.join(dest, "cerinte", MD))
-    print(f"OK: coada-lucru.py + verifica-site.py compilate; registru {len(reg['cerinte'])} cerinte (+{len(NOI)} K/P/I/M); {MD} obligatoriu.")
+    shutil.copyfile(os.path.join(os.path.dirname(md), MD_SISTEM), os.path.join(dest, "cerinte", MD_SISTEM))
+    print(f"OK: coada-lucru.py + verifica-site.py compilate; registru {len(reg['cerinte'])} cerinte (+{len(NOI)} K/P/I/M/S, R5 verificat pe redistribuire); "
+          f"{MD} obligatoriu, {MD_SISTEM} informativ.")

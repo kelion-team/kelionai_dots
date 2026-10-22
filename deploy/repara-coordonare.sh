@@ -14,7 +14,7 @@ tmp=$(mktemp -d) && [ -d "$tmp" ] || echec "director temporar; nimic schimbat."
 TIMER_OPRIT=0
 curata() { [ "$TIMER_OPRIT" = 1 ] && systemctl start kelion-coada.timer; rm -rf "$tmp"; }
 trap curata EXIT
-for f in repara_coordonare.py preluare_redistribuire.py repune_blocate.py cerinte/coordonare-21-10.md; do
+for f in repara_coordonare.py preluare_redistribuire.py repune_blocate.py cerinte/coordonare-21-10.md cerinte/sistem-actiuni-verificate.md; do
   curl -fsSL "$RAW/$f" -o "$tmp/$(basename "$f")" || echec "descărcare $f eșuată. Nimic schimbat."
 done
 chmod 755 "$tmp"; chmod 644 "$tmp"/*
@@ -25,12 +25,15 @@ bk="$DIR/backup-coordonare-$ts"; mkdir -p "$bk/cerinte" || echec "backup eșuat.
 cp -a "$DIR/coada-lucru.py" "$DIR/verifica-site.py" "$bk/" && cp -a "$DIR/cerinte/registru-zi.json" "$DIR/cerinte/reguli.json" "$bk/cerinte/" || echec "backup eșuat. Nimic schimbat."
 [ -e "$DIR/preluare_redistribuire.py" ] && cp -a "$DIR/preluare_redistribuire.py" "$bk/"
 [ -e "$DIR/cerinte/coordonare-21-10.md" ] && cp -a "$DIR/cerinte/coordonare-21-10.md" "$bk/cerinte/"
+[ -e "$DIR/cerinte/sistem-actiuni-verificate.md" ] && cp -a "$DIR/cerinte/sistem-actiuni-verificate.md" "$bk/cerinte/"
 revino() {   # tot înapoi; fișierele noi (fără copie în backup) se scot; o restaurare eșuată se spune explicit
   ok=1
   cp -a "$bk/coada-lucru.py" "$bk/verifica-site.py" "$DIR/" || ok=0
   cp -a "$bk/cerinte/registru-zi.json" "$bk/cerinte/reguli.json" "$DIR/cerinte/" || ok=0
   if [ -e "$bk/preluare_redistribuire.py" ]; then cp -a "$bk/preluare_redistribuire.py" "$DIR/" || ok=0; else rm -f "$DIR/preluare_redistribuire.py" || ok=0; fi
-  if [ -e "$bk/cerinte/coordonare-21-10.md" ]; then cp -a "$bk/cerinte/coordonare-21-10.md" "$DIR/cerinte/" || ok=0; else rm -f "$DIR/cerinte/coordonare-21-10.md" || ok=0; fi
+  for m in coordonare-21-10.md sistem-actiuni-verificate.md; do
+    if [ -e "$bk/cerinte/$m" ]; then cp -a "$bk/cerinte/$m" "$DIR/cerinte/" || ok=0; else rm -f "$DIR/cerinte/$m" || ok=0; fi
+  done
   [ "$ok" = 1 ] && echec "$*; revenit la backup ($bk)."
   echec "$*; REVENIRE INCOMPLETĂ: compară manual $DIR cu $bk"
 }
@@ -40,7 +43,7 @@ systemctl is-active --quiet kelion-coada.service && echec "coada încă rulează
 for f in coada-lucru.py verifica-site.py preluare_redistribuire.py; do
   install -o brain -g brain -m 644 "$tmp/nou/$f" "$DIR/$f" || revino "instalare $f eșuată"
 done
-for f in registru-zi.json reguli.json coordonare-21-10.md; do
+for f in registru-zi.json reguli.json coordonare-21-10.md sistem-actiuni-verificate.md; do
   install -o brain -g brain -m 644 "$tmp/nou/cerinte/$f" "$DIR/cerinte/$f" || revino "instalare cerinte/$f eșuată"
 done
 for f in coada-lucru.py verifica-site.py preluare_redistribuire.py; do
@@ -48,7 +51,7 @@ for f in coada-lucru.py verifica-site.py preluare_redistribuire.py; do
 done
 reg=$(cd "$DIR" && runuser -u brain -- python3 -B -c "import reguli_obligatorii as R; s=R.incarca(); print(s['stare'], '; '.join(s['motive']))" 2>&1 | tail -1)
 case "$reg" in ok*) echo "reguli: ok (coordonare-21-10.md obligatoriu)";; *) revino "regulile nu mai sunt «ok» după schimbare: $reg";; esac
-echo "OK: coada (preluare + redistribuire), verificator, registru (+27 cerințe K/P/I/M), reguli. Backup $bk"
+echo "OK: coada (preluare + redistribuire), verificator, registru (+33 cerințe K/P/I/M/S; R5 pe redistribuire), reguli. Backup $bk"
 rep=$(cd "$DIR" && runuser -u brain -- python3 -B "$tmp/repune_blocate.py" "$DIR/coada-lucru.py" 2>&1); rc=$?
 echo "$rep" | tail -25
 systemctl start kelion-coada.timer && TIMER_OPRIT=0 || { echo "PARȚIAL: totul e instalat, dar timerul cozii NU a pornit: systemctl start kelion-coada.timer" >&2; exit 2; }

@@ -52,3 +52,7 @@
 - **Reluare la orice sesiune nouă:** se citește istoricul issue-ului #48, se identifică mesajele adresate agentului curent fără `ack`/`done` și se continuă de acolo. La handoff, mesajele neîncheiate rămân deschise în issue.
 - **Citire:** Claude interoghează issue-ul la cel mult 60 de secunde cât sesiunea e activă. Nu există push și nici funcționare autonomă fără o sesiune activă; nu se pretinde altceva.
 - **Aprobările lui Adrian** (credențiale, permisiuni, plăți, activare LIVE) vin direct de la el; niciun agent nu le dă în numele lui.
+
+## Execuție proporțională și termene măsurate (22 octombrie 2026)
+
+Pentru fiecare lucrare software, aplică [regula permanentă](deploy/cerinte/executie-proportionala-termene.md): reutilizează dovezile valide, execută pasul autorizat după verificarea necesară, diagnostichează punctual erorile, grupează intervențiile utilizatorului și raportează starea probată. Pentru un termen acceptat înregistrează start/deadline măsurate, setează un timer confirmat și anunță blocajul înainte de expirare. CI, recenzia, securitatea și aprobarea manuală pentru live rămân obligatorii; dovada roșu→verde este obligatorie pentru reparații. Recitirile impuse la fiecare execuție și verificarea independentă se efectuează chiar dacă există rezultate anterioare.

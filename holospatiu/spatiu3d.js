@@ -338,10 +338,12 @@ const BCOL = ['#e8e1d3', '#d9cfbd', '#cfc6b8', '#e6dccb', '#bfb5a8', '#d8c3a5', 
 function colBuilding(hex) { const c = col(osmColor(hex) || pick(BCOL), '#ddd'); return c.offsetHSL(0, rnd(-0.03, 0.03), rnd(-0.05, 0.04)); }
 function pushBuilding(walls, roofs, rings0, y0, y1, color, roofColor) {
   const W = walls, R = roofs; const rings = rings0.map(r => { const q = r.slice(); if (q.length > 2 && Math.hypot(q[0][0] - q[q.length - 1][0], q[0][1] - q[q.length - 1][1]) < 0.01) q.pop(); return q; }).filter(r => r.length >= 3); if (!rings.length) return; const rc = roofColor || color.clone().offsetHSL(0, -0.05, -0.12);
-  for (const ring of rings) { let u = 0; const n = ring.length;
+  const fv = 3 / rnd(2.9, 4.1), fu = 4 / rnd(3.2, 5.5), u0 = rnd(0, 32), v0 = Math.floor(rnd(0, 8)) * 3 - y0 * fv; // etaj 2.9-4.1 m, fereastra la 3.2-5.5 m
+  for (const ring of rings) { let u = u0; const n = ring.length;
     for (let i = 0; i < n; i++) { const [x1, z1] = ring[i], [x2, z2] = ring[(i + 1) % n]; const L = Math.hypot(x2 - x1, z2 - z1); if (L < 0.05) continue;
+      const a = y0 * fv + v0, b = y1 * fv + v0, e = L * fu;
       W.pos.push(x1, y0, z1, x2, y0, z2, x2, y1, z2, x1, y0, z1, x2, y1, z2, x1, y1, z1);
-      W.uv.push(u, y0, u + L, y0, u + L, y1, u, y0, u + L, y1, u, y1); u += L;
+      W.uv.push(u, a, u + e, a, u + e, b, u, a, u + e, b, u, b); u += e;
       for (let k = 0; k < 6; k++) W.col.push(color.r, color.g, color.b); } }
   const outer = rings[0].map(([x, z]) => new THREE.Vector2(x, z)), holes = rings.slice(1).map(r => r.map(([x, z]) => new THREE.Vector2(x, z)));
   if (THREE.ShapeUtils.isClockWise(outer)) outer.reverse(); holes.forEach(h => { if (!THREE.ShapeUtils.isClockWise(h)) h.reverse(); });
@@ -480,11 +482,18 @@ async function realSpace(ctx, spec) {
   for (const b of blds) { const o = b.rings[0]; let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const [x, z] of o) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } b.bb = [x0, z0, x1, z1];
     for (let i = Math.floor(x0 / CELL); i <= Math.floor(x1 / CELL); i++) for (let j = Math.floor(z0 / CELL); j <= Math.floor(z1 / CELL); j++) { const k = key(i, j); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(b); } }
   const around = (x, z, r) => { const out = new Set(); for (let i = Math.floor((x - r) / CELL); i <= Math.floor((x + r) / CELL); i++) for (let j = Math.floor((z - r) / CELL); j <= Math.floor((z + r) / CELL); j++) { const a = grid.get(key(i, j)); if (a) for (const b of a) out.add(b); } return out; };
-  const insideB = (x, z, skip) => { for (const b of around(x, z, 0)) { if (b === skip || b.hide) continue; const q = b.bb; if (x < q[0] || x > q[2] || z < q[1] || z > q[3]) continue; if (inPoly(x, z, b.rings[0])) return b; } return null; };
+  const insideB = (x, z, skip) => { for (const b of around(x, z, 0)) { if (b.hide || (skip && skip.has(b))) continue; const q = b.bb; if (x < q[0] || x > q[2] || z < q[1] || z > q[3]) continue; if (inPoly(x, z, b.rings[0])) return b; } return null; };
   const nearB = (x, z, r) => { for (const b of around(x, z, r)) { if (b.hide) continue; const q = b.bb; if (x < q[0] - r || x > q[2] + r || z < q[1] - r || z > q[3] + r) continue; if (inPoly(x, z, b.rings[0])) return true; const o = b.rings[0]; for (let i = 0; i < o.length - 1; i++) if (distSeg(x, z, o[i], o[i + 1]) < r) return true; } return false; };
-  // tinta: cladirea care contine punctul (sau cea mai apropiata, la <25 m)
-  let target = insideB(0, 0, null), best = 25; if (!target) for (const b of around(0, 0, 25)) { if (b.hide) continue; let d = Infinity; const o = b.rings[0]; for (let i = 0; i < o.length - 1; i++) d = Math.min(d, distSeg(0, 0, o[i], o[i + 1])); if (d < best) { best = d; target = b; } }
-  let tx = 0, tz = 0, tSize = 0, tH = 0; if (target) { const q = target.bb; tx = (q[0] + q[2]) / 2; tz = (q[1] + q[3]) / 2; tSize = Math.max(q[2] - q[0], q[3] - q[1]); tH = target.h; }
+  // tinta: cea mai proeminenta cladire de langa punct (inaltime x suprafata x apropiere); partile ei (building:part) se grupeaza sub conturul comun
+  const areaOf = o => { let a = 0; for (let i = 0, j = o.length - 1; i < o.length; j = i++) a += (o[j][0] + o[i][0]) * (o[j][1] - o[i][1]); return Math.abs(a / 2); };
+  const distPoly = (x, z, o) => { if (inPoly(x, z, o)) return 0; let d = Infinity; for (let i = 0; i < o.length - 1; i++) d = Math.min(d, distSeg(x, z, o[i], o[i + 1])); return d; };
+  let target = null, bestS = 0; for (const b of around(0, 0, 120)) { if (b.hide) continue; const d = distPoly(0, 0, b.rings[0]); if (d > 120) continue; const sc = (b.h + 1) * Math.pow(Math.max(10, areaOf(b.rings[0])), 0.3) * Math.exp(-d / 45); if (sc > bestS) { bestS = sc; target = b; } }
+  if (spec.target === false) target = null;
+  const tset = new Set(); let tring = null, tx = 0, tz = 0, tSize = 0, tH = 0;
+  if (target) { const outline = blds.find(b => b.hide && b.bb && inPoly(target.cx, target.cz, b.rings[0])); tring = outline ? outline.rings[0] : target.rings[0]; tset.add(target);
+    if (outline) for (const b of around((outline.bb[0] + outline.bb[2]) / 2, (outline.bb[1] + outline.bb[3]) / 2, Math.max(outline.bb[2] - outline.bb[0], outline.bb[3] - outline.bb[1]) / 2)) if (!b.hide && inPoly(b.cx, b.cz, tring)) tset.add(b);
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const [x, z] of tring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+    tx = (x0 + x1) / 2; tz = (z0 + z1) / 2; tSize = Math.max(x1 - x0, z1 - z0); for (const b of tset) tH = Math.max(tH, b.h); }
   // punctul de stat: loc liber pentru Kelion si camera + linie de vedere libera spre tinta (tinta apare in spatele lui Kelion, intreaga daca se poate)
   const DIRS = { sud: 180, nord: 0, est: 90, vest: 270, south: 180, north: 0, east: 90, west: 270, 'sud-est': 135, 'sud-vest': 225, 'nord-est': 45, 'nord-vest': 315 };
   const named = spec.view_from_deg !== undefined || (spec.view_from && DIRS[String(spec.view_from).toLowerCase()] !== undefined);
@@ -495,9 +504,9 @@ async function realSpace(ctx, spec) {
   let pickC = null;
   for (const a of bearings) { const ar = a * D2R, ux = Math.sin(ar), uz = -Math.cos(ar);
     for (const d of dists) { const px0 = tx + ux * d, pz0 = tz + uz * d; if (Math.hypot(px0, pz0) > R * 1.15) continue;
-      if (nearB(px0, pz0, 3.2) || nearB(px0 + ux * 2.3, pz0 + uz * 2.3, 1.6) || nearB(px0 + ux * 4.8, pz0 + uz * 4.8, 1.6)) continue; // Kelion si camera stau pe loc liber
+      if (nearB(px0, pz0, 3.2) || nearB(px0 + ux * 2.3, pz0 + uz * 2.3, 1.6) || nearB(px0 + ux * 4.8, pz0 + uz * 4.8, 1.6) || (tring && inPoly(px0, pz0, tring))) continue; // Kelion si camera stau pe loc liber
       let obs = 0; const Lm = target ? d : d + 60;
-      for (let t = 3; t < Lm; t += 4) { const qx = px0 - ux * t, qz = pz0 - uz * t; if (target && inPoly(qx, qz, target.rings[0])) break; const ob = insideB(qx, qz, target); if (ob && ob.h > 3) obs += t < 40 ? 3 : 1; }
+      for (let t = 3; t < Lm; t += 4) { const qx = px0 - ux * t, qz = pz0 - uz * t; if (tring && inPoly(qx, qz, tring)) break; const ob = insideB(qx, qz, tset); if (ob && ob.h > 3) obs += t < 40 ? 3 : 1; }
       const cost = obs * 4 + Math.abs(d - want) / want * 3 + (named ? 0 : Math.abs(((a - 180 + 540) % 360) - 180) / 180 * 0.6);
       if (!pickC || cost < pickC.cost) pickC = { cost, sx: px0, sz: pz0, a, d, obs }; } }
   if (!pickC) { const ar = az0 * D2R, ux = Math.sin(ar), uz = -Math.cos(ar); let d = want; while (d < want + 400 && nearB(tx + ux * d, tz + uz * d, 3.2)) d += 5; pickC = { sx: tx + ux * d, sz: tz + uz * d, a: az0, d, obs: -1 }; }

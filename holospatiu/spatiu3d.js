@@ -38,7 +38,7 @@ export const PRESETS = {
     elements: [{ kind: 'stele', count: 8000 }, { kind: 'planete', count: 1, preset: 'pamant', distance: 700, size: 70, alt: 8, az: 12 }, { kind: 'pietre', count: 260, min: 5, radius: 120, color: '#8a8a8a' }] },
   marte: { label: 'Pe Marte', sky: { type: 'gradient', top: '#c98b5b', horizon: '#e3b48a', bottom: '#8a4a2a' }, ground: { type: 'teren', elev: 18, mount: 1.6, low: '#b5562f', mid: '#9c4a28', high: '#7d3b22', peak: '#c97a52' }, fog: { color: '#d9a07a', near: 40, far: 420 }, sunLight: { color: '#ffe2c4', intensity: 2.2, alt: 35, az: 150 },
     elements: [{ kind: 'pietre', count: 420, min: 5, radius: 140, color: '#7a3a22' }, { kind: 'praf', count: 1500, radius: 30, color: '#e0a27a' }] },
-  vulcan: { label: 'Vulcan', sky: { type: 'gradient', top: '#1a1414', horizon: '#5a2a1a', bottom: '#120c0c' }, ground: { type: 'teren', elev: 8, mount: 1, low: '#2a2522', mid: '#1f1b19', high: '#3a2e28', peak: '#4a3a30', lava: true }, fog: { color: '#2a1a16', near: 60, far: 1400 }, sunLight: { color: '#ff9a66', intensity: 0.9, alt: 30, az: 220 },
+  vulcan: { label: 'Vulcan', sky: { type: 'gradient', top: '#1a1414', horizon: '#5a2a1a', bottom: '#120c0c' }, ground: { type: 'teren', elev: 8, mount: 1, low: '#2a2522', mid: '#1f1b19', high: '#3a2e28', peak: '#4a3a30', lava: true, size: 1900 }, fog: { color: '#2a1a16', near: 60, far: 1400 }, sunLight: { color: '#ff9a66', intensity: 0.9, alt: 30, az: 220 },
     elements: [{ kind: 'vulcan', count: 1 }, { kind: 'scantei', count: 900, radius: 25 }, { kind: 'pietre', count: 300, min: 5, radius: 110, color: '#1e1a18' }] },
   jungla: { label: 'Jungla', sky: { type: 'fizic', hour: 12 }, ground: { type: 'teren', elev: 12, mount: 0.8, low: '#3e6b24', mid: '#2f5a1f', high: '#4a5a32', peak: '#6b6458' }, water: { level: -1.2, color: '#3d6f5f' }, fog: { color: '#a9c4a0', near: 18, far: 220 },
     elements: [{ kind: 'copaci', count: 900, min: 6, radius: 120, color: '#255c1f', size: 1.5 }, { kind: 'palmieri', count: 160, min: 6, radius: 70 }, { kind: 'ferigi', count: 900, min: 2.5, radius: 26 }, { kind: 'flori', count: 300, min: 2, radius: 18 }, { kind: 'licurici', count: 200, radius: 14 }] },
@@ -432,11 +432,11 @@ const lon2tx = (lon, z) => (lon + 180) / 360 * 2 ** z, lat2ty = (lat, z) => (1 -
 const tx2lon = (x, z) => x / 2 ** z * 360 - 180, ty2lat = (y, z) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / 2 ** z))) / D2R;
 async function elevationGrid(lat, lon, half, z) { // relief real: Terrarium PNG -> metri; intoarce functie (lat,lon) -> altitudine
   const dLat = half / 110574, dLon = half / (111320 * Math.cos(lat * D2R)); const x0 = Math.floor(lon2tx(lon - dLon, z)), x1 = Math.floor(lon2tx(lon + dLon, z)), y0 = Math.floor(lat2ty(lat + dLat, z)), y1 = Math.floor(lat2ty(lat - dLat, z));
-  const nx = x1 - x0 + 1, ny = y1 - y0 + 1; if (nx * ny > 36) throw new Error('prea multe placi de relief');
+  const nx = x1 - x0 + 1, ny = y1 - y0 + 1; if (!(nx > 0 && ny > 0 && nx * ny <= 36)) throw new Error('prea multe placi de relief');
   const cv = document.createElement('canvas'); cv.width = nx * 256; cv.height = ny * 256; const g = cv.getContext('2d'); let ok = 0;
   await Promise.all([...Array(nx * ny)].map(async (_, i) => { const tx = x0 + (i % nx), ty = y0 + Math.floor(i / nx);
     try { const r = await fetchT(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${tx}/${ty}.png`, 15000); if (!r.ok) return; const bm = await createImageBitmap(await r.blob()); g.drawImage(bm, (tx - x0) * 256, (ty - y0) * 256); ok++; } catch (e) { console.warn('relief', e.message); } }));
-  if (!ok) throw new Error('relieful nu s-a putut incarca');
+  if (ok < nx * ny) throw new Error('relieful s-a incarcat incomplet (' + ok + ' din ' + nx * ny + ' placi)');
   const d = g.getImageData(0, 0, cv.width, cv.height).data; const W = cv.width, H = cv.height;
   const at = (px, py) => { px = clamp(px, 0, W - 1); py = clamp(py, 0, H - 1); const i = (py * W + px) * 4; return d[i] * 256 + d[i + 1] + d[i + 2] / 256 - 32768; };
   return (la, lo) => { const fx = (lon2tx(lo, z) - x0) * 256 - 0.5, fy = (lat2ty(la, z) - y0) * 256 - 0.5; const ix = Math.floor(fx), iy = Math.floor(fy), ax = fx - ix, ay = fy - iy;
@@ -446,6 +446,8 @@ let VT = null; async function vtLibs() { return VT || (VT = Promise.all([import(
 let TJ = null; async function tileUrl() { return TJ || (TJ = fetchT('https://tiles.openfreemap.org/planet', 12000).then(r => r.json()).then(j => j.tiles[0]).catch(e => { TJ = null; throw e; })); }
 async function osmFeatures(lat, lon, half) { const { Pbf, VectorTile } = await vtLibs(); const URL0 = await tileUrl(); const Z = 14;
   const dLat = half / 110574, dLon = half / (111320 * Math.cos(lat * D2R)); const tiles = [];
+  const tx0 = Math.floor(lon2tx(lon - dLon, Z)), tx1 = Math.floor(lon2tx(lon + dLon, Z)), ty0 = Math.floor(lat2ty(lat + dLat, Z)), ty1 = Math.floor(lat2ty(lat - dLat, Z));
+  if (!((tx1 - tx0 + 1) * (ty1 - ty0 + 1) <= 64)) throw new Error('zona de harta prea mare');
   for (let x = Math.floor(lon2tx(lon - dLon, Z)); x <= Math.floor(lon2tx(lon + dLon, Z)); x++) for (let y = Math.floor(lat2ty(lat + dLat, Z)); y <= Math.floor(lat2ty(lat - dLat, Z)); y++) tiles.push([x, y]);
   if (tiles.length > 30) tiles.length = 30; const feats = []; let ok = 0;
   await Promise.all(tiles.map(async ([x, y]) => { try { const r = await fetchT(URL0.replace('{z}', Z).replace('{x}', x).replace('{y}', y), 15000); if (!r.ok) return; ok++;
@@ -460,7 +462,7 @@ function distSeg(px, pz, [x1, z1], [x2, z2]) { const dx = x2 - x1, dz = z2 - z1,
 async function realSpace(ctx, spec) {
   let { lat, lon } = spec; let name = spec.place || spec.label || ''; let full = '';
   if (!isFinite(+lat) || !isFinite(+lon)) { if (!spec.place) throw new Error('pentru un loc real trimite place (numele locului) sau lat/lon'); const g = await geocode(spec.place); lat = g.lat; lon = g.lon; name = spec.label || g.name || spec.place; full = g.full; }
-  lat = +lat; lon = +lon; const R = clamp(num(spec.radius, 450), 150, 1500); const kx = 111320 * Math.cos(lat * D2R), kz = 110574;
+  lat = +lat; lon = +lon; if (!(Math.abs(lat) <= 84)) throw new Error('locul e prea aproape de pol (harta acopera latitudini intre -84 si 84 de grade)'); lon = ((lon + 540) % 360) - 180; const R = clamp(num(spec.radius, 450), 150, 1500); const kx = 111320 * Math.cos(lat * D2R), kz = 110574;
   const LX = lo => (lo - lon) * kx, LZ = la => -(la - lat) * kz; // metri locali fata de tinta (x = est, z = -nord)
   const [elevNear, elevFar, osm] = await Promise.all([
     elevationGrid(lat, lon, R * 1.25 + 300, R > 900 ? 13 : 14).catch(e => { console.warn(e); return null; }),
@@ -514,7 +516,7 @@ async function realSpace(ctx, spec) {
       if (wetAt(px0, pz0)) continue; // nu pe apa
       const cost = obs * 4 + Math.abs(d - want) / want * 3 + (named ? 0 : Math.abs(((a - 180 + 540) % 360) - 180) / 180 * 0.6);
       if (!pickC || cost < pickC.cost) pickC = { cost, sx: px0, sz: pz0, a, d, obs }; } }
-  if (!pickC) { const ar = az0 * D2R, ux = Math.sin(ar), uz = -Math.cos(ar); let d = want; while (d < want + 400 && nearB(tx + ux * d, tz + uz * d, 3.2)) d += 5; pickC = { sx: tx + ux * d, sz: tz + uz * d, a: az0, d, obs: -1 }; }
+  if (!pickC) { const ar = az0 * D2R, ux = Math.sin(ar), uz = -Math.cos(ar); let d = want; while (d < want + 400 && (nearB(tx + ux * d, tz + uz * d, 3.2) || wetAt(tx + ux * d, tz + uz * d))) d += 5; if (nearB(tx + ux * d, tz + uz * d, 3.2) || wetAt(tx + ux * d, tz + uz * d)) throw new Error('nu am gasit un loc liber pe uscat langa ' + (name || 'acest loc')); pickC = { sx: tx + ux * d, sz: tz + uz * d, a: az0, d, obs: -1 }; }
   const viewAz = pickC.a * D2R; let sx = pickC.sx, sz = pickC.sz;
   const Hs = E0(sx, sz); const phi = Math.PI - viewAz; // rotatia lumii: directia "spre tinta" devine -z (in spatele lui Kelion, vizibila pentru privitor)
   const cP = Math.cos(phi), sP = Math.sin(phi);
@@ -562,16 +564,16 @@ async function realSpace(ctx, spec) {
   let nt = 0; const woods = areas.filter(a => a.kind === 'wood' || a.kind === 'park'); if (woods.length) { const pts = [];
     for (const a of woods) { const bb = new THREE.Box2(); a.ring.forEach(([x, z]) => bb.expandByPoint(new THREE.Vector2(x, z))); const s = new THREE.Vector2(); bb.getSize(s); const dens = a.kind === 'wood' ? 1 / 70 : 1 / 180; const n = Math.min(600, Math.floor(s.x * s.y * dens));
       for (let i = 0; i < n * 2 && pts.length < 2500; i++) { const x = rnd(bb.min.x, bb.max.x), z = rnd(bb.min.y, bb.max.y); if (!inPoly(x, z, a.ring)) continue; const [X, Z] = toS(x, z); if (Math.hypot(X, Z) > HALF || !freeSpot(X, Z, 5)) continue; if (blds.some(b => Math.hypot(b.cx - x, b.cz - z) < 40 && inPoly(x, z, b.rings[0]))) continue; pts.push([X, Z]); } }
-    const tg = new THREE.CylinderGeometry(0.18, 0.28, 1, 6); tg.translate(0, 0.5, 0); const lg = new THREE.IcosahedronGeometry(1, 1); const tr = inst(tg, new THREE.MeshStandardMaterial({ color: 0x5a3d26 }), pts.length), lf = inst(lg, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }), pts.length); const c2 = new THREE.Color();
+    if (pts.length) { const tg = new THREE.CylinderGeometry(0.18, 0.28, 1, 6); tg.translate(0, 0.5, 0); const lg = new THREE.IcosahedronGeometry(1, 1); const tr = inst(tg, new THREE.MeshStandardMaterial({ color: 0x5a3d26 }), pts.length), lf = inst(lg, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true }), pts.length); const c2 = new THREE.Color();
     pts.forEach(([X, Z], i) => { const y = hAt(X, Z), h = rnd(4, 9), r = rnd(2, 3.6); M4.compose(V3.set(X, y, Z), Q.identity(), S3.set(1, h, 1)); tr.setMatrixAt(i, M4); M4.compose(V3.set(X, y + h + r * 0.4, Z), Q.identity(), S3.set(r, r * 0.9, r)); lf.setMatrixAt(i, M4); lf.setColorAt(i, c2.set(lat0 > 55 ? '#2c4f2a' : '#3f6f2c').offsetHSL(rnd(-0.03, 0.03), 0, rnd(-0.06, 0.06))); });
-    ctx.root.add(tr, lf); nt = pts.length; }
+    ctx.root.add(tr, lf); } nt = pts.length; }
   for (const e of (spec.elements || []).slice(0, 12)) { const f = ELEM[String(e.kind || '').toLowerCase()]; if (f) try { f(ctx, e); } catch (err) { console.warn('element', err); } }
   // eticheta cu numele locului
   if (spec.show_label !== false && name) { const sp = textSprite(name, 0.2); sp.position.set(1.35, 1.95, -0.6); ctx.root.add(sp); }
   ctx.extent = FAR; const relief = isFinite(hMin) ? Math.round(hMax - hMin) : 0;
   const ora = date.toISOString().slice(11, 16) + ' UTC';
   return 'spatiu REAL generat: ' + (name || (lat.toFixed(4) + ',' + lon.toFixed(4))) + (full ? ' (' + full.split(',').slice(0, 3).join(',') + ')' : '') + ' la scara 1:1 - ' + nb + ' cladiri reale, ' + roads.filter(r => r.cls !== 'waterway').length + ' segmente de strazi, ' + nt + ' copaci in parcuri/paduri, relief real ' +
-    (elevNear ? 'incarcat' : 'indisponibil') + ' (diferenta de nivel ' + relief + ' m in jur), altitudinea ta ' + Math.round(Hs) + ' m; Kelion sta la ' + Math.round(pickC.d) + ' m de tinta, privind dinspre ' + (['nord', 'nord-est', 'est', 'sud-est', 'sud', 'sud-vest', 'vest', 'nord-vest'][Math.round(pickC.a / 45) % 8]) + (target ? ' (tinta, inalta de ' + Math.round(tH) + ' m, e in spatele lui' + (pickC.obs > 0 ? ', partial acoperita de alte cladiri' : ', cu vederea libera') + ')' : '') + '; soarele la ' + Math.round(sunL.alt / D2R) + ' grade (' + ora + ')' + (env.night ? ', e noapte acolo' : '') +
+    (elevNear ? 'incarcat' : 'indisponibil') + ' (diferenta de nivel ' + relief + ' m in jur), altitudinea ta ' + Math.round(Hs) + ' m; ' + (target ? 'Kelion sta la ' + Math.round(pickC.d) + ' m de tinta, privind dinspre ' : 'Kelion sta langa punctul cerut, privind dinspre ') + (['nord', 'nord-est', 'est', 'sud-est', 'sud', 'sud-vest', 'vest', 'nord-vest'][Math.round(pickC.a / 45) % 8]) + (target ? ' (tinta, inalta de ' + Math.round(tH) + ' m, e in spatele lui' + (pickC.obs > 0 ? ', partial acoperita de alte cladiri' : ', cu vederea libera') + ')' : '') + '; soarele la ' + Math.round(sunL.alt / D2R) + ' grade (' + ora + ')' + (env.night ? ', e noapte acolo' : '') +
     (osm.ok < osm.tiles ? '; atentie: ' + (osm.tiles - osm.ok) + ' din ' + osm.tiles + ' placi de harta nu s-au incarcat' : '');
 }
 
@@ -590,7 +592,7 @@ async function generatedSpace(ctx, spec) {
     addSkyAndLight(ctx, sk, sunL || { alt: 0.5, az: 2.4 }, P.fog || (sk.type === 'cosmos' ? null : { color: '#c8d8e6', near: 50, far: 600 }), { background: P.background, sunLight: P.sunLight, skyScale: 4000, hemiSky: P.underwater ? '#7fd0ff' : undefined, hemiGround: P.underwater ? '#16384a' : undefined });
     if (G.type === 'teren') genTerrain(ctx, G); else if (G.type === 'plat') flatGround(ctx, G); else if (G.type === 'pestera') cave(ctx, G); else { ctx.heightAt = () => -1000; }
     if (P.water) water(ctx, P.water);
-    if (P.platform || G.type === 'apa' || G.type === 'nimic') { ctx.heightAt = G.type === 'teren' || G.type === 'plat' ? ctx.heightAt : () => (G.type === 'apa' ? -0.02 : -1000); platform(ctx); }
+    if (P.platform || G.type === 'apa' || G.type === 'nimic') { ctx.heightAt = G.type === 'teren' || G.type === 'plat' ? ctx.heightAt : () => (G.type === 'apa' ? -0.02 : 0); platform(ctx); }
   }
   if (!ctx.heightAt) ctx.heightAt = () => 0; let made = [];
   for (const e of (P.elements || []).slice(0, 24)) { const f = ELEM[String(e.kind || '').toLowerCase()]; if (!f) { made.push('necunoscut:' + e.kind); continue; } try { const n = f(ctx, e); made.push(e.kind + ' ' + n); } catch (err) { console.warn('element', e.kind, err); made.push(e.kind + ' esuat'); } }
@@ -602,7 +604,7 @@ async function generatedSpace(ctx, spec) {
 // ---------------------------------------------------------------- API
 export async function createSpace(scene, renderer, spec = {}) {
   const root = new THREE.Group(); root.name = 'spatiu3d';
-  const ctx = { scene, renderer, root, anim: [], heightAt: null, waterLevel: null, night: false, extent: 600 };
+  const ctx = { scene, renderer, root, anim: [], heightAt: null, waterLevel: null, night: false, extent: 600, prevShadow: { enabled: renderer.shadowMap.enabled, type: renderer.shadowMap.type } };
   const real = String(spec.mode || '').toLowerCase() === 'real' || (spec.mode !== 'generat' && spec.mode !== 'generated' && (spec.place || (isFinite(+spec.lat) && isFinite(+spec.lon) && spec.lat !== undefined && spec.lon !== undefined)) && !spec.preset);
   let info;
   try { info = real ? await realSpace(ctx, spec) : await generatedSpace(ctx, spec); }
@@ -613,7 +615,7 @@ export async function createSpace(scene, renderer, spec = {}) {
     update(dt) { for (const f of ctx.anim) f(dt); },
     dispose() { disposeCtx(ctx); } };
 }
-function disposeCtx(ctx) { const { scene, root } = ctx; scene.remove(root); if (ctx.fogSet) scene.fog = ctx.prevFog || null; if (ctx.bgSet) scene.background = ctx.prevBg || null;
+function disposeCtx(ctx) { const { scene, root } = ctx; scene.remove(root); if (ctx.prevShadow) { ctx.renderer.shadowMap.enabled = ctx.prevShadow.enabled; ctx.renderer.shadowMap.type = ctx.prevShadow.type; } if (ctx.fogSet) scene.fog = ctx.prevFog || null; if (ctx.bgSet) scene.background = ctx.prevBg || null;
   root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { for (const k of ['map', 'emissiveMap', 'normalMap']) if (m[k] && m[k] !== softDot()) m[k].dispose(); m.dispose(); }); }); ctx.anim.length = 0; }
 export const SPATII = Object.keys(PRESETS);
 export const ELEMENTE = Object.keys(ELEM);

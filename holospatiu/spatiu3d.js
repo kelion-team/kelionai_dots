@@ -350,7 +350,10 @@ function pushBuilding(walls, roofs, rings0, y0, y1, color, roofColor) {
   let tris; try { tris = THREE.ShapeUtils.triangulateShape(outer, holes); } catch { tris = []; } const all = outer.concat(...holes);
   for (const t of tris) for (const k of [t[0], t[2], t[1]]) { R.pos.push(all[k].x, y1, all[k].y); R.col.push(rc.r, rc.g, rc.b); }
 }
-function addBuildingMeshes(ctx, walls, roofs) {
+function addBuildingMeshes(ctx, walls, roofs, plain) {
+  if (plain && walls.pos.length) { // monumentul tinta: piatra, fara grila de ferestre de bloc
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(walls.pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(walls.col, 3)); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide })); m.castShadow = m.receiveShadow = true; ctx.root.add(m); walls = newBuf(); }
   if (walls.pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(walls.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(walls.uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(walls.col, 3)); g.computeVertexNormals();
     const F = ctx.facade || (ctx.facade = facadeTextures()); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: F.map, vertexColors: true, roughness: 0.85, side: THREE.DoubleSide, emissiveMap: F.em, emissive: ctx.night ? 0xffffff : 0x000000, emissiveIntensity: ctx.night ? 0.9 : 0 }));
     m.castShadow = m.receiveShadow = true; ctx.root.add(m); }
@@ -548,12 +551,13 @@ async function realSpace(ctx, spec) {
   const date = spec.hour !== undefined && spec.hour !== null && spec.hour !== '' ? dateAtHour(+spec.hour, lon) : new Date(); const sunL = sunDirection(lat, lon, date); sunL.az += phi; // aliniat cu rotatia scenei
   const env = addSkyAndLight(ctx, { type: 'fizic' }, sunL, { color: '#c8d6e4', near: R * 0.9, far: FAR * 0.48 }, { skyScale: 4500 }); ctx.night = env.night;
   // cladiri reale
-  const walls = newBuf(), roofs = newBuf(); let nb = 0;
-  for (const b of blds) { if (b.hide) continue; const rings = b.rings.map(r => r.map(([x, z]) => toS(x, z))); const o = rings[0];
+  const walls = newBuf(), roofs = newBuf(), mw = newBuf(), mr = newBuf(); let nb = 0;
+  for (const b of blds) { if (b.hide) continue; const rings = b.rings.map(r => r.map(([x, z]) => toS(x, z))); const o = rings[0]; const isT = tset.has(b);
     if (o.some(([X, Z]) => Math.abs(X) < 2.6 && Z > -1.2 && Z < 8.5) || inPoly(0, 0, o)) continue; // nu acopera Kelion sau camera
     let ymin = Infinity; for (const [X, Z] of o) ymin = Math.min(ymin, hAt(X, Z)); const y0 = (b.h0 > 0 ? ymin + b.h0 : ymin - 0.6), y1 = ymin + b.h; if (y1 <= y0) continue;
-    pushBuilding(walls, roofs, rings, y0, y1, colBuilding(b.colour), b.h < 14 && Math.random() < 0.6 ? new THREE.Color('#9a5a3e').offsetHSL(0, 0, rnd(-0.06, 0.05)) : null); nb++; }
-  addBuildingMeshes(ctx, walls, roofs);
+    if (isT) pushBuilding(mw, mr, rings, y0, y1, col(osmColor(b.colour) || '#d6c8ad', '#d6c8ad').offsetHSL(0, 0, rnd(-0.03, 0.03)));
+    else pushBuilding(walls, roofs, rings, y0, y1, colBuilding(b.colour), b.h < 14 && Math.random() < 0.6 ? new THREE.Color('#9a5a3e').offsetHSL(0, 0, rnd(-0.06, 0.05)) : null); nb++; }
+  addBuildingMeshes(ctx, walls, roofs); if (mw.pos.length) addBuildingMeshes(ctx, mw, mr, true);
   // copaci in paduri/parcuri reale (pana la 2500)
   let nt = 0; const woods = areas.filter(a => a.kind === 'wood' || a.kind === 'park'); if (woods.length) { const pts = [];
     for (const a of woods) { const bb = new THREE.Box2(); a.ring.forEach(([x, z]) => bb.expandByPoint(new THREE.Vector2(x, z))); const s = new THREE.Vector2(); bb.getSize(s); const dens = a.kind === 'wood' ? 1 / 70 : 1 / 180; const n = Math.min(600, Math.floor(s.x * s.y * dens));

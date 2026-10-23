@@ -501,7 +501,7 @@ async function realSpace(ctx, spec) {
   const DIRS = { sud: 180, nord: 0, est: 90, vest: 270, south: 180, north: 0, east: 90, west: 270, 'sud-est': 135, 'sud-vest': 225, 'nord-est': 45, 'nord-vest': 315 };
   const named = spec.view_from_deg !== undefined || (spec.view_from && DIRS[String(spec.view_from).toLowerCase()] !== undefined);
   const az0 = num(spec.view_from_deg, DIRS[String(spec.view_from || 'sud').toLowerCase()] ?? 180);
-  const want = num(spec.distance, target ? clamp(Math.max(tH * 2.6, tSize * 0.9) + 10, 22, 480) : 4);
+  const want = num(spec.distance, target ? clamp(Math.max(tH * 2.6, tSize * 1.35) + 10, 22, 520) : 4); // tinta incape in cadru (FOV vertical 28 grade, orizontal ~47)
   const bearings = named ? [az0] : [...Array(16)].map((_, i) => i * 22.5);
   const dists = spec.distance !== undefined ? [want, want * 1.15, want * 0.85, want * 1.35, want * 1.6] : [want, want * 0.75, want * 1.3, want * 1.7, want * 0.5, want * 2.2, want * 3];
   const waters = areas.filter(a => a.kind === 'water'); const wetAt = (x, z) => waters.some(a => inPoly(x, z, a.ring)) || roads.some(r => r.cls === 'waterway' && r.w > 6 && r.pts.some((p, i) => i && distSeg(x, z, r.pts[i - 1], p) < r.w / 2 + 2));

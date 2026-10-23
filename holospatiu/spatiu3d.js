@@ -25,7 +25,7 @@ const fetchT = (url, ms = 15000, opt = {}) => withTimeout(fetch(url, opt), ms, u
 // sky.type: fizic (cer real cu soare, ora din hour) | gradient (top/horizon/bottom) | cosmos (negru cu stele)
 export const PRESETS = {
   plaja: { label: 'Plaja', sky: { type: 'fizic', hour: 15 }, ground: { type: 'teren', elev: 6, mount: 0.4, low: '#e3cf98', mid: '#d8c089', high: '#8f9a5a', peak: '#7a7a6a', beach: 16 }, water: { level: -0.9, color: '#2f7fa8', waves: true }, fog: { color: '#cfe4f2', near: 60, far: 600 },
-    elements: [{ kind: 'palmieri', count: 40, min: 7, radius: 90 }, { kind: 'pietre', count: 40, min: 6, radius: 80, color: '#9b9182' }] },
+    elements: [{ kind: 'palmieri', count: 70, min: 6, radius: 50 }, { kind: 'pietre', count: 40, min: 6, radius: 80, color: '#9b9182' }] },
   ocean: { label: 'Ocean', sky: { type: 'fizic', hour: 16 }, ground: { type: 'apa' }, water: { level: -0.02, color: '#1f5f86', waves: true }, platform: true, fog: { color: '#c9dcea', near: 80, far: 900 },
     elements: [{ kind: 'nori', count: 40 }] },
   insula: { label: 'Insula tropicala', sky: { type: 'fizic', hour: 13 }, ground: { type: 'teren', elev: 10, mount: 0.8, low: '#e6d3a0', mid: '#4f8a35', high: '#3d6e2c', peak: '#6b6458', island: 70 }, water: { level: -0.9, color: '#2a8bb0', waves: true }, fog: { color: '#d4e8f4', near: 80, far: 900 },
@@ -258,7 +258,7 @@ const ELEM = {
   cladiri(ctx, e) { // oras procedural: blocuri pe grila de strazi, inaltimi variate, ferestre reale (noaptea aprinse)
     const n = clamp(num(e.count, 200), 1, 1500), R = num(e.radius, 250), minD = num(e.min, 14); const blk = num(e.block, 34), road = num(e.road, 14); const boxes = [];
     for (let gx = -Math.ceil(R / blk); gx <= Math.ceil(R / blk); gx++) for (let gz = -Math.ceil(R / blk); gz <= 1; gz++) {
-      const cx = gx * blk, cz = gz * blk - blk / 2 - road / 2 - 4; const d = Math.hypot(cx, cz); if (d > R || d < minD) continue; if (Math.abs(cx) < road / 2 + blk / 2 && cz > -minD * 1.5) continue;
+      const cx = gx * blk + Math.sign(gx) * 6, cz = gz * blk - blk / 2 - road / 2 - 4; const d = Math.hypot(cx, cz); if (d > R || d < minD) continue; if (gx === 0) continue; // bulevardul din spatele lui Kelion ramane liber
       const parts = Math.random() < 0.5 ? 1 : 2; for (let p = 0; p < parts; p++) { const w = (blk - road) / parts - 1, dd = blk - road - 2; const hgt = clamp(rnd(8, 40) * (1 + 2.2 * Math.exp(-d / 120)) * (Math.random() < 0.08 ? 2.5 : 1), 6, 180) * num(e.size, 1);
         boxes.push({ x: cx - (blk - road) / 2 + w / 2 + p * (w + 1) + 0.5, z: cz, w, d: dd, h: hgt }); } }
     boxes.sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z)); const use = boxes.slice(0, n); const walls = newBuf(), roofs = newBuf();
@@ -501,12 +501,14 @@ async function realSpace(ctx, spec) {
   const want = num(spec.distance, target ? clamp(Math.max(tH * 2.6, tSize * 0.9) + 10, 22, 480) : 4);
   const bearings = named ? [az0] : [...Array(16)].map((_, i) => i * 22.5);
   const dists = spec.distance !== undefined ? [want, want * 1.15, want * 0.85, want * 1.35, want * 1.6] : [want, want * 0.75, want * 1.3, want * 1.7, want * 0.5, want * 2.2, want * 3];
+  const waters = areas.filter(a => a.kind === 'water'); const wetAt = (x, z) => waters.some(a => inPoly(x, z, a.ring)) || roads.some(r => r.cls === 'waterway' && r.w > 6 && r.pts.some((p, i) => i && distSeg(x, z, r.pts[i - 1], p) < r.w / 2 + 2));
   let pickC = null;
   for (const a of bearings) { const ar = a * D2R, ux = Math.sin(ar), uz = -Math.cos(ar);
     for (const d of dists) { const px0 = tx + ux * d, pz0 = tz + uz * d; if (Math.hypot(px0, pz0) > R * 1.15) continue;
       if (nearB(px0, pz0, 3.2) || nearB(px0 + ux * 2.3, pz0 + uz * 2.3, 1.6) || nearB(px0 + ux * 4.8, pz0 + uz * 4.8, 1.6) || (tring && inPoly(px0, pz0, tring))) continue; // Kelion si camera stau pe loc liber
       let obs = 0; const Lm = target ? d : d + 60;
       for (let t = 3; t < Lm; t += 4) { const qx = px0 - ux * t, qz = pz0 - uz * t; if (tring && inPoly(qx, qz, tring)) break; const ob = insideB(qx, qz, tset); if (ob && ob.h > 3) obs += t < 40 ? 3 : 1; }
+      if (wetAt(px0, pz0)) continue; // nu pe apa
       const cost = obs * 4 + Math.abs(d - want) / want * 3 + (named ? 0 : Math.abs(((a - 180 + 540) % 360) - 180) / 180 * 0.6);
       if (!pickC || cost < pickC.cost) pickC = { cost, sx: px0, sz: pz0, a, d, obs }; } }
   if (!pickC) { const ar = az0 * D2R, ux = Math.sin(ar), uz = -Math.cos(ar); let d = want; while (d < want + 400 && nearB(tx + ux * d, tz + uz * d, 3.2)) d += 5; pickC = { sx: tx + ux * d, sz: tz + uz * d, a: az0, d, obs: -1 }; }

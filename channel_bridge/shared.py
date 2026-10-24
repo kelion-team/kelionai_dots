@@ -7,6 +7,9 @@ from orchestration.report_outbox import ReportOutbox
 
 IDENTITY = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$')
 PARTICIPANTS = ('chatgpt', 'work', 'kelion', 'cloud', 'contabo')
+# Optional identities join only when the host has their own distinct credential.
+# 'claude' is Claude from Anthropic: a separate participant, never an alias of 'cloud' (Codex).
+OPTIONAL_PARTICIPANTS = ('claude',)
 
 
 class ChannelError(ValueError):

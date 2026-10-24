@@ -14,7 +14,7 @@ if __package__ in (None, ""):
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
-from channel_bridge.shared import PARTICIPANTS
+from channel_bridge.shared import PARTICIPANTS, OPTIONAL_PARTICIPANTS
 
 MAX_RESPONSE = 8 * 1024 * 1024
 MAX_REQUEST = 262144
@@ -135,7 +135,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--base-url', default=os.environ.get('KELION_CHANNEL_URL'))
     parser.add_argument('--token-env', help='Private credential variable; defaults to the selected participant')
-    parser.add_argument('--participant', required=True, choices=PARTICIPANTS)
+    parser.add_argument('--participant', required=True, choices=PARTICIPANTS + OPTIONAL_PARTICIPANTS)
     commands = parser.add_subparsers(dest='operation', required=True)
     commands.add_parser('health')
     commands.add_parser('stdio')

@@ -96,5 +96,52 @@ class ClaudeIdentityTests(unittest.TestCase):
             self.assertNotIn(tokens['cloud'], result.stdout + result.stderr)
 
 
+class ClaudeActivationLifecycleTests(unittest.TestCase):
+    """Enabling or disabling the optional identity must not break stored conversations."""
+    def serve(self, path, tokens):
+        server = make_server(path, 'owner', tokens, port=0)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        stop = lambda: (server.shutdown(), server.server_close(), worker.join(3))
+        return {peer: ChannelClient(base, token, expected_participant=peer) for peer, token in tokens.items()}, stop
+
+    def test_broadcast_retry_after_enabling_claude_stays_idempotent(self):
+        five = {peer: secrets.token_urlsafe(32) for peer in PARTICIPANTS}
+        six = dict(five, claude=secrets.token_urlsafe(32))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'channel.sqlite'
+            clients, stop = self.serve(path, five)
+            first = clients['kelion'].send({'id': 'b-1', 'correlation_id': 'c', 'text': 'inainte de claude'})
+            stop()
+            clients, stop = self.serve(path, six)
+            try:
+                again = clients['kelion'].send({'id': 'b-1', 'correlation_id': 'c', 'text': 'inainte de claude'})
+                self.assertEqual(again['sha256'], first['sha256'])
+                self.assertNotIn('claude', again['recipients'])
+                new = clients['kelion'].send({'id': 'b-2', 'correlation_id': 'c', 'text': 'dupa claude'})
+                self.assertIn('claude', new['recipients'])
+            finally:
+                stop()
+
+    def test_implicit_replies_continue_after_disabling_claude(self):
+        five = {peer: secrets.token_urlsafe(32) for peer in PARTICIPANTS}
+        six = dict(five, claude=secrets.token_urlsafe(32))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'channel.sqlite'
+            clients, stop = self.serve(path, six)
+            first = clients['kelion'].send({'id': 'b-1', 'correlation_id': 'c', 'text': 'cu claude activ'})
+            self.assertIn('claude', first['recipients'])
+            stop()
+            clients, stop = self.serve(path, five)
+            try:
+                reply = clients['cloud'].send({'id': 'r-1', 'correlation_id': 'c', 'reply_to': 'b-1', 'text': 'continuam'})
+                self.assertEqual(sorted(reply['recipients']), sorted(set(PARTICIPANTS) - {'cloud'}))
+                again = clients['kelion'].send({'id': 'b-1', 'correlation_id': 'c', 'text': 'cu claude activ'})
+                self.assertEqual(again['sha256'], first['sha256'])
+            finally:
+                stop()
+
+
 if __name__ == '__main__':
     unittest.main()

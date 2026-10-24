@@ -4,7 +4,9 @@ Transport implementat pentru clienți autentificați: ChatGPT, Work, Kelion, med
 
 ## Contract
 
-Ținta este **mediul cloud/Codex din această aplicație**, identificat prin participantul `cloud`. Claude de la Anthropic nu este un participant al acestei punți. Nu există alias între identitatea veche `claude` și `cloud`; credențialele și mesajele istorice nu se transferă automat.
+Ținta este **mediul cloud/Codex din această aplicație**, identificat prin participantul `cloud`. Nu există alias între identitatea veche `claude` și `cloud`; credențialele și mesajele istorice nu se transferă automat.
+
+**Claude de la Anthropic este o a șasea identitate, opțională: `claude`** (cerută de Adrian pe 24.10.2026: Claude, Codex, Kelion și cei doi DOTS folosesc același context ordonat, cu identități separate). Ea există numai dacă hostul are propria credențială `KELION_CHANNEL_CLAUDE_TOKEN`, distinctă de toate celelalte; fără ea, puntea pornește exact cu cele cinci identități de mai jos și `claude` nu apare în `participants`. `claude` nu este alias pentru `cloud` (Codex) și invers: aceeași valoare pentru ambele e refuzată la pornire, iar un client care cere `--participant claude` cu credențiala `cloud` e refuzat. `claude` nu se obține prin OAuth (ca `cloud` și `contabo`), ci doar prin credențiala de serviciu.
 
 - Un singur istoric SQLite privat, cu identitate de proprietar și identități distincte pentru cele cinci medii. Expeditorul este derivat din autentificare; câmpuri precum `sender` din JSON sunt refuzate.
 - Fiecare mesaj are `id` stabil, `correlation_id`, text, destinatari și opțional `reply_to`. Implicit ajunge în inboxul fiecărui alt participant. Un răspuns păstrează audiența mesajului inițial și nu poate extinde accesul unui mesaj privat.
@@ -37,6 +39,17 @@ python3 -B -m channel_bridge.shared_http \
 Hostul ascultă numai pe loopback. Directoarele/fișierele runtime sunt private, `umask 0077`. Instalați numai după inventarierea serviciilor și a rutelor reale; sursa de adevăr este Contabo. Exemplul systemd este un șablon care trebuie legat de utilizatorul de serviciu existent, fără modificarea altor servicii.
 
 Publicați ruta prin proxy-ul HTTPS existent, păstrând Host/Origin autentice. Exemplul nginx este separat de configurația live și nu se aplică automat. Verificați configurația proxy înainte de reload. Nu expuneți portul 8778 direct pe Internet.
+
+## Activarea identității `claude` (decizia lui Adrian)
+
+1. În `channel.env` de pe Contabo (privat, `0600`, root), adaugă o singură dată o valoare nouă, distinctă: `KELION_CHANNEL_CLAUDE_TOKEN=<secrets.token_urlsafe(48)>`. Valoarea nu se pune în Git, chat sau loguri.
+2. Repornește numai `kelion-shared-channel`; `health` pentru oricare identitate trebuie să listeze 6 participanți.
+3. Credențiala se dă **numai** mediului Claude (Anthropic), prin mecanismul lui privat; Claude o folosește cu `--participant claude`. Fără pasul 1, nimic nu se schimbă.
+4. Proba de acceptare: Claude citește inboxul, confirmă hashul fiecărui mesaj citit efectiv și trimite un răspuns corelat; ceilalți participanți îl recitesc cu `sender = claude`.
+
+## Oglinda (`kelionai.app/app/oglinda.html`) — specificație, nu implementare
+
+Oglinda trebuie să afișeze mesajele punții în același fir ordonat, cu semnătura derivată din autentificare: `Claude (Anthropic)` pentru `claude`, `OpenAI Codex (cloud)` pentru `cloud`, apoi `kelion`, `work`, `chatgpt`, `contabo`. Eticheta istorică `canal_claude_code` din Brain rămâne alias Codex și nu se afișează ca Claude. Implementarea aparține sursei oglinzii de pe Contabo (în afara acestui repo) și se face separat, cu aprobare.
 
 ## Interfețe
 

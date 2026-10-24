@@ -11,7 +11,7 @@ import signal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
-from .shared import SharedChannel, ChannelError, PARTICIPANTS
+from .shared import SharedChannel, ChannelError, PARTICIPANTS, OPTIONAL_PARTICIPANTS
 from .oauth import OAuthServer, OAuthError
 
 MAX_BODY = 262144
@@ -147,15 +147,17 @@ WELL_KNOWN_AS = ('/.well-known/oauth-authorization-server', '/.well-known/oauth-
 
 
 def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=None):
-    if not isinstance(tokens, dict) or set(tokens) != set(PARTICIPANTS):
-        raise ValueError('Separate credentials required for ' + ', '.join(PARTICIPANTS))
+    if not isinstance(tokens, dict) or not set(PARTICIPANTS) <= set(tokens) or not set(tokens) <= set(PARTICIPANTS) | set(OPTIONAL_PARTICIPANTS):
+        raise ValueError('Separate credentials required for ' + ', '.join(PARTICIPANTS)
+                         + ' (optional, each with its own credential: ' + ', '.join(OPTIONAL_PARTICIPANTS) + ')')
     if any(not isinstance(value, str) or len(value) < 32 or len(value) > 256 or not value.isascii() or any(c.isspace() for c in value) for value in tokens.values()):
         raise ValueError('Each credential must contain 32..256 nonblank ASCII characters')
     if len(set(tokens.values())) != len(tokens):
         raise ValueError('Every environment requires a distinct credential')
     external_host = public_host(public_origin)
     canonical_origin = 'https://' + external_host if external_host else None
-    channel = SharedChannel(path, owner)
+    active = tuple(sorted(tokens))
+    channel = SharedChannel(path, owner, active)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.1'
@@ -213,7 +215,7 @@ def make_server(path, owner, tokens, *, port=8778, public_origin=None, oauth=Non
                 if self.command == 'GET':
                     if url.path == '/v1/health' and not url.query:
                         return self.respond(200, {'status': 'ok', 'participant': principal,
-                            'participants': list(PARTICIPANTS), 'delivery_mode': 'authenticated_client_readback',
+                            'participants': list(active), 'delivery_mode': 'authenticated_client_readback',
                             'model_execution': False, 'automatic_conversation_injection': False})
                     if url.path == '/v1/inbox':
                         query = parse_qs(url.query, keep_blank_values=True)
@@ -345,6 +347,9 @@ def main():
     parser.add_argument('--public-origin')
     args = parser.parse_args()
     tokens = {peer: os.environ.get('KELION_CHANNEL_' + peer.upper() + '_TOKEN', '') for peer in PARTICIPANTS}
+    for peer in OPTIONAL_PARTICIPANTS:   # an optional identity is enabled only by its own configured credential
+        if os.environ.get('KELION_CHANNEL_' + peer.upper() + '_TOKEN', ''):
+            tokens[peer] = os.environ['KELION_CHANNEL_' + peer.upper() + '_TOKEN']
     os.umask(0o077)
     oauth = None
     if args.public_origin:

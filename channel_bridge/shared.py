@@ -7,6 +7,9 @@ from orchestration.report_outbox import ReportOutbox
 
 IDENTITY = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$')
 PARTICIPANTS = ('chatgpt', 'work', 'kelion', 'cloud', 'contabo')
+# Optional identities join only when the host has their own distinct credential.
+# 'claude' is Claude from Anthropic: a separate participant, never an alias of 'cloud' (Codex).
+OPTIONAL_PARTICIPANTS = ('claude',)
 
 
 class ChannelError(ValueError):
@@ -73,6 +76,18 @@ class SharedChannel:
         finally:
             box.close()
 
+    def _stored(self, message_id):
+        box = self._open()
+        try:
+            row = box.db.execute('SELECT payload FROM reports WHERE owner=? AND event_id=?', (self.owner, message_id)).fetchone()
+        finally:
+            box.close()
+        try:
+            payload = json.loads(row[0]) if row else None
+        except ValueError:
+            return None
+        return payload if isinstance(payload, dict) and isinstance(payload.get('recipients'), list) else None
+
     def send(self, participant, message):
         self._participant(participant)
         required = {'id', 'correlation_id', 'text'}
@@ -94,11 +109,17 @@ class SharedChannel:
             raise ChannelError('Reply correlation must match the original message')
         default_recipients = (set(original['recipients']) | {original['sender']} if original
                               else set(self.participants)) - {participant}
-        recipients = message.get('recipients', sorted(default_recipients))
+        implicit = sorted(default_recipients & set(self.participants))   # an optional identity may be disabled later
+        retry = False
+        if 'recipients' not in message:
+            stored = self._stored(message_id)
+            if stored is not None and stored['sender'] == participant:
+                implicit, retry = stored['recipients'], True   # idempotent retry keeps the audience stored originally
+        recipients = message.get('recipients', implicit)
         if not isinstance(recipients, list) or not recipients or not all(isinstance(x, str) for x in recipients):
             raise ChannelError('Explicit recipients must be a nonempty list')
         recipients = sorted(set(recipients))
-        if any(peer not in self.participants or peer == participant for peer in recipients):
+        if any((peer not in self.participants and not retry) or peer == participant for peer in recipients):
             raise ChannelError('Recipients must be registered peers other than the sender')
         if original and not set(recipients) <= default_recipients:
             raise ChannelError('A reply cannot expand access to the original conversation')
